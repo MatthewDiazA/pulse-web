@@ -12,20 +12,14 @@ function AuthButton() {
 
   if (user) {
     return (
-      <button
-        style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', border:'none', cursor:'pointer', fontFamily:'DM Sans,sans-serif'}}
-        onClick={async () => {
-          const supabase = createClient()
-          await supabase.auth.signOut()
-          window.location.reload()
-        }}
-      >
-        Sign out
-      </button>
+      <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+        <a href="/host/create" style={{background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>+ Create event</a>
+        <a href="/account" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Account</a>
+      </div>
     )
   }
 
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none'}}>Sign in</a>
+  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
 }
 
 export default function Home() {
@@ -77,13 +71,13 @@ export default function Home() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; }
         .wrap { max-width:1100px; margin:0 auto; padding:0 40px; }
         nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 0; background:rgba(10,10,11,0.95); position:sticky; top:0; z-index:100; }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Barlow Condensed',sans-serif; font-size:42px; letter-spacing:8px; color:#e8ff47; cursor:pointer; font-weight:900; text-transform:uppercase; line-height:1; }
+        .logo { font-family:'Anton',sans-serif; font-size:42px; letter-spacing:1px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; }
         .nav-links { display:flex; gap:28px; align-items:center; }
         .nav-links a { font-size:13px; color:#888; text-decoration:none; font-family:'DM Sans',sans-serif; }
         .nav-links a:hover { color:#f0f0f0; }
@@ -118,6 +112,7 @@ export default function Home() {
         .empty a { color:#e8ff47; text-decoration:none; }
         .bottom { display:flex; align-items:center; justify-content:space-between; padding:28px 0; font-family:'DM Sans',sans-serif; }
         .showing { font-size:13px; color:#888; }
+        .nav-mobile-btn { display:none !important; }
         @media(max-width:680px){
           .wrap { padding:0 20px; }
           .hero h1 { font-size:64px; }
@@ -129,14 +124,14 @@ export default function Home() {
 
       <nav>
         <div className="wrap nav-inner">
-          <div className="logo" onClick={() => window.location.href='/'}>PULSE</div>
+          <div className="logo" onClick={() => window.location.href='/'}>pulse</div>
           <div className="nav-links">
             <a href="#">Discover</a>
             <a href="#">Near me</a>
             <a href="/host">Host an event</a>
             <AuthButton/>
           </div>
-          <a href="/login" className="nav-mobile-btn" style={{display:'none', background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none'}}>Sign in</a>
+          <a href="/account" className="nav-mobile-btn" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none'}}>Account</a>
         </div>
       </nav>
 
