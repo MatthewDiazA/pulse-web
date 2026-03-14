@@ -24,13 +24,13 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; font-family:'DM Sans',sans-serif; }
         .page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
         .card { background:#16161a; border:0.5px solid rgba(255,255,255,0.14); border-radius:14px; padding:40px; width:100%; max-width:400px; }
-        .logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:4px; color:#e8ff47; margin-bottom:24px; cursor:pointer; }
-        .heading { font-family:'Bebas Neue',sans-serif; font-size:32px; color:#f0f0f0; margin-bottom:4px; letter-spacing:0.5px; }
+        .logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:28px; letter-spacing:4px; color:#e8ff47; margin-bottom:24px; cursor:pointer; }
+        .heading { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:32px; color:#f0f0f0; margin-bottom:4px; letter-spacing:0.5px; }
         .sub { font-size:14px; color:#888; margin-bottom:28px; }
         .divider { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
         .divider-line { flex:1; height:0.5px; background:rgba(255,255,255,0.08); }

@@ -91,13 +91,13 @@ const handleCheckout = async () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; }
         .wrap { max-width:1100px; margin:0 auto; padding:0 40px; }
         nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 0; background:#0a0a0b; position:sticky; top:0; z-index:100; }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
+        .logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
         .back { font-size:13px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .hero { width:100%; height:400px; background:#0d0a1a; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
         .hero-tag { position:absolute; top:20px; left:20px; font-size:11px; padding:4px 12px; border-radius:100px; background:rgba(232,255,71,0.18); color:#e8ff47; border:0.5px solid rgba(232,255,71,0.3); text-transform:uppercase; letter-spacing:0.5px; }
@@ -105,7 +105,7 @@ const handleCheckout = async () => {
         .content { display:grid; grid-template-columns:1fr 380px; gap:48px; padding:40px 0 80px; align-items:start; }
         @media(max-width:800px){ .content { grid-template-columns:1fr; } }
         .event-date { font-size:13px; color:#e8ff47; letter-spacing:0.8px; text-transform:uppercase; font-weight:500; margin-bottom:12px; }
-        .event-title { font-family:'Bebas Neue',sans-serif; font-size:64px; line-height:0.95; letter-spacing:1px; color:#f0f0f0; margin-bottom:16px; }
+        .event-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:64px; line-height:0.95; letter-spacing:1px; color:#f0f0f0; font-weight:900; margin-bottom:16px; }
         .host-row { display:flex; align-items:center; gap:10px; margin-bottom:32px; }
         .host-avatar { width:32px; height:32px; border-radius:50%; background:rgba(232,255,71,0.2); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:#e8ff47; }
         .host-name { font-size:13px; color:#888; }
@@ -118,7 +118,7 @@ const handleCheckout = async () => {
         .info-sub { font-size:12px; color:#888; margin-top:2px; }
         .panel { background:#16161a; border:0.5px solid rgba(255,255,255,0.14); border-radius:14px; overflow:hidden; position:sticky; top:80px; }
         .panel-header { padding:24px 24px 0; }
-        .panel-title { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:0.5px; color:#f0f0f0; margin-bottom:4px; }
+        .panel-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; letter-spacing:0.5px; color:#f0f0f0; margin-bottom:4px; }
         .panel-sub { font-size:13px; color:#888; margin-bottom:20px; }
         .divider { height:0.5px; background:rgba(255,255,255,0.08); }
         .tiers { padding:20px 24px; }
@@ -127,7 +127,7 @@ const handleCheckout = async () => {
         .tier.selected { border-color:#e8ff47; background:rgba(232,255,71,0.04); }
         .tier-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
         .tier-name { font-size:14px; font-weight:500; color:#f0f0f0; }
-        .tier-price { font-family:'Bebas Neue',sans-serif; font-size:22px; color:#e8ff47; }
+        .tier-price { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; color:#e8ff47; }
         .tier-price.free { color:#ff4fd8; }
         .tier-desc { font-size:12px; color:#888; margin-bottom:4px; }
         .tier-avail { font-size:11px; color:#555; }

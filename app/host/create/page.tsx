@@ -91,14 +91,14 @@ export default function CreateEvent() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; font-family:'DM Sans',sans-serif; color:#f0f0f0; }
         .wrap { max-width:720px; margin:0 auto; padding:0 40px 80px; }
         nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 40px; background:#0a0a0b; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
+        .logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
         .back { font-size:13px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
-        .page-title { font-family:'Bebas Neue',sans-serif; font-size:48px; letter-spacing:1px; color:#f0f0f0; padding:40px 0 8px; }
+        .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:48px; letter-spacing:1px; color:#f0f0f0; padding:40px 0 8px; }
         .page-sub { font-size:14px; color:#888; margin-bottom:40px; }
         .steps { display:flex; gap:8px; margin-bottom:8px; }
         .step-dot { flex:1; height:3px; border-radius:100px; background:rgba(255,255,255,0.1); transition:background 0.2s; }

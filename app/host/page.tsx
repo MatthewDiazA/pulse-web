@@ -41,23 +41,23 @@ export default function HostDashboard() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; font-family:'DM Sans',sans-serif; color:#f0f0f0; }
         .wrap { max-width:1100px; margin:0 auto; padding:0 40px; }
         nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 0; background:#0a0a0b; position:sticky; top:0; z-index:100; }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
+        .logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
         .nav-right { display:flex; align-items:center; gap:12px; }
         .back { font-size:13px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .create-btn { background:#e8ff47; color:#0a0a0b; font-size:13px; font-weight:500; padding:8px 18px; border-radius:6px; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .page-header { padding:40px 0 32px; border-bottom:0.5px solid rgba(255,255,255,0.08); }
-        .page-title { font-family:'Bebas Neue',sans-serif; font-size:48px; letter-spacing:1px; color:#f0f0f0; margin-bottom:4px; }
+        .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:48px; letter-spacing:1px; color:#f0f0f0; margin-bottom:4px; }
         .page-sub { font-size:14px; color:#888; }
         .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:32px 0; }
         .stat { background:#16161a; border-radius:8px; padding:16px; }
         .stat-label { font-size:11px; color:#888; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:8px; }
-        .stat-value { font-family:'Bebas Neue',sans-serif; font-size:32px; color:#f0f0f0; letter-spacing:0.5px; }
+        .stat-value { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:32px; color:#f0f0f0; letter-spacing:0.5px; }
         .stat-value.green { color:#e8ff47; }
         .tabs { display:flex; gap:0; border-bottom:0.5px solid rgba(255,255,255,0.08); margin-bottom:24px; }
         .tab { font-size:13px; color:#888; padding:12px 20px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-0.5px; font-family:'DM Sans',sans-serif; background:none; border-top:none; border-left:none; border-right:none; }

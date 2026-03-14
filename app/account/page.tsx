@@ -39,16 +39,16 @@ export default function AccountPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; font-family:'DM Sans',sans-serif; color:#f0f0f0; }
         .wrap { max-width:800px; margin:0 auto; padding:0 40px 80px; }
         nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 40px; background:#0a0a0b; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
+        .logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
         .nav-right { display:flex; gap:12px; align-items:center; }
         .nav-btn { font-size:13px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .nav-btn:hover { color:#f0f0f0; }
-        .page-title { font-family:'Bebas Neue',sans-serif; font-size:48px; letter-spacing:1px; padding:40px 0 8px; }
+        .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:48px; letter-spacing:1px; padding:40px 0 8px; }
         .page-sub { font-size:14px; color:#888; margin-bottom:40px; }
         .success-banner { background:rgba(232,255,71,0.1); border:0.5px solid rgba(232,255,71,0.3); border-radius:10px; padding:16px 20px; margin-bottom:32px; display:flex; align-items:center; gap:12px; }
         .success-text { font-size:14px; color:#e8ff47; }
@@ -64,7 +64,7 @@ export default function AccountPage() {
         .ticket-qr { text-align:center; }
         .qr-box { width:60px; height:60px; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.14); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:28px; }
         .qr-label { font-size:10px; color:#555; margin-top:4px; }
-        .ticket-price { font-family:'Bebas Neue',sans-serif; font-size:20px; color:#e8ff47; text-align:right; min-width:60px; }
+        .ticket-price { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:20px; color:#e8ff47; text-align:right; min-width:60px; }
         .empty { text-align:center; padding:60px 20px; color:#555; font-size:14px; }
         .empty a { color:#e8ff47; text-decoration:none; }
         .loading { text-align:center; padding:60px 20px; color:#555; font-size:14px; }
