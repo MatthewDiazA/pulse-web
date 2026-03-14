@@ -26,6 +26,7 @@ export default function Home() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [userCity, setUserCity] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -41,7 +42,31 @@ export default function Home() {
     fetchEvents()
   }, [])
 
-  const filtered = filter === 'all' ? events : events.filter(e => e.category === filter)
+  const handleNearMe = () => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
+          const data = await res.json()
+          const city = data.address?.city ?? data.address?.town ?? data.address?.village ?? null
+          setUserCity(city)
+          setFilter('nearme')
+        } catch {
+          setFilter('nearme')
+        }
+      },
+      () => alert('Please enable location access to use Near me')
+    )
+  }
+
+  const filtered = (() => {
+    if (filter === 'all') return events
+    if (filter === 'nearme') {
+      if (userCity) return events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase()))
+      return events
+    }
+    return events.filter(e => e.category === filter)
+  })()
 
   const categoryColors: Record<string, string> = {
     nightlife: 'tag-nightlife',
@@ -105,7 +130,6 @@ export default function Home() {
         .card-venue { font-size:13px; color:#888; margin-bottom:14px; font-family:'DM Sans',sans-serif; }
         .card-footer { display:flex; align-items:center; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.08); padding-top:14px; }
         .price { font-family:'Barlow Condensed',sans-serif; font-size:22px; color:#e8ff47; font-weight:900; }
-        .price-free { color:#ff4fd8; }
         .ticket-btn { background:#e8ff47; color:#0a0a0b; font-size:12px; font-weight:500; padding:7px 16px; border-radius:6px; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .ticket-btn:hover { opacity:0.88; }
         .empty { text-align:center; padding:80px 20px; color:#555; font-size:15px; font-family:'DM Sans',sans-serif; }
@@ -126,9 +150,7 @@ export default function Home() {
         <div className="wrap nav-inner">
           <div className="logo" onClick={() => window.location.href='/'}>pulse</div>
           <div className="nav-links">
-            <a href="#">Discover</a>
-            <a href="#">Near me</a>
-            <a href="/host">Host an event</a>
+            
             <AuthButton/>
           </div>
           <a href="/account" className="nav-mobile-btn" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none'}}>Account</a>
@@ -147,8 +169,13 @@ export default function Home() {
             { label: 'Nightlife', value: 'nightlife' },
             { label: 'Concerts', value: 'concert' },
             { label: 'Festivals', value: 'festival' },
+            { label: '📍 Near me', value: 'nearme' },
           ].map(f => (
-            <div key={f.value} className={`pill ${filter === f.value ? 'active' : ''}`} onClick={() => setFilter(f.value)}>
+            <div
+              key={f.value}
+              className={`pill ${filter === f.value ? 'active' : ''}`}
+              onClick={() => f.value === 'nearme' ? handleNearMe() : setFilter(f.value)}
+            >
               {f.label}
             </div>
           ))}
@@ -158,7 +185,9 @@ export default function Home() {
           <div className="empty">Loading events...</div>
         ) : filtered.length === 0 ? (
           <div className="empty">
-            {events.length === 0
+            {filter === 'nearme'
+              ? 'No events found near you yet.'
+              : events.length === 0
               ? <>No events yet. <a href="/host/create">Create the first one →</a></>
               : 'No events in this category yet.'
             }
