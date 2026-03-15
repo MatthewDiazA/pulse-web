@@ -51,6 +51,8 @@ export default function EventPage({ params }: { params: Promise<{ id: string }> 
     setCheckoutLoading(true)
 
     if (tier.price === 0) {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
       const res = await fetch('/api/checkout/free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,6 +62,9 @@ export default function EventPage({ params }: { params: Promise<{ id: string }> 
           tier_name: tier.name,
           event_title: event.title,
           quantity,
+          user_id: user?.id ?? null,
+          buyer_email: user?.email ?? '',
+          buyer_name: user?.user_metadata?.full_name ?? '',
         }),
       })
       const data = await res.json()
