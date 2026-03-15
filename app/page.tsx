@@ -30,6 +30,36 @@ function AuthButton() {
   return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
 }
 
+function MobileNavBtn() {
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+  }, [])
+
+  const name = user?.user_metadata?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? null
+
+  if (user) {
+    return (
+      <a href="/account" style={{
+        background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500,
+        padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
+        textDecoration:'none', fontFamily:'DM Sans,sans-serif',
+        textShadow:'0 0 8px rgba(232,255,71,0.5), 0 0 16px rgba(232,255,71,0.25)',
+      }}>
+        ✦ {name}
+      </a>
+    )
+  }
+
+  return (
+    <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>
+      Sign in
+    </a>
+  )
+}
+
 export default function Home() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -145,13 +175,12 @@ export default function Home() {
         .nav-inner { display:flex; align-items:center; justify-content:space-between; }
         .logo { font-family:'Anton',sans-serif; font-size:42px; letter-spacing:1px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; }
         .nav-links { display:flex; gap:28px; align-items:center; }
-        .hero { min-height:60vh; display:flex; align-items:center; padding:0 40px; max-width:1100px; margin:0 auto; }
+        .hero { padding:80px 40px 20px; max-width:1100px; margin:0 auto; }
         .hero h1 { font-family:'Barlow Condensed',sans-serif; font-size:clamp(64px,10vw,140px); line-height:0.9; color:#f0f0f0; letter-spacing:2px; font-weight:900; text-transform:uppercase; }
         .hero h1 span { color:#e8ff47; text-shadow:0 0 40px rgba(232,255,71,0.4); }
         .hero-sub { margin-top:16px; font-size:16px; color:#888; font-weight:300; font-family:'DM Sans',sans-serif; }
-        .hero-scroll { margin-top:40px; font-size:12px; color:rgba(255,255,255,0.3); letter-spacing:2px; text-transform:uppercase; font-family:'DM Sans',sans-serif; }
         .events-section { padding-top:0; }
-        .filters { padding:24px 40px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; max-width:1100px; margin:0 auto; }
+        .filters { padding:12px 40px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; max-width:1100px; margin:0 auto; }
         .pill { background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.14); border-radius:100px; padding:7px 16px; font-size:13px; color:#888; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; backdrop-filter:blur(8px); }
         .pill:hover { color:#f0f0f0; border-color:rgba(255,255,255,0.28); }
         .pill.active { background:#e8ff47; color:#0a0a0b; border-color:#e8ff47; font-weight:500; }
@@ -180,8 +209,8 @@ export default function Home() {
         .showing { font-size:13px; color:#555; }
         .nav-mobile-btn { display:none !important; }
         @media(max-width:680px){
-          .hero { padding:80px 40px 20px; max-width:1100px; margin:0 auto; }
-          .filters { padding:12px 40px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; max-width:1100px; margin:0 auto; }
+          .hero { padding:60px 20px 20px; }
+          .filters { padding:12px 20px; }
           .cards-wrap { padding:16px 20px 60px; }
           .nav-links { display:none; }
           .nav-mobile-btn { display:flex !important; }
@@ -203,16 +232,15 @@ export default function Home() {
             <div className="nav-links">
               <AuthButton/>
             </div>
-            <a href="/account" className="nav-mobile-btn" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none'}}>Account</a>
+            <div className="nav-mobile-btn">
+              <MobileNavBtn/>
+            </div>
           </div>
         </nav>
 
         <div className="hero">
-          <div>
-            <h1>Your city.<br/><span>Your night.</span></h1>
-            <p className="hero-sub">Find tickets to the best parties, concerts & shows near you.</p>
-            
-          </div>
+          <h1>Your city.<br/><span>Your night.</span></h1>
+          <p className="hero-sub">Find tickets to the best parties, concerts & shows near you.</p>
         </div>
 
         <div className="events-section">
