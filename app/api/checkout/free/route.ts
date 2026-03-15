@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 <body style="margin:0;padding:0;background:#0a0a0b;font-family:Arial,sans-serif;color:#f0f0f0;">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:40px 20px;">
 <tr><td>
-<div style="font-size:32px;font-weight:900;letter-spacing:4px;color:#e8ff47;margin-bottom:40px;">pulse</div>
+<div style="font-size:36px;font-weight:900;letter-spacing:6px;color:#e8ff47;margin-bottom:40px;font-family:Impact,'Arial Black',sans-serif;text-transform:lowercase;">pulse</div>
 <div style="background:#1a1a20;border:1px solid rgba(232,255,71,0.2);border-radius:20px;overflow:hidden;margin-bottom:32px;">
   <div style="height:4px;background:linear-gradient(90deg,#e8ff47,#ff4fd8);"></div>
   <div style="padding:32px;text-align:center;">
