@@ -53,8 +53,7 @@ const handleCheckout = async () => {
 
       if (data) {
         setEvent(data)
-        setTiers(data.ticket_tiers?.sort((a: any, b: any) => a.sort_order - b.sort_order) ?? [])
-      }
+        setTiers(data.ticket_tiers?.sort((a: any, b: any) => a.price - b.price) ?? [])      }
       setLoading(false)
     }
     fetchEvent()
