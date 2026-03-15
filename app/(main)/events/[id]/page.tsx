@@ -18,30 +18,6 @@ export default function EventPage({ params }: { params: Promise<{ id: string }> 
   const [quantity, setQuantity] = useState(1)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
-const handleCheckout = async () => {
-  if (!tier) return
-  setCheckoutLoading(true)
-  const res = await fetch('/api/checkout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      event_id: id,
-      tier_id: tier.id,
-      tier_name: tier.name,
-      price: total,
-      quantity,
-      event_title: event.title,
-    }),
-  })
-  const data = await res.json()
-  if (data.url) {
-    window.location.href = data.url
-  } else {
-    alert('Something went wrong: ' + data.error)
-    setCheckoutLoading(false)
-  }
-}
-
   useEffect(() => {
     const fetchEvent = async () => {
       const supabase = createClient()
@@ -53,7 +29,8 @@ const handleCheckout = async () => {
 
       if (data) {
         setEvent(data)
-        setTiers(data.ticket_tiers?.sort((a: any, b: any) => a.price - b.price) ?? [])      }
+        setTiers(data.ticket_tiers?.sort((a: any, b: any) => a.price - b.price) ?? [])
+      }
       setLoading(false)
     }
     fetchEvent()
@@ -61,12 +38,59 @@ const handleCheckout = async () => {
 
   const tier = tiers.find(t => t.id === selectedTier)
   const subtotal = tier ? tier.price * quantity : 0
-  const fee = +(subtotal * 0.1).toFixed(2)
+  const fee = tier?.price === 0 ? 0 : +(subtotal * 0.1).toFixed(2)
   const total = +(subtotal + fee).toFixed(2)
 
   const selectTier = (id: string) => {
     setSelectedTier(id)
     setQuantity(1)
+  }
+
+  const handleCheckout = async () => {
+    if (!tier) return
+    setCheckoutLoading(true)
+
+    if (tier.price === 0) {
+      const res = await fetch('/api/checkout/free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_id: id,
+          tier_id: tier.id,
+          tier_name: tier.name,
+          event_title: event.title,
+          quantity,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        window.location.href = '/account?order=success'
+      } else {
+        alert('Something went wrong: ' + data.error)
+        setCheckoutLoading(false)
+      }
+      return
+    }
+
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_id: id,
+        tier_id: tier.id,
+        tier_name: tier.name,
+        price: total,
+        quantity,
+        event_title: event.title,
+      }),
+    })
+    const data = await res.json()
+    if (data.url) {
+      window.location.href = data.url
+    } else {
+      alert('Something went wrong: ' + data.error)
+      setCheckoutLoading(false)
+    }
   }
 
   if (loading) return (
@@ -90,67 +114,72 @@ const handleCheckout = async () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#0a0a0b; }
         .wrap { max-width:1100px; margin:0 auto; padding:0 40px; }
         nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 0; background:#0a0a0b; position:sticky; top:0; z-index:100; }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:24px; letter-spacing:4px; color:#e8ff47; cursor:pointer; }
+        .logo { font-family:'Anton',sans-serif; font-size:42px; letter-spacing:1px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; }
         .back { font-size:13px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .hero { width:100%; height:400px; background:#0d0a1a; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
         .hero-tag { position:absolute; top:20px; left:20px; font-size:11px; padding:4px 12px; border-radius:100px; background:rgba(232,255,71,0.18); color:#e8ff47; border:0.5px solid rgba(232,255,71,0.3); text-transform:uppercase; letter-spacing:0.5px; }
         .hero-age { position:absolute; top:20px; right:20px; font-size:11px; padding:4px 12px; border-radius:100px; background:rgba(255,255,255,0.1); color:#f0f0f0; border:0.5px solid rgba(255,255,255,0.14); }
         .content { display:grid; grid-template-columns:1fr 380px; gap:48px; padding:40px 0 80px; align-items:start; }
         @media(max-width:800px){ .content { grid-template-columns:1fr; } }
-        .event-date { font-size:13px; color:#e8ff47; letter-spacing:0.8px; text-transform:uppercase; font-weight:500; margin-bottom:12px; }
-        .event-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:64px; line-height:0.95; letter-spacing:1px; color:#f0f0f0; font-weight:900; margin-bottom:16px; }
+        .event-date { font-size:13px; color:#e8ff47; letter-spacing:0.8px; text-transform:uppercase; font-weight:500; margin-bottom:12px; font-family:'DM Sans',sans-serif; }
+        .event-title { font-family:'Barlow Condensed',sans-serif; font-size:64px; line-height:0.95; letter-spacing:1px; color:#f0f0f0; margin-bottom:16px; font-weight:900; text-transform:uppercase; }
         .host-row { display:flex; align-items:center; gap:10px; margin-bottom:32px; }
         .host-avatar { width:32px; height:32px; border-radius:50%; background:rgba(232,255,71,0.2); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:#e8ff47; }
-        .host-name { font-size:13px; color:#888; }
-        .section-title { font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:14px; }
-        .description { font-size:15px; color:#888; line-height:1.75; font-weight:300; margin-bottom:40px; }
+        .host-name { font-size:13px; color:#888; font-family:'DM Sans',sans-serif; }
+        .section-title { font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:14px; font-family:'DM Sans',sans-serif; }
+        .description { font-size:15px; color:#888; line-height:1.75; font-weight:300; margin-bottom:40px; font-family:'DM Sans',sans-serif; }
         .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:rgba(255,255,255,0.08); border:0.5px solid rgba(255,255,255,0.08); border-radius:10px; overflow:hidden; margin-bottom:40px; }
         .info-cell { background:#0a0a0b; padding:18px 20px; }
-        .info-label { font-size:11px; color:#555; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:5px; }
-        .info-value { font-size:14px; color:#f0f0f0; font-weight:500; }
-        .info-sub { font-size:12px; color:#888; margin-top:2px; }
+        .info-label { font-size:11px; color:#555; letter-spacing:0.6px; text-transform:uppercase; margin-bottom:5px; font-family:'DM Sans',sans-serif; }
+        .info-value { font-size:14px; color:#f0f0f0; font-weight:500; font-family:'DM Sans',sans-serif; }
+        .info-sub { font-size:12px; color:#888; margin-top:2px; font-family:'DM Sans',sans-serif; }
         .panel { background:#16161a; border:0.5px solid rgba(255,255,255,0.14); border-radius:14px; overflow:hidden; position:sticky; top:80px; }
         .panel-header { padding:24px 24px 0; }
-        .panel-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; letter-spacing:0.5px; color:#f0f0f0; margin-bottom:4px; }
-        .panel-sub { font-size:13px; color:#888; margin-bottom:20px; }
+        .panel-title { font-family:'Barlow Condensed',sans-serif; font-size:22px; letter-spacing:0.5px; color:#f0f0f0; margin-bottom:4px; font-weight:900; }
+        .panel-sub { font-size:13px; color:#888; margin-bottom:20px; font-family:'DM Sans',sans-serif; }
         .divider { height:0.5px; background:rgba(255,255,255,0.08); }
         .tiers { padding:20px 24px; }
         .tier { border:0.5px solid rgba(255,255,255,0.14); border-radius:10px; padding:16px; margin-bottom:10px; cursor:pointer; transition:all 0.15s; }
         .tier:hover { border-color:rgba(255,255,255,0.28); }
         .tier.selected { border-color:#e8ff47; background:rgba(232,255,71,0.04); }
         .tier-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
-        .tier-name { font-size:14px; font-weight:500; color:#f0f0f0; }
-        .tier-price { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:22px; color:#e8ff47; }
+        .tier-name { font-size:14px; font-weight:500; color:#f0f0f0; font-family:'DM Sans',sans-serif; }
+        .tier-price { font-family:'Barlow Condensed',sans-serif; font-size:22px; color:#e8ff47; font-weight:900; }
         .tier-price.free { color:#ff4fd8; }
-        .tier-desc { font-size:12px; color:#888; margin-bottom:4px; }
-        .tier-avail { font-size:11px; color:#555; }
+        .tier-desc { font-size:12px; color:#888; margin-bottom:4px; font-family:'DM Sans',sans-serif; }
+        .tier-avail { font-size:11px; color:#555; font-family:'DM Sans',sans-serif; }
         .tier-avail.low { color:#f59e0b; }
         .qty-row { display:flex; align-items:center; gap:12px; margin-top:12px; padding-top:12px; border-top:0.5px solid rgba(255,255,255,0.08); }
-        .qty-label { font-size:12px; color:#888; flex:1; }
+        .qty-label { font-size:12px; color:#888; flex:1; font-family:'DM Sans',sans-serif; }
         .qty-btn { width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.08); border:0.5px solid rgba(255,255,255,0.14); color:#f0f0f0; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.12s; }
         .qty-btn:hover { background:rgba(255,255,255,0.14); }
         .qty-btn:disabled { opacity:0.3; cursor:not-allowed; }
-        .qty-num { font-size:15px; font-weight:500; color:#f0f0f0; min-width:20px; text-align:center; }
+        .qty-num { font-size:15px; font-weight:500; color:#f0f0f0; min-width:20px; text-align:center; font-family:'DM Sans',sans-serif; }
         .summary { padding:0 24px 4px; }
-        .summary-row { display:flex; justify-content:space-between; font-size:13px; color:#888; margin-bottom:8px; }
-        .summary-total { display:flex; justify-content:space-between; font-size:15px; font-weight:500; color:#f0f0f0; border-top:0.5px solid rgba(255,255,255,0.08); padding-top:12px; margin-top:4px; margin-bottom:20px; }
+        .summary-row { display:flex; justify-content:space-between; font-size:13px; color:#888; margin-bottom:8px; font-family:'DM Sans',sans-serif; }
+        .summary-total { display:flex; justify-content:space-between; font-size:15px; font-weight:500; color:#f0f0f0; border-top:0.5px solid rgba(255,255,255,0.08); padding-top:12px; margin-top:4px; margin-bottom:20px; font-family:'DM Sans',sans-serif; }
         .cta { padding:0 24px 24px; }
         .buy-btn { width:100%; background:#e8ff47; color:#0a0a0b; border:none; border-radius:8px; padding:14px; font-size:15px; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; }
         .buy-btn:disabled { background:#222; color:#555; cursor:not-allowed; }
-        .secure { text-align:center; font-size:11px; color:#555; margin-top:10px; }
-        .no-tiers { padding:24px; text-align:center; color:#555; font-size:14px; }
+        .secure { text-align:center; font-size:11px; color:#555; margin-top:10px; font-family:'DM Sans',sans-serif; }
+        .no-tiers { padding:24px; text-align:center; color:#555; font-size:14px; font-family:'DM Sans',sans-serif; }
+        .lineup-item { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:0.5px solid rgba(255,255,255,0.08); }
+        .lineup-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; }
+        .lineup-name { font-size:14px; font-weight:500; color:#f0f0f0; font-family:'DM Sans',sans-serif; }
+        .lineup-role { font-size:12px; color:#888; font-family:'DM Sans',sans-serif; }
+        .lineup-time { font-size:12px; color:#555; margin-left:auto; font-family:'DM Sans',sans-serif; }
       `}</style>
 
       <nav>
         <div className="wrap nav-inner">
           <button className="back" onClick={() => window.location.href='/'}>← Back to events</button>
-          <div className="logo" onClick={() => window.location.href='/'}>PULSE</div>
+          <div className="logo" onClick={() => window.location.href='/'}>pulse</div>
           <div style={{width:'120px'}}/>
         </div>
       </nav>
@@ -271,15 +300,22 @@ const handleCheckout = async () => {
                 <div className="summary">
                   <div style={{height:'16px'}}/>
                   <div className="summary-row"><span>{quantity}x {tier.name}</span><span>${subtotal.toFixed(2)}</span></div>
-                  <div className="summary-row"><span>Service fee</span><span>${fee.toFixed(2)}</span></div>
-                  <div className="summary-total"><span>Total</span><span>${total.toFixed(2)}</span></div>
+                  {fee > 0 && <div className="summary-row"><span>Service fee</span><span>${fee.toFixed(2)}</span></div>}
+                  <div className="summary-total"><span>Total</span><span>{total === 0 ? 'Free' : `$${total.toFixed(2)}`}</span></div>
                 </div>
               </>
             )}
 
             <div className="cta">
               <button className="buy-btn" disabled={!tier || checkoutLoading} onClick={handleCheckout}>
-               {checkoutLoading ? 'Redirecting...' : tier ? `Buy tickets · $${total.toFixed(2)}` : 'Select tickets'}
+                {checkoutLoading
+                  ? 'Processing...'
+                  : tier
+                  ? tier.price === 0
+                    ? 'Reserve free ticket'
+                    : `Buy tickets · $${total.toFixed(2)}`
+                  : 'Select tickets'
+                }
               </button>
               <p className="secure">🔒 Secure checkout · Powered by Stripe</p>
             </div>

@@ -1,7 +1,27 @@
 'use client'
+import QRCode from 'qrcode'
 import { useEffect, useState } from 'react'
 import { createClient } from '../lib/supabase/client'
+function QRTicket({ code }: { code: string }) {
+  const [dataUrl, setDataUrl] = useState('')
 
+  useEffect(() => {
+    QRCode.toDataURL(code, {
+      width: 80,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' }
+    }).then(setDataUrl)
+  }, [code])
+
+  if (!dataUrl) return <div className="qr-box">🎫</div>
+
+  return (
+    <div style={{textAlign:'center'}}>
+      <img src={dataUrl} alt="QR Code" style={{width:'60px', height:'60px', borderRadius:'6px'}}/>
+      <div className="qr-label">Show at door</div>
+    </div>
+  )
+}
 export default function AccountPage() {
   const [user, setUser] = useState<any>(null)
   const [tickets, setTickets] = useState<any[]>([])
@@ -186,7 +206,7 @@ export default function AccountPage() {
                     <div className="ticket-date">{date} · {ticket.event?.venue_name ?? ''}</div>
                   </div>
                   <div className="ticket-qr">
-                    <div className="qr-box">🎫</div>
+                    <QRTicket code={ticket.qr_code}/>
                     <div className="qr-label">Show at door</div>
                   </div>
                   <div className="ticket-price">${ticket.tier?.price ?? 0}</div>
