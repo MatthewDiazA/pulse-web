@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import { createClient } from '../../../lib/supabase/client'
+
 export default function EditEvent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params)
   const [loading, setLoading] = useState(true)
