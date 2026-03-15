@@ -17,7 +17,6 @@ function generateCode() {
 export async function POST(request: Request) {
   try {
     const { event_id, tier_id, quantity, user_id, buyer_email, buyer_name } = await request.json()
-    console.log('Free ticket request:', { event_id, tier_id, quantity, user_id })
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
