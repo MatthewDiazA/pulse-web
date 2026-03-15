@@ -57,7 +57,42 @@ export async function POST(request: Request) {
       p_tier_id: tier_id,
       p_qty: quantity,
     })
+// Send confirmation email
+try {
+  const { data: event } = await supabase
+    .from('events')
+    .select('title, starts_at, venue_name')
+    .eq('id', event_id)
+    .single()
 
+  const { data: tier } = await supabase
+    .from('ticket_tiers')
+    .select('name')
+    .eq('id', tier_id)
+    .single()
+
+  if (buyer_email && event) {
+    const eventDate = event.starts_at
+      ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })
+      : 'Date TBD'
+
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/send-ticket-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: buyer_email,
+        name: buyer_name ?? '',
+        event_title: event.title,
+        event_date: eventDate,
+        venue: event.venue_name ?? '',
+        tier_name: tier?.name ?? 'Ticket',
+        qr_code: ticketRows[0].qr_code,
+      })
+    })
+  }
+} catch (e) {
+  console.error('Email send failed:', e)
+}
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('Free ticket error:', error)
