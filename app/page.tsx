@@ -246,7 +246,7 @@ export default function Home() {
             <span className={`hero-word accent ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'120ms'}}>Your Pulse.</span>
           </div>
           <p className={`hero-sub ${heroVisible ? 'show' : ''}`}>
-            Discover the best parties, concerts & shows near you.
+            Discover the best parties & shows near you. <a href="/host/create" style={{color:'#e8ff47', textDecoration:'none', fontWeight:500}}>Host your own →</a>
           </p>
         </div>
 
