@@ -3,6 +3,8 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '../lib/supabase/client'
 import QRCode from 'qrcode'
 
+import confetti from 'canvas-confetti'
+
 function QRTicket({ code }: { code: string }) {
   const [dataUrl, setDataUrl] = useState('')
 
@@ -29,18 +31,13 @@ function TicketModal({ ticket, onClose }: { ticket: any, onClose: () => void }) 
   const [scale, setScale] = useState(1)
   const confettiRef = useRef<any>(null)
 
-  useEffect(() => {
-    import('canvas-confetti').then(m => { confettiRef.current = m.default })
-  }, [])
 
   const fireConfetti = () => {
-    const confetti = confettiRef.current
-    if (!confetti) return
-    const colors = ['#e8ff47', '#ff4fd8', '#ffffff', '#6399dc']
-    confetti({ particleCount: 100, spread: 90, origin: { y: 0.5 }, colors, startVelocity: 28, gravity: 0.35, ticks: 500 })
-    setTimeout(() => confetti({ particleCount: 50, angle: 55, spread: 70, origin: { x: 0, y: 0.55 }, colors, startVelocity: 22, gravity: 0.3, ticks: 500 }), 120)
-    setTimeout(() => confetti({ particleCount: 50, angle: 125, spread: 70, origin: { x: 1, y: 0.55 }, colors, startVelocity: 22, gravity: 0.3, ticks: 500 }), 120)
-  }
+  const colors = ['#e8ff47', '#ff4fd8', '#ffffff', '#6399dc']
+  confetti({ particleCount: 100, spread: 90, origin: { y: 0.5 }, colors, startVelocity: 28, gravity: 0.35, ticks: 500 })
+  setTimeout(() => confetti({ particleCount: 50, angle: 55, spread: 70, origin: { x: 0, y: 0.55 }, colors, startVelocity: 22, gravity: 0.3, ticks: 500 }), 120)
+  setTimeout(() => confetti({ particleCount: 50, angle: 125, spread: 70, origin: { x: 1, y: 0.55 }, colors, startVelocity: 22, gravity: 0.3, ticks: 500 }), 120)
+}
 
   useEffect(() => {
     QRCode.toDataURL(ticket.qr_code, {
@@ -48,9 +45,9 @@ function TicketModal({ ticket, onClose }: { ticket: any, onClose: () => void }) 
       color: { dark: '#000000', light: '#ffffff' }
     }).then(setDataUrl)
 
-    const t1 = setTimeout(() => setPhase('tear'), 800)
-    const t2 = setTimeout(() => fireConfetti(), 850)
-    const t3 = setTimeout(() => setPhase('open'), 2000)
+    const t1 = setTimeout(() => setPhase('tear'), 600)
+    const t2 = setTimeout(() => fireConfetti(), 650)
+    const t3 = setTimeout(() => setPhase('open'), 1800)
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [ticket.qr_code])

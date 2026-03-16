@@ -4,60 +4,58 @@ import { createClient } from './lib/supabase/client'
 
 function AuthButton() {
   const [user, setUser] = useState<any>(null)
-
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
   }, [])
-
   if (user) {
     return (
       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
-        <a href="/host/create" style={{background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>+ Create event</a>
+        <a href="/host/create" style={{
+          background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:600,
+          padding:'8px 18px', borderRadius:'100px', textDecoration:'none',
+          fontFamily:'DM Sans,sans-serif', letterSpacing:'0.3px',
+          boxShadow:'0 0 16px rgba(232,255,71,0.35)',
+          display:'inline-flex', alignItems:'center', gap:'6px'
+        }}>
+          ✦ create event
+        </a>
         <a href="/account" style={{
           background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500,
           padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
           textDecoration:'none', fontFamily:'DM Sans,sans-serif',
-          textShadow:'0 0 8px rgba(232,255,71,0.5), 0 0 16px rgba(232,255,71,0.25)',
-          letterSpacing:'0.3px'
+          textShadow:'0 0 8px rgba(232,255,71,0.5)',
         }}>
           ✦ {user.user_metadata?.full_name?.split(' ')[0] ?? user.email?.split('@')[0]}
         </a>
       </div>
     )
   }
-
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
+  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
 }
 
 function MobileNavBtn() {
   const [user, setUser] = useState<any>(null)
-
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
   }, [])
-
   const name = user?.user_metadata?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? null
-
   if (user) {
     return (
       <a href="/account" style={{
         background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500,
         padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
         textDecoration:'none', fontFamily:'DM Sans,sans-serif',
-        textShadow:'0 0 8px rgba(232,255,71,0.5), 0 0 16px rgba(232,255,71,0.25)',
-      }}>
-        ✦ {name}
-      </a>
+        textShadow:'0 0 8px rgba(232,255,71,0.5)',
+      }}>✦ {name}</a>
     )
   }
+  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
+}
 
-  return (
-    <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'6px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>
-      Sign in
-    </a>
-  )
+const placeholderAccent: Record<string, string> = {
+  nightlife: '#e8ff47', concert: '#6399dc', festival: '#ff4fd8', other: '#ff4fd8',
 }
 
 export default function Home() {
@@ -65,9 +63,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [userCity, setUserCity] = useState<string | null>(null)
+  const [heroVisible, setHeroVisible] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    setTimeout(() => setHeroVisible(true), 100)
     const fetchEvents = async () => {
       const supabase = createClient()
       const { data } = await supabase
@@ -89,27 +90,20 @@ export default function Home() {
     const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }
     resize()
     window.addEventListener('resize', resize)
-    const particles = Array.from({length: 100}, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 1.2 + 0.2,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
-      a: Math.random() * 0.5 + 0.15,
+    const particles = Array.from({length: 80}, () => ({
+      x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+      r: Math.random() * 1.2 + 0.2, vx: (Math.random() - 0.5) * 0.2,
+      vy: (Math.random() - 0.5) * 0.2, a: Math.random() * 0.4 + 0.1,
     }))
     let animId: number
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       particles.forEach(p => {
         p.x += p.vx; p.y += p.vy
-        if (p.x < 0) p.x = canvas.width
-        if (p.x > canvas.width) p.x = 0
-        if (p.y < 0) p.y = canvas.height
-        if (p.y > canvas.height) p.y = 0
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(232,255,71,${p.a})`
-        ctx.fill()
+        if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0
+        if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(232,255,71,${p.a})`; ctx.fill()
       })
       animId = requestAnimationFrame(draw)
     }
@@ -117,136 +111,160 @@ export default function Home() {
     return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(animId) }
   }, [])
 
+  useEffect(() => {
+    if (!gridRef.current) return
+    const cards = gridRef.current.querySelectorAll('.card')
+    cards.forEach((card, index) => {
+      setTimeout(() => (card as HTMLElement).classList.add('visible'), index * 100)
+    })
+  }, [loading, filter])
+
   const handleNearMe = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
           const data = await res.json()
-          const city = data.address?.city ?? data.address?.town ?? data.address?.village ?? null
-          setUserCity(city)
+          setUserCity(data.address?.city ?? data.address?.town ?? null)
           setFilter('nearme')
         } catch { setFilter('nearme') }
       },
-      () => alert('Please enable location access to use Near me')
+      () => alert('Please enable location access')
     )
   }
 
   const filtered = (() => {
     if (filter === 'all') return events
-    if (filter === 'nearme') {
-      if (userCity) return events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase()))
-      return events
-    }
+    if (filter === 'nearme') return userCity ? events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase())) : events
     return events.filter(e => e.category === filter)
   })()
 
-  const categoryColors: Record<string, string> = {
-    nightlife: 'tag-nightlife', concert: 'tag-concert', festival: 'tag-festival', other: 'tag-other',
-  }
   const categoryLabels: Record<string, string> = {
     nightlife: 'Nightlife', concert: 'Concert', festival: 'Festival', other: 'Event',
   }
 
   const getPrice = (event: any) => {
     const tiers = event.ticket_tiers ?? []
-    if (tiers.length === 0) return 'Free'
+    if (!tiers.length) return 'Free'
     const prices = tiers.map((t: any) => t.price)
-    const min = Math.min(...prices)
-    const max = Math.max(...prices)
+    const min = Math.min(...prices), max = Math.max(...prices)
     if (min === 0) return 'Free'
     if (min === max) return `$${min}`
-    return `$${min} – $${max}`
+    return `$${min}+`
   }
+
+  const tickerText = 'TONIGHT · YOUR CITY · FIND YOUR PULSE · LIVE EVENTS · HOUSTON · GET ON THE LIST · '
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
-        * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { background:#0a0a0b; min-height:100vh; }
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap');
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html, body { background:#0a0a0b; min-height:100vh; overflow-x:hidden; }
         .bg-canvas { position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:0; }
         .bg-rings { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; }
-        .ring { position:absolute; border-radius:50%; border:1px solid rgba(232,255,71,0.07); animation:pulseRing 4s ease-in-out infinite; }
-        @keyframes pulseRing { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.06);opacity:0.2} }
+        .ring { position:absolute; border-radius:50%; border:1px solid rgba(232,255,71,0.06); animation:pulseRing 4s ease-in-out infinite; }
+        @keyframes pulseRing { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.06);opacity:0.15} }
         .page { position:relative; z-index:1; }
-        .wrap { max-width:1100px; margin:0 auto; padding:0 40px; }
-        nav { border-bottom:0.5px solid rgba(255,255,255,0.08); padding:16px 0; background:rgba(10,10,11,0.7); position:sticky; top:0; z-index:100; backdrop-filter:blur(12px); }
-        .nav-inner { display:flex; align-items:center; justify-content:space-between; }
-        .logo { font-family:'Anton',sans-serif; font-size:42px; letter-spacing:1px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; }
-        .nav-links { display:flex; gap:28px; align-items:center; }
-        .hero { padding:80px 40px 20px; max-width:1100px; margin:0 auto; }
-        .hero h1 { font-family:'Barlow Condensed',sans-serif; font-size:clamp(64px,10vw,140px); line-height:0.9; color:#f0f0f0; letter-spacing:2px; font-weight:900; text-transform:uppercase; }
-        .hero h1 span { color:#e8ff47; text-shadow:0 0 40px rgba(232,255,71,0.4); }
-        .hero-sub { margin-top:16px; font-size:16px; color:#888; font-weight:300; font-family:'DM Sans',sans-serif; }
-        .events-section { padding-top:0; }
-        .filters { padding:12px 40px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; max-width:1100px; margin:0 auto; }
-        .pill { background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.14); border-radius:100px; padding:7px 16px; font-size:13px; color:#888; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; backdrop-filter:blur(8px); }
-        .pill:hover { color:#f0f0f0; border-color:rgba(255,255,255,0.28); }
+
+        nav { border-bottom:0.5px solid rgba(255,255,255,0.06); padding:14px 0; background:rgba(10,10,11,0.8); position:sticky; top:0; z-index:100; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
+        .logo { font-family:'Anton',sans-serif; font-size:36px; letter-spacing:1px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; }
+
+        .hero { padding:80px 20px 0; max-width:600px; margin:0 auto; }
+        .hero-line { overflow:hidden; }
+        .hero-word { font-family:'Barlow Condensed',sans-serif; font-size:clamp(72px,18vw,140px); line-height:0.88; color:#f0f0f0; letter-spacing:1px; font-weight:900; text-transform:uppercase; display:block; transform:translateY(100%); transition:transform 0.8s cubic-bezier(0.16,1,0.3,1); }
+        .hero-word.accent { color:#e8ff47; text-shadow:0 0 60px rgba(232,255,71,0.3); }
+        .hero-word.show { transform:translateY(0); }
+        .hero-sub { margin-top:20px; font-size:15px; color:#555; font-weight:300; font-family:'DM Sans',sans-serif; line-height:1.6; opacity:0; transition:opacity 0.8s ease 0.6s; padding:0 2px; }
+        .hero-sub.show { opacity:1; }
+
+        .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.06); border-bottom:0.5px solid rgba(255,255,255,0.06); margin:32px 0 0; background:rgba(232,255,71,0.03); padding:10px 0; }
+        .ticker-track { display:flex; width:max-content; animation:ticker 20s linear infinite; }
+        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; color:#e8ff47; opacity:0.6; white-space:nowrap; padding:0 0; text-transform:uppercase; }
+        @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+        .filters { padding:20px 20px 12px; display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; }
+        .filters::-webkit-scrollbar { display:none; }
+        .pill { background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.1); border-radius:100px; padding:9px 18px; font-size:13px; color:#555; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
+        .pill:active { transform:scale(0.94); }
         .pill.active { background:#e8ff47; color:#0a0a0b; border-color:#e8ff47; font-weight:500; }
-        .cards-wrap { padding:16px 40px 80px; max-width:1100px; margin:0 auto; }
-        .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:20px; }
-        .card { background:rgba(14,14,18,0.85); backdrop-filter:blur(16px); border:0.5px solid rgba(255,255,255,0.1); border-radius:16px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden; }
-        .card:hover { border-color:rgba(232,255,71,0.3); transform:translateY(-4px); background:rgba(20,20,26,0.95); }
-        .card-img { height:190px; overflow:hidden; position:relative; background:#0d0a1a; display:flex; align-items:center; justify-content:center; border-radius:16px 16px 0 0; }
-        .card-img img { width:100%; height:100%; object-fit:cover; }
-        .card-tag { position:absolute; top:12px; left:12px; font-size:11px; font-weight:500; padding:4px 10px; border-radius:100px; letter-spacing:0.5px; text-transform:uppercase; font-family:'DM Sans',sans-serif; }
-        .tag-nightlife { background:rgba(232,255,71,0.18); color:#e8ff47; border:0.5px solid rgba(232,255,71,0.3); }
-        .tag-concert { background:rgba(255,79,216,0.18); color:#ff4fd8; border:0.5px solid rgba(255,79,216,0.3); }
-        .tag-festival { background:rgba(99,153,220,0.18); color:#6399dc; border:0.5px solid rgba(99,153,220,0.3); }
-        .tag-other { background:rgba(255,255,255,0.1); color:#888; border:0.5px solid rgba(255,255,255,0.14); }
-        .card-body { padding:18px 20px 20px; }
-        .card-date { font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px; font-family:'DM Sans',sans-serif; }
-        .card-title { font-family:'Barlow Condensed',sans-serif; font-size:24px; letter-spacing:0.5px; line-height:1.15; color:#f0f0f0; margin-bottom:8px; font-weight:900; text-transform:uppercase; }
-        .card-venue { font-size:13px; color:#888; margin-bottom:14px; font-family:'DM Sans',sans-serif; }
-        .card-footer { display:flex; align-items:center; justify-content:space-between; border-top:0.5px solid rgba(255,255,255,0.08); padding-top:14px; }
-        .price { font-family:'Barlow Condensed',sans-serif; font-size:22px; color:#e8ff47; font-weight:900; }
-        .ticket-btn { background:#e8ff47; color:#0a0a0b; font-size:12px; font-weight:500; padding:7px 16px; border-radius:6px; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
-        .ticket-btn:hover { opacity:0.88; }
-        .empty { text-align:center; padding:80px 20px; color:#555; font-size:15px; font-family:'DM Sans',sans-serif; }
+
+        .cards-wrap { padding:4px 16px 100px; max-width:1100px; margin:0 auto; }
+        .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
+        @media(min-width:600px){ .grid { grid-template-columns:repeat(3, 1fr); gap:14px; } }
+        @media(min-width:900px){ .grid { grid-template-columns:repeat(4, 1fr); gap:16px; } }
+
+        .card { border-radius:16px; cursor:pointer; position:relative; overflow:hidden; opacity:0; transform:translateY(24px); transition:transform 0.25s ease, box-shadow 0.25s ease; aspect-ratio:2/3; }
+        .card.visible { opacity:1; transform:translateY(0); }
+        .card:active { transform:scale(0.97); }
+        @media(hover:hover){ .card:hover { transform:translateY(-4px); box-shadow:0 20px 60px rgba(0,0,0,0.5); } }
+        .card-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+        .card-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.2) 50%, transparent 100%); }
+        .card-content { position:absolute; inset:0; padding:12px; display:flex; flex-direction:column; justify-content:space-between; }
+        .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:4px; }
+        .card-tag { font-size:9px; font-weight:600; padding:3px 8px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'DM Sans',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+        .card-price-badge { font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:900; color:#fff; background:rgba(0,0,0,0.5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:3px 8px; border-radius:100px; border:0.5px solid rgba(255,255,255,0.15); white-space:nowrap; }
+        .card-price-badge.free { color:#e8ff47; border-color:rgba(232,255,71,0.4); }
+        .card-bottom { }
+        .card-date-small { font-size:10px; color:rgba(255,255,255,0.5); letter-spacing:0.6px; text-transform:uppercase; margin-bottom:4px; font-family:'DM Sans',sans-serif; }
+        .card-title-big { font-family:'Barlow Condensed',sans-serif; font-size:clamp(18px,4vw,24px); font-weight:900; color:#fff; text-transform:uppercase; line-height:1; margin-bottom:5px; letter-spacing:0.3px; }
+        .card-venue-small { font-size:11px; color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .tag-nightlife { background:rgba(232,255,71,0.15); color:#e8ff47; border:0.5px solid rgba(232,255,71,0.3); }
+        .tag-concert { background:rgba(99,153,220,0.15); color:#6399dc; border:0.5px solid rgba(99,153,220,0.3); }
+        .tag-festival { background:rgba(255,79,216,0.15); color:#ff4fd8; border:0.5px solid rgba(255,79,216,0.3); }
+        .tag-other { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); border:0.5px solid rgba(255,255,255,0.15); }
+
+        .section-label { font-size:11px; color:#333; letter-spacing:1.5px; text-transform:uppercase; font-family:'DM Sans',sans-serif; padding:0 16px 12px; max-width:1100px; margin:0 auto; }
+
+        .empty { text-align:center; padding:80px 20px; color:#444; font-size:15px; font-family:'DM Sans',sans-serif; }
         .empty a { color:#e8ff47; text-decoration:none; }
-        .bottom { padding:8px 0 40px; font-family:'DM Sans',sans-serif; }
-        .showing { font-size:13px; color:#555; }
-        .nav-mobile-btn { display:none !important; }
-        @media(max-width:680px){
-          .hero { padding:60px 20px 20px; }
-          .filters { padding:12px 20px; }
-          .cards-wrap { padding:16px 20px 60px; }
-          .nav-links { display:none; }
-          .nav-mobile-btn { display:flex !important; }
-          .grid { grid-template-columns:1fr; }
-        }
+        .bottom { padding:16px 16px 20px; }
+        .showing { font-size:11px; color:#2a2a2a; letter-spacing:0.5px; font-family:'DM Sans',sans-serif; }
+        .nav-desktop { display:none; }
+        .nav-mobile { display:flex; }
+        @media(min-width:680px){ .nav-desktop { display:flex; } .nav-mobile { display:none !important; } }
       `}</style>
 
       <canvas ref={canvasRef} className="bg-canvas"/>
       <div className="bg-rings">
         <div className="ring" style={{width:'900px', height:'900px', animationDelay:'0s'}}/>
-        <div className="ring" style={{width:'650px', height:'650px', animationDelay:'1.3s'}}/>
-        <div className="ring" style={{width:'400px', height:'400px', animationDelay:'2.6s'}}/>
+        <div className="ring" style={{width:'600px', height:'600px', animationDelay:'1.5s'}}/>
+        <div className="ring" style={{width:'300px', height:'300px', animationDelay:'3s'}}/>
       </div>
 
       <div className="page">
         <nav>
-          <div className="wrap nav-inner">
+          <div className="nav-inner">
             <div className="logo" onClick={() => window.location.href='/'}>pulse</div>
-            <div className="nav-links">
-              <AuthButton/>
-            </div>
-            <div className="nav-mobile-btn">
-              <MobileNavBtn/>
-            </div>
+            <div className="nav-desktop"><AuthButton/></div>
+            <div className="nav-mobile"><MobileNavBtn/></div>
           </div>
         </nav>
 
         <div className="hero">
-          <h1>Your city.<br/><span>Your night.</span></h1>
-          <p className="hero-sub">Find tickets to the best parties, concerts & shows near you.</p>
+          <div className="hero-line">
+            <span className={`hero-word ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'0ms'}}>Find</span>
+          </div>
+          <div className="hero-line">
+            <span className={`hero-word accent ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'120ms'}}>Your Pulse.</span>
+          </div>
+          <p className={`hero-sub ${heroVisible ? 'show' : ''}`}>
+            Discover the best parties, concerts & shows near you.
+          </p>
+        </div>
+
+        <div className="ticker-wrap">
+          <div className="ticker-track">
+            <span className="ticker-item">{tickerText.repeat(4)}</span>
+            <span className="ticker-item">{tickerText.repeat(4)}</span>
+          </div>
         </div>
 
         <div className="events-section">
           <div className="filters">
             {[
-              { label: 'All events', value: 'all' },
+              { label: 'All', value: 'all' },
               { label: 'Nightlife', value: 'nightlife' },
               { label: 'Concerts', value: 'concert' },
               { label: 'Festivals', value: 'festival' },
@@ -262,53 +280,68 @@ export default function Home() {
             ))}
           </div>
 
+          <div className="section-label">
+            {filter === 'all' ? 'All events' : filter === 'nearme' ? 'Near you' : categoryLabels[filter]}
+            {' '}— {filtered.length} {filtered.length === 1 ? 'event' : 'events'}
+          </div>
+
           <div className="cards-wrap">
             {loading ? (
               <div className="empty">Loading events...</div>
             ) : filtered.length === 0 ? (
               <div className="empty">
-                {filter === 'nearme'
-                  ? 'No events found near you yet.'
-                  : events.length === 0
-                  ? <>No events yet. <a href="/host/create">Create the first one →</a></>
-                  : 'No events in this category yet.'
-                }
+                {filter === 'nearme' ? 'No events near you yet.' :
+                  events.length === 0 ? <>No events yet. <a href="/host/create">Create the first →</a></> :
+                  'No events in this category.'}
               </div>
             ) : (
-              <div className="grid">
-                {filtered.map(event => {
+              <div className="grid" ref={gridRef}>
+                {filtered.map((event, index) => {
+                  const cat = event.category ?? 'other'
+                  const accent = placeholderAccent[cat] ?? '#e8ff47'
                   const date = event.starts_at
-                    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }).toUpperCase()
-                    : 'DATE TBD'
-                  const time = event.starts_at
-                    ? new Date(event.starts_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true })
-                    : ''
+                    ? new Date(event.starts_at).toLocaleDateString('en-US', { month:'short', day:'numeric' }).toUpperCase()
+                    : 'TBD'
+                  const price = getPrice(event)
+                  const isFree = price === 'Free'
+
                   return (
-                    <div key={event.id} className="card" onClick={() => window.location.href=`/events/${event.id}`}>
-                      <div className="card-img">
-                        {event.cover_image_url
-                          ? <img src={event.cover_image_url} alt={event.title}/>
-                          : (
-                            <svg width="100%" height="100%" viewBox="0 0 300 190" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-                              <rect width="300" height="190" fill="#0d0a1a"/>
-                              <circle cx="150" cy="95" r="60" fill="none" stroke="#e8ff47" strokeWidth="0.5" opacity="0.2"/>
-                              <text x="150" y="105" textAnchor="middle" fontFamily="serif" fontSize="40" fill="#e8ff47" opacity="0.6">✦</text>
-                            </svg>
-                          )
-                        }
-                        <div className={`card-tag ${categoryColors[event.category] ?? 'tag-other'}`}>
-                          {categoryLabels[event.category] ?? 'Event'}
+                    <div key={event.id} className="card" data-index={index} onClick={() => window.location.href=`/events/${event.id}`}>
+                      {event.cover_image_url ? (
+                        <img src={event.cover_image_url} className="card-bg" alt={event.title}/>
+                      ) : (
+                        <svg width="100%" height="100%" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style={{position:'absolute',inset:0}}>
+                          <defs>
+                            <radialGradient id={`g_${index}`} cx="50%" cy="50%" r="80%">
+                              <stop offset="0%" stopColor={accent} stopOpacity="0.12"/>
+                              <stop offset="100%" stopColor="#0a0a0b" stopOpacity="1"/>
+                            </radialGradient>
+                          </defs>
+                          <rect width="200" height="300" fill="#0d0a18"/>
+                          <rect width="200" height="300" fill={`url(#g_${index})`}/>
+                          {/* Laser grid */}
+                          <g stroke={accent} strokeWidth="0.4" opacity="0.2">
+                            {[0.6,0.7,0.8,0.9,1.0].map((y,i) => (
+                              <line key={i} x1={100-(200*y)} y1={y*300} x2={100+(200*y)} y2={y*300}/>
+                            ))}
+                            {[-5,-3,-1,0,1,3,5].map((v,i) => (
+                              <line key={i} x1="100" y1="140" x2={100+v*50} y2="300"/>
+                            ))}
+                          </g>
+                          <ellipse cx="100" cy="140" rx="40" ry="12" fill={accent} opacity="0.06"/>
+                          <text x="100" y="152" textAnchor="middle" fontSize="28" fill={accent} opacity="0.4" fontFamily="serif">✦</text>
+                        </svg>
+                      )}
+                      <div className="card-overlay"/>
+                      <div className="card-content">
+                        <div className="card-top">
+                          <div className={`card-tag tag-${cat}`}>{categoryLabels[cat] ?? 'Event'}</div>
+                          <div className={`card-price-badge ${isFree ? 'free' : ''}`}>{price}</div>
                         </div>
-                      </div>
-                      <div className="card-body">
-                        <div className="card-date">{date}{time ? ` · ${time}` : ''}</div>
-                        <div className="card-title">{event.title}</div>
-                        <div className="card-venue">📍 {event.venue_name ?? event.city ?? 'Venue TBD'}</div>
-                        <div className="card-footer">
-                          <div className="price">{getPrice(event)}</div>
-                          <button className="ticket-btn" onClick={e => { e.stopPropagation(); window.location.href=`/events/${event.id}` }}>
-                            Get tickets
-                          </button>
+                        <div className="card-bottom">
+                          <div className="card-date-small">{date}</div>
+                          <div className="card-title-big">{event.title}</div>
+                          <div className="card-venue-small">📍 {event.venue_name ?? event.city ?? 'TBD'}</div>
                         </div>
                       </div>
                     </div>
@@ -316,7 +349,6 @@ export default function Home() {
                 })}
               </div>
             )}
-
             <div className="bottom">
               <span className="showing">{filtered.length} event{filtered.length !== 1 ? 's' : ''}</span>
             </div>
