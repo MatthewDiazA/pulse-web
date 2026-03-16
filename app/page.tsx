@@ -12,26 +12,22 @@ function AuthButton() {
     return (
       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
         <a href="/host/create" style={{
-          background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:600,
+          background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:700,
           padding:'8px 18px', borderRadius:'100px', textDecoration:'none',
-          fontFamily:'DM Sans,sans-serif', letterSpacing:'0.3px',
+          fontFamily:'Nunito,sans-serif', letterSpacing:'0.3px',
           boxShadow:'0 0 16px rgba(232,255,71,0.35)',
           display:'inline-flex', alignItems:'center', gap:'6px'
-        }}>
-          ✦ create event
-        </a>
+        }}>✦ create event</a>
         <a href="/account" style={{
-          background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500,
+          background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:600,
           padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
-          textDecoration:'none', fontFamily:'DM Sans,sans-serif',
+          textDecoration:'none', fontFamily:'Nunito,sans-serif',
           textShadow:'0 0 8px rgba(232,255,71,0.5)',
-        }}>
-          ✦ {user.user_metadata?.full_name?.split(' ')[0] ?? user.email?.split('@')[0]}
-        </a>
+        }}>✦ {user.user_metadata?.full_name?.split(' ')[0] ?? user.email?.split('@')[0]}</a>
       </div>
     )
   }
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
+  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:700, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'Nunito,sans-serif'}}>Sign in</a>
 }
 
 function MobileNavBtn() {
@@ -45,21 +41,21 @@ function MobileNavBtn() {
     return (
       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
         <a href="/host/create" style={{
-          background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:600,
+          background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:700,
           padding:'7px 14px', borderRadius:'100px', textDecoration:'none',
-          fontFamily:'DM Sans,sans-serif', boxShadow:'0 0 12px rgba(232,255,71,0.35)',
+          fontFamily:'Nunito,sans-serif', boxShadow:'0 0 12px rgba(232,255,71,0.3)',
           display:'inline-flex', alignItems:'center', gap:'4px'
         }}>✦ create</a>
         <a href="/account" style={{
-          background:'transparent', color:'#e8ff47', fontSize:'12px', fontWeight:500,
+          background:'transparent', color:'#e8ff47', fontSize:'12px', fontWeight:600,
           padding:'7px 14px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
-          textDecoration:'none', fontFamily:'DM Sans,sans-serif',
+          textDecoration:'none', fontFamily:'Nunito,sans-serif',
           textShadow:'0 0 8px rgba(232,255,71,0.5)',
         }}>✦ {name}</a>
       </div>
     )
   }
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:500, padding:'7px 14px', borderRadius:'100px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
+  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:700, padding:'7px 14px', borderRadius:'100px', textDecoration:'none', fontFamily:'Nunito,sans-serif'}}>Sign in</a>
 }
 
 const placeholderAccent: Record<string, string> = {
@@ -166,7 +162,7 @@ export default function Home() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         html, body { background:#0a0a0b; min-height:100vh; overflow-x:hidden; }
         .bg-canvas { position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:0; }
@@ -177,19 +173,18 @@ export default function Home() {
 
         nav { border-bottom:0.5px solid rgba(255,255,255,0.06); padding:14px 0; background:rgba(10,10,11,0.8); position:sticky; top:0; z-index:100; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
-        .logo { font-family:'Anton',sans-serif; font-size:36px; letter-spacing:1px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; }
+        .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); }
 
-        .hero { padding:80px 20px 0; max-width:600px; margin:0 auto; }
-        .hero-line { overflow:hidden; }
-        .hero-word { font-family:'Barlow Condensed',sans-serif; font-size:clamp(72px,18vw,140px); line-height:0.88; color:#f0f0f0; letter-spacing:1px; font-weight:900; text-transform:uppercase; display:block; transform:translateY(100%); transition:transform 0.8s cubic-bezier(0.16,1,0.3,1); }
-        .hero-word.accent { color:#e8ff47; text-shadow:0 0 60px rgba(232,255,71,0.3); }
+        .hero { padding:80px 20px 0; max-width:600px; margin:0 auto; position:relative; }
+        .hero-line { overflow:hidden; position:relative; z-index:1; }
+        .hero-word { font-family:'Barlow Condensed',sans-serif; font-size:clamp(52px,14vw,140px); line-height:0.88; color:#f0f0f0; letter-spacing:1px; font-weight:900; text-transform:uppercase; display:block; transform:translateY(100%); transition:transform 0.8s cubic-bezier(0.16,1,0.3,1); }        .hero-word.accent { color:#e8ff47; text-shadow:0 0 60px rgba(232,255,71,0.3); }
         .hero-word.show { transform:translateY(0); }
-        .hero-sub { margin-top:20px; font-size:15px; color:#555; font-weight:300; font-family:'DM Sans',sans-serif; line-height:1.6; opacity:0; transition:opacity 0.8s ease 0.6s; padding:0 2px; }
+        .hero-sub { margin-top:20px; font-size:15px; color:#555; font-weight:300; font-family:'DM Sans',sans-serif; line-height:1.6; opacity:0; transition:opacity 0.8s ease 0.6s; padding:0 2px; position:relative; z-index:1; }
         .hero-sub.show { opacity:1; }
 
-        .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.06); border-bottom:0.5px solid rgba(255,255,255,0.06); margin:32px 0 0; background:rgba(232,255,71,0.03); padding:10px 0; }
+        .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.06); border-bottom:0.5px solid rgba(255,255,255,0.06); margin:32px 0 0; background:rgba(232,255,71,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 20s linear infinite; }
-        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; color:#e8ff47; opacity:0.6; white-space:nowrap; padding:0 0; text-transform:uppercase; }
+        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; color:#e8ff47; opacity:0.5; white-space:nowrap; text-transform:uppercase; }
         @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
 
         .filters { padding:20px 20px 12px; display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; }
@@ -205,10 +200,11 @@ export default function Home() {
 
         .card { border-radius:16px; cursor:pointer; position:relative; overflow:hidden; opacity:0; transform:translateY(24px); transition:transform 0.25s ease, box-shadow 0.25s ease; aspect-ratio:2/3; }
         .card.visible { opacity:1; transform:translateY(0); }
-        .card:active { transform:scale(0.97); }
-        @media(hover:hover){ .card:hover { transform:translateY(-4px); box-shadow:0 20px 60px rgba(0,0,0,0.5); } }
-        .card-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-        .card-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.2) 50%, transparent 100%); }
+        .card:active { transform:scale(0.97) !important; }
+        @media(hover:hover){ .card:hover { transform:translateY(-4px) !important; box-shadow:0 20px 60px rgba(0,0,0,0.5); } }
+        .card-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease; }
+        @media(hover:hover){ .card:hover .card-bg { transform:scale(1.04); } }
+        .card-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.2) 55%, transparent 100%); }
         .card-content { position:absolute; inset:0; padding:12px; display:flex; flex-direction:column; justify-content:space-between; }
         .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:4px; }
         .card-tag { font-size:9px; font-weight:600; padding:3px 8px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'DM Sans',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
@@ -216,7 +212,7 @@ export default function Home() {
         .card-price-badge.free { color:#e8ff47; border-color:rgba(232,255,71,0.4); }
         .card-bottom { }
         .card-date-small { font-size:10px; color:rgba(255,255,255,0.5); letter-spacing:0.6px; text-transform:uppercase; margin-bottom:4px; font-family:'DM Sans',sans-serif; }
-        .card-title-big { font-family:'Barlow Condensed',sans-serif; font-size:clamp(18px,4vw,24px); font-weight:900; color:#fff; text-transform:uppercase; line-height:1; margin-bottom:5px; letter-spacing:0.3px; }
+        .card-title-big { font-family:'Barlow Condensed',sans-serif; font-size:clamp(18px,4vw,24px); font-weight:900; color:#fff; text-transform:uppercase; line-height:1; margin-bottom:5px; }
         .card-venue-small { font-size:11px; color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .tag-nightlife { background:rgba(232,255,71,0.15); color:#e8ff47; border:0.5px solid rgba(232,255,71,0.3); }
         .tag-concert { background:rgba(99,153,220,0.15); color:#6399dc; border:0.5px solid rgba(99,153,220,0.3); }
@@ -224,7 +220,6 @@ export default function Home() {
         .tag-other { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); border:0.5px solid rgba(255,255,255,0.15); }
 
         .section-label { font-size:11px; color:#333; letter-spacing:1.5px; text-transform:uppercase; font-family:'DM Sans',sans-serif; padding:0 16px 12px; max-width:1100px; margin:0 auto; }
-
         .empty { text-align:center; padding:80px 20px; color:#444; font-size:15px; font-family:'DM Sans',sans-serif; }
         .empty a { color:#e8ff47; text-decoration:none; }
         .bottom { padding:16px 16px 20px; }
@@ -251,11 +246,12 @@ export default function Home() {
         </nav>
 
         <div className="hero">
+
           <div className="hero-line">
             <span className={`hero-word ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'0ms'}}>Find</span>
           </div>
-          <div className="hero-line">
-            <span className={`hero-word accent ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'120ms'}}>Your Pulse.</span>
+          <div className="hero-line" style={{whiteSpace:'nowrap', overflow:'visible'}}>
+            <span className={`hero-word accent ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'120ms', fontSize:'clamp(36px,9vw,130px)'}}>Your Pulse.</span>
           </div>
           <p className={`hero-sub ${heroVisible ? 'show' : ''}`}>
             Discover the best parties, concerts & shows near you.
@@ -327,7 +323,6 @@ export default function Home() {
                           </defs>
                           <rect width="200" height="300" fill="#0d0a18"/>
                           <rect width="200" height="300" fill={`url(#g_${index})`}/>
-                          {/* Laser grid */}
                           <g stroke={accent} strokeWidth="0.4" opacity="0.2">
                             {[0.6,0.7,0.8,0.9,1.0].map((y,i) => (
                               <line key={i} x1={100-(200*y)} y1={y*300} x2={100+(200*y)} y2={y*300}/>
