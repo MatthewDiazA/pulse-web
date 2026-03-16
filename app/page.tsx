@@ -171,8 +171,9 @@ export default function Home() {
         .ring { position:absolute; border-radius:50%; border:1px solid rgba(232,255,71,0.06); animation:pulseRing 4s ease-in-out infinite; }
         @keyframes pulseRing { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.06);opacity:0.15} }
         .page { position:relative; z-index:1; }
-        nav { border-bottom:0.5px solid rgba(255,255,255,0.06); padding:14px 0; background:rgba(10,10,11,0.8); position:sticky; top:0; z-index:100; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
-        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
+        nav { border-bottom:none; padding:14px 0; background:rgba(10,10,11,0.8); position:sticky; top:0; z-index:100; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); position:relative; }
+        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#e8ff47,#ff4fd8,#6399dc,transparent); background-size:300% 100%; animation:navPulse 4s ease-in-out infinite; }
+        @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.3} 50%{background-position:100% 50%;opacity:0.7} 100%{background-position:0% 50%;opacity:0.3} }        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
         .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); }
         .hero { padding:60px 20px 0; max-width:100%; margin:0 auto; }
         .hero-line { overflow:hidden; position:relative; z-index:1; line-height:1; }

@@ -17,8 +17,7 @@ export default function SignupPage() {
     setError('')
     const supabase = createClient()
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email, password,
       options: {
         data: { full_name: name },
         emailRedirectTo: 'https://pulse-one-hazel.vercel.app/auth/callback'
@@ -35,21 +34,21 @@ export default function SignupPage() {
           @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
           * { margin:0; padding:0; box-sizing:border-box; }
           html,body { background:#0a0a0b; min-height:100vh; }
-          .page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; position:relative; overflow:hidden; }
+          .page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
           .glow { position:fixed; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle, rgba(232,255,71,0.06) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
           .card { background:rgba(16,16,20,0.9); border:0.5px solid rgba(232,255,71,0.2); border-radius:24px; padding:48px 40px; width:100%; max-width:400px; text-align:center; position:relative; overflow:hidden; backdrop-filter:blur(20px); }
           .card-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%, rgba(232,255,71,0.06) 0%, transparent 60%); pointer-events:none; }
-          .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8,#e8ff47); border-radius:2px; margin-bottom:40px; }
+          .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8,#6399dc,#e8ff47); background-size:300% 100%; border-radius:2px; margin-bottom:40px; animation:barPulse 3s ease-in-out infinite; }
+          @keyframes barPulse { 0%{background-position:0% 50%;opacity:0.7} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.7} }
           .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; color:#e8ff47; margin-bottom:32px; letter-spacing:-0.5px; filter:drop-shadow(0 0 12px rgba(232,255,71,0.4)); cursor:pointer; }
-          .icon-wrap { width:80px; height:80px; border-radius:50%; background:rgba(232,255,71,0.08); border:1px solid rgba(232,255,71,0.2); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:32px; }
+          .icon-wrap { width:80px; height:80px; border-radius:50%; background:rgba(232,255,71,0.08); border:1px solid rgba(232,255,71,0.2); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:32px; animation:pulseGlow 2s ease-in-out infinite; }
+          @keyframes pulseGlow { 0%,100%{box-shadow:0 0 20px rgba(232,255,71,0.1)} 50%{box-shadow:0 0 40px rgba(232,255,71,0.25)} }
           .heading { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:36px; color:#f0f0f0; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; }
           .sub { font-size:14px; color:#555; line-height:1.7; margin-bottom:8px; font-family:'DM Sans',sans-serif; }
           .email-highlight { color:#e8ff47; font-weight:500; }
           .hint { font-size:12px; color:#333; margin-top:24px; font-family:'DM Sans',sans-serif; }
-          .back-btn { margin-top:20px; display:inline-block; font-size:13px; color:#555; text-decoration:none; font-family:'DM Sans',sans-serif; transition:color 0.15s; cursor:pointer; }
+          .back-btn { margin-top:20px; display:inline-block; font-size:13px; color:#555; font-family:'DM Sans',sans-serif; cursor:pointer; transition:color 0.15s; }
           .back-btn:hover { color:#f0f0f0; }
-          @keyframes pulseGlow { 0%,100%{box-shadow:0 0 20px rgba(232,255,71,0.1)} 50%{box-shadow:0 0 40px rgba(232,255,71,0.25)} }
-          .pulse-icon { animation:pulseGlow 2s ease-in-out infinite; }
         `}</style>
         <div className="page">
           <div className="glow"/>
@@ -57,7 +56,7 @@ export default function SignupPage() {
             <div className="card-glow"/>
             <div className="top-bar"/>
             <div className="logo" onClick={() => window.location.href='/'}>pulse</div>
-            <div className="icon-wrap pulse-icon">✉️</div>
+            <div className="icon-wrap">✉️</div>
             <h1 className="heading">Check your inbox</h1>
             <p className="sub">We sent a confirmation link to<br/><span className="email-highlight">{email}</span></p>
             <p className="sub" style={{marginTop:'8px'}}>Click the link to activate your account and get on the list.</p>
@@ -79,7 +78,8 @@ export default function SignupPage() {
         .glow { position:fixed; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle, rgba(232,255,71,0.05) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
         .card { background:rgba(16,16,20,0.9); border:0.5px solid rgba(255,255,255,0.1); border-radius:24px; padding:40px; width:100%; max-width:400px; position:relative; overflow:hidden; backdrop-filter:blur(20px); }
         .card-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%, rgba(232,255,71,0.04) 0%, transparent 60%); pointer-events:none; }
-        .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8); border-radius:2px; margin-bottom:32px; }
+        .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8,#6399dc,#e8ff47); background-size:300% 100%; border-radius:2px; margin-bottom:32px; animation:barPulse 3s ease-in-out infinite; }
+        @keyframes barPulse { 0%{background-position:0% 50%;opacity:0.7} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.7} }
         .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; color:#e8ff47; margin-bottom:28px; letter-spacing:-0.5px; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); cursor:pointer; display:inline-block; }
         .heading { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:36px; color:#f0f0f0; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px; }
         .sub { font-size:14px; color:#555; margin-bottom:28px; font-family:'DM Sans',sans-serif; }
@@ -118,17 +118,19 @@ export default function SignupPage() {
 
           <div className="field">
             <label className="label">Full name</label>
-            <input className="input" type="text" placeholder="Your name" value={name} onChange={e => setName(e.target.value)}/>
+            <input className="input" type="text" placeholder="Your name"
+              value={name} onChange={e => setName(e.target.value)}/>
           </div>
           <div className="field">
             <label className="label">Email</label>
-            <input className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)}/>
+            <input className="input" type="email" placeholder="you@example.com"
+              value={email} onChange={e => setEmail(e.target.value)}/>
           </div>
           <div className="field">
             <label className="label">Password</label>
-            <input className="input" type="password" placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSignup()}
-            />
+            <input className="input" type="password" placeholder="At least 8 characters"
+              value={password} onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSignup()}/>
           </div>
 
           {error && <div className="error">{error}</div>}
@@ -137,10 +139,8 @@ export default function SignupPage() {
             {loading ? 'Creating account...' : "Let's go →"}
           </button>
 
-          <p className="footer">
-            Already have an account? <a href="/login">Sign in</a>
-          </p>
-          <a className="back" onClick={() => window.location.href='/'}>← Back to events</a>
+          <p className="footer">Already have an account? <a href="/login">Sign in</a></p>
+          <div className="back" onClick={() => window.location.href='/'}>← Back to events</div>
         </div>
       </div>
     </>

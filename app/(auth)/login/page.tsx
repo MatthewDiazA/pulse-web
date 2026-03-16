@@ -7,7 +7,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [forgotMode, setForgotMode] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [forgotLoading, setForgotLoading] = useState(false)
 
@@ -43,7 +42,8 @@ export default function LoginPage() {
           .page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
           .glow { position:fixed; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle, rgba(232,255,71,0.05) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
           .card { background:rgba(16,16,20,0.9); border:0.5px solid rgba(232,255,71,0.2); border-radius:24px; padding:48px 40px; width:100%; max-width:400px; text-align:center; position:relative; overflow:hidden; backdrop-filter:blur(20px); }
-          .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8,#e8ff47); border-radius:2px; margin-bottom:40px; }
+          .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8,#6399dc,#e8ff47); background-size:300% 100%; border-radius:2px; margin-bottom:40px; animation:barPulse 3s ease-in-out infinite; }
+          @keyframes barPulse { 0%{background-position:0% 50%;opacity:0.7} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.7} }
           .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; color:#e8ff47; margin-bottom:32px; letter-spacing:-0.5px; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); cursor:pointer; }
           .icon-wrap { width:80px; height:80px; border-radius:50%; background:rgba(232,255,71,0.08); border:1px solid rgba(232,255,71,0.2); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:32px; animation:pulseGlow 2s ease-in-out infinite; }
           @keyframes pulseGlow { 0%,100%{box-shadow:0 0 20px rgba(232,255,71,0.1)} 50%{box-shadow:0 0 40px rgba(232,255,71,0.25)} }
@@ -61,7 +61,7 @@ export default function LoginPage() {
             <div className="icon-wrap">✉️</div>
             <h1 className="heading">Check your inbox</h1>
             <p className="sub">We sent a password reset link to<br/><span className="email-highlight">{email}</span></p>
-            <div className="back-btn" onClick={() => { setForgotSent(false); setForgotMode(false) }}>← Back to sign in</div>
+            <div className="back-btn" onClick={() => setForgotSent(false)}>← Back to sign in</div>
           </div>
         </div>
       </>
@@ -78,7 +78,8 @@ export default function LoginPage() {
         .glow { position:fixed; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle, rgba(232,255,71,0.05) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
         .card { background:rgba(16,16,20,0.9); border:0.5px solid rgba(255,255,255,0.1); border-radius:24px; padding:40px; width:100%; max-width:400px; position:relative; overflow:hidden; backdrop-filter:blur(20px); }
         .card-glow { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%, rgba(232,255,71,0.04) 0%, transparent 60%); pointer-events:none; }
-        .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8); border-radius:2px; margin-bottom:32px; }
+        .top-bar { height:3px; background:linear-gradient(90deg,#e8ff47,#ff4fd8,#6399dc,#e8ff47); background-size:300% 100%; border-radius:2px; margin-bottom:32px; animation:barPulse 3s ease-in-out infinite; }
+        @keyframes barPulse { 0%{background-position:0% 50%;opacity:0.7} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.7} }
         .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; color:#e8ff47; margin-bottom:28px; letter-spacing:-0.5px; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); cursor:pointer; display:inline-block; }
         .heading { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:36px; color:#f0f0f0; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px; }
         .sub { font-size:14px; color:#555; margin-bottom:28px; font-family:'DM Sans',sans-serif; }
@@ -119,18 +120,14 @@ export default function LoginPage() {
 
           <div className="field">
             <label className="label">Email</label>
-            <input
-              className="input" type="email" placeholder="you@example.com"
-              value={email} onChange={e => setEmail(e.target.value)}
-            />
+            <input className="input" type="email" placeholder="you@example.com"
+              value={email} onChange={e => setEmail(e.target.value)}/>
           </div>
           <div className="field">
             <label className="label">Password</label>
-            <input
-              className="input" type="password" placeholder="••••••••"
+            <input className="input" type="password" placeholder="••••••••"
               value={password} onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            />
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}/>
           </div>
 
           <div className="forgot" onClick={handleForgot}>
@@ -143,9 +140,7 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in →'}
           </button>
 
-          <p className="footer">
-            Don't have an account? <a href="/signup">Sign up</a>
-          </p>
+          <p className="footer">Don't have an account? <a href="/signup">Sign up</a></p>
           <div className="back" onClick={() => window.location.href='/'}>← Back to events</div>
         </div>
       </div>
