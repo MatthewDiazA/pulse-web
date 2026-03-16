@@ -43,15 +43,23 @@ function MobileNavBtn() {
   const name = user?.user_metadata?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? null
   if (user) {
     return (
-      <a href="/account" style={{
-        background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:500,
-        padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
-        textDecoration:'none', fontFamily:'DM Sans,sans-serif',
-        textShadow:'0 0 8px rgba(232,255,71,0.5)',
-      }}>✦ {name}</a>
+      <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+        <a href="/host/create" style={{
+          background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:600,
+          padding:'7px 14px', borderRadius:'100px', textDecoration:'none',
+          fontFamily:'DM Sans,sans-serif', boxShadow:'0 0 12px rgba(232,255,71,0.35)',
+          display:'inline-flex', alignItems:'center', gap:'4px'
+        }}>✦ create</a>
+        <a href="/account" style={{
+          background:'transparent', color:'#e8ff47', fontSize:'12px', fontWeight:500,
+          padding:'7px 14px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
+          textDecoration:'none', fontFamily:'DM Sans,sans-serif',
+          textShadow:'0 0 8px rgba(232,255,71,0.5)',
+        }}>✦ {name}</a>
+      </div>
     )
   }
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:500, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
+  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:500, padding:'7px 14px', borderRadius:'100px', textDecoration:'none', fontFamily:'DM Sans,sans-serif'}}>Sign in</a>
 }
 
 const placeholderAccent: Record<string, string> = {
