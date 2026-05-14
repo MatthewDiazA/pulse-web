@@ -12,22 +12,22 @@ function AuthButton() {
     return (
       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
         <a href="/host/create" style={{
-          background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:700,
+          background:'#ED1465', color:'#fff', fontSize:'13px', fontWeight:700,
           padding:'8px 18px', borderRadius:'100px', textDecoration:'none',
           fontFamily:'Nunito,sans-serif', letterSpacing:'0.3px',
-          boxShadow:'0 0 16px rgba(232,255,71,0.35)',
+          boxShadow:'0 0 16px rgba(237,20,101,0.35)',
           display:'inline-flex', alignItems:'center', gap:'6px'
         }}>✦ create event</a>
         <a href="/account" style={{
-          background:'transparent', color:'#e8ff47', fontSize:'13px', fontWeight:600,
-          padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
+          background:'transparent', color:'#ED1465', fontSize:'13px', fontWeight:600,
+          padding:'8px 18px', borderRadius:'6px', border:'0.5px solid rgba(237,20,101,0.4)',
           textDecoration:'none', fontFamily:'Nunito,sans-serif',
-          textShadow:'0 0 8px rgba(232,255,71,0.5)',
+          textShadow:'0 0 8px rgba(237,20,101,0.5)',
         }}>✦ {user.user_metadata?.full_name?.split(' ')[0] ?? user.email?.split('@')[0]}</a>
       </div>
     )
   }
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'13px', fontWeight:700, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'Nunito,sans-serif'}}>Sign in</a>
+  return <a href="/login" style={{background:'#ED1465', color:'#fff', fontSize:'13px', fontWeight:700, padding:'8px 18px', borderRadius:'100px', textDecoration:'none', fontFamily:'Nunito,sans-serif'}}>Sign in</a>
 }
 
 function MobileNavBtn() {
@@ -41,25 +41,25 @@ function MobileNavBtn() {
     return (
       <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
         <a href="/host/create" style={{
-          background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:700,
+          background:'#ED1465', color:'#fff', fontSize:'12px', fontWeight:700,
           padding:'7px 14px', borderRadius:'100px', textDecoration:'none',
-          fontFamily:'Nunito,sans-serif', boxShadow:'0 0 12px rgba(232,255,71,0.3)',
+          fontFamily:'Nunito,sans-serif', boxShadow:'0 0 12px rgba(237,20,101,0.3)',
           display:'inline-flex', alignItems:'center', gap:'4px'
         }}>✦ create</a>
         <a href="/account" style={{
-          background:'transparent', color:'#e8ff47', fontSize:'12px', fontWeight:600,
-          padding:'7px 14px', borderRadius:'6px', border:'0.5px solid rgba(232,255,71,0.4)',
+          background:'transparent', color:'#ED1465', fontSize:'12px', fontWeight:600,
+          padding:'7px 14px', borderRadius:'6px', border:'0.5px solid rgba(237,20,101,0.4)',
           textDecoration:'none', fontFamily:'Nunito,sans-serif',
-          textShadow:'0 0 8px rgba(232,255,71,0.5)',
+          textShadow:'0 0 8px rgba(237,20,101,0.5)',
         }}>✦ {name}</a>
       </div>
     )
   }
-  return <a href="/login" style={{background:'#e8ff47', color:'#0a0a0b', fontSize:'12px', fontWeight:700, padding:'7px 14px', borderRadius:'100px', textDecoration:'none', fontFamily:'Nunito,sans-serif'}}>Sign in</a>
+  return <a href="/login" style={{background:'#ED1465', color:'#fff', fontSize:'12px', fontWeight:700, padding:'7px 14px', borderRadius:'100px', textDecoration:'none', fontFamily:'Nunito,sans-serif'}}>Sign in</a>
 }
 
 const placeholderAccent: Record<string, string> = {
-  nightlife: '#e8ff47', concert: '#6399dc', festival: '#ff4fd8', other: '#ff4fd8',
+  nightlife: '#ED1465', concert: '#6399dc', festival: '#ff4fd8', other: '#ff4fd8',
 }
 
 export default function Home() {
@@ -75,12 +75,11 @@ export default function Home() {
     setTimeout(() => setHeroVisible(true), 100)
     const fetchEvents = async () => {
       const supabase = createClient()
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('events')
         .select('*, ticket_tiers(*)')
         .eq('status', 'published')
         .order('starts_at', { ascending: true })
-      console.log('Events:', data, 'Error:', error)
       setEvents(data ?? [])
       setLoading(false)
     }
@@ -108,7 +107,7 @@ export default function Home() {
         if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0
         if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(232,255,71,${p.a})`; ctx.fill()
+        ctx.fillStyle = `rgba(237,20,101,${p.a})`; ctx.fill()
       })
       animId = requestAnimationFrame(draw)
     }
@@ -168,29 +167,30 @@ export default function Home() {
         html, body { background:#0a0a0b; min-height:100vh; overflow-x:hidden; }
         .bg-canvas { position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:0; }
         .bg-rings { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; }
-        .ring { position:absolute; border-radius:50%; border:1px solid rgba(232,255,71,0.06); animation:pulseRing 4s ease-in-out infinite; }
+        .ring { position:absolute; border-radius:50%; border:1px solid rgba(237,20,101,0.06); animation:pulseRing 4s ease-in-out infinite; }
         @keyframes pulseRing { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.06);opacity:0.15} }
         .page { position:relative; z-index:1; }
         nav { border-bottom:none; padding:14px 0; background:rgba(10,10,11,0.8); position:sticky; top:0; z-index:100; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); position:relative; }
-        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#e8ff47,#ff4fd8,#6399dc,transparent); background-size:300% 100%; animation:navPulse 4s ease-in-out infinite; }
-        @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.3} 50%{background-position:100% 50%;opacity:0.7} 100%{background-position:0% 50%;opacity:0.3} }        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
-        .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); }
+        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#ED1465,#ff4fd8,#6399dc,transparent); background-size:300% 100%; animation:navPulse 4s ease-in-out infinite; }
+        @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.3} 50%{background-position:100% 50%;opacity:0.7} 100%{background-position:0% 50%;opacity:0.3} }
+        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
+        .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; color:#ED1465; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(237,20,101,0.3)); }
         .hero { padding:60px 20px 0; max-width:100%; margin:0 auto; }
         .hero-line { overflow:hidden; position:relative; z-index:1; line-height:1; }
         .hero-word { font-family:'Barlow Condensed',sans-serif; font-size:clamp(44px,12vw,130px); line-height:0.88; color:#f0f0f0; letter-spacing:1px; font-weight:900; text-transform:uppercase; display:block; transform:translateY(110%); transition:transform 0.8s cubic-bezier(0.16,1,0.3,1); }
-        .hero-word.accent { color:#e8ff47; text-shadow:0 0 60px rgba(232,255,71,0.3); white-space:nowrap; }
+        .hero-word.accent { color:#ED1465; text-shadow:0 0 60px rgba(237,20,101,0.3); white-space:nowrap; }
         .hero-word.show { transform:translateY(0); }
         .hero-sub { margin-top:16px; font-size:14px; color:#555; font-weight:300; font-family:'DM Sans',sans-serif; line-height:1.6; opacity:0; transition:opacity 0.8s ease 0.6s; }
         .hero-sub.show { opacity:1; }
-        .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.06); border-bottom:0.5px solid rgba(255,255,255,0.06); margin:28px 0 0; background:rgba(232,255,71,0.02); padding:10px 0; }
+        .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.06); border-bottom:0.5px solid rgba(255,255,255,0.06); margin:28px 0 0; background:rgba(237,20,101,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 20s linear infinite; }
-        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:#e8ff47; opacity:0.5; white-space:nowrap; text-transform:uppercase; }
+        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:#ED1465; opacity:0.5; white-space:nowrap; text-transform:uppercase; }
         @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         .filters { padding:16px 16px 10px; display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; }
         .filters::-webkit-scrollbar { display:none; }
         .pill { background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.1); border-radius:100px; padding:8px 16px; font-size:13px; color:#555; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; white-space:nowrap; flex-shrink:0; }
         .pill:active { transform:scale(0.94); }
-        .pill.active { background:#e8ff47; color:#0a0a0b; border-color:#e8ff47; font-weight:500; }
+        .pill.active { background:#ED1465; color:#fff; border-color:#ED1465; font-weight:500; }
         .section-label { font-size:11px; color:#333; letter-spacing:1.5px; text-transform:uppercase; font-family:'DM Sans',sans-serif; padding:0 16px 10px; max-width:1100px; margin:0 auto; }
         .cards-wrap { padding:4px 12px 100px; max-width:1100px; margin:0 auto; }
         .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
@@ -206,16 +206,16 @@ export default function Home() {
         .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:4px; }
         .card-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'DM Sans',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
         .card-price-badge { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:900; color:#fff; background:rgba(0,0,0,0.5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:3px 7px; border-radius:100px; border:0.5px solid rgba(255,255,255,0.15); white-space:nowrap; }
-        .card-price-badge.free { color:#e8ff47; border-color:rgba(232,255,71,0.4); }
+        .card-price-badge.free { color:#ED1465; border-color:rgba(237,20,101,0.4); }
         .card-date-small { font-size:9px; color:rgba(255,255,255,0.5); letter-spacing:0.6px; text-transform:uppercase; margin-bottom:3px; font-family:'DM Sans',sans-serif; }
         .card-title-big { font-family:'Barlow Condensed',sans-serif; font-size:clamp(16px,4vw,22px); font-weight:900; color:#fff; text-transform:uppercase; line-height:1; margin-bottom:4px; }
         .card-venue-small { font-size:10px; color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .tag-nightlife { background:rgba(232,255,71,0.15); color:#e8ff47; border:0.5px solid rgba(232,255,71,0.3); }
+        .tag-nightlife { background:rgba(237,20,101,0.15); color:#ED1465; border:0.5px solid rgba(237,20,101,0.3); }
         .tag-concert { background:rgba(99,153,220,0.15); color:#6399dc; border:0.5px solid rgba(99,153,220,0.3); }
         .tag-festival { background:rgba(255,79,216,0.15); color:#ff4fd8; border:0.5px solid rgba(255,79,216,0.3); }
         .tag-other { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); border:0.5px solid rgba(255,255,255,0.15); }
         .empty { text-align:center; padding:60px 20px; color:#444; font-size:15px; font-family:'DM Sans',sans-serif; line-height:1.6; }
-        .empty a { color:#e8ff47; text-decoration:none; }
+        .empty a { color:#ED1465; text-decoration:none; }
         .bottom { padding:12px 12px 20px; }
         .showing { font-size:11px; color:#2a2a2a; letter-spacing:0.5px; font-family:'DM Sans',sans-serif; }
         .nav-desktop { display:none; }
@@ -247,7 +247,7 @@ export default function Home() {
             <span className={`hero-word accent ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'120ms'}}>Your Pulse.</span>
           </div>
           <p className={`hero-sub ${heroVisible ? 'show' : ''}`}>
-            Discover the best parties & shows near you. <a href="/host/create" style={{color:'#e8ff47', textDecoration:'none', fontWeight:500}}>Host your own →</a>
+            Discover the best parties & shows near you. <a href="/host/create" style={{color:'#ED1465', textDecoration:'none', fontWeight:500}}>Host your own →</a>
           </p>
         </div>
 
@@ -295,7 +295,7 @@ export default function Home() {
               <div className="grid" ref={gridRef}>
                 {filtered.map((event, index) => {
                   const cat = event.category ?? 'other'
-                  const accent = placeholderAccent[cat] ?? '#e8ff47'
+                  const accent = placeholderAccent[cat] ?? '#ED1465'
                   const date = event.starts_at
                     ? new Date(event.starts_at).toLocaleDateString('en-US', { month:'short', day:'numeric' }).toUpperCase()
                     : 'TBD'
