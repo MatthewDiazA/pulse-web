@@ -18,17 +18,24 @@ type SupabaseUser = { id: string; email?: string; user_metadata?: { full_name?: 
 
 const COLORS = {
   primary: '#ffaa33',
-  accent:  '#ff6600',
+  accent: '#ff6600',
   highlight: '#ffc850',
   bg: '#000',
   cardBg: '#0d0800',
 } as const
 
 const CATEGORY_LABEL: Record<Event['category'], string> = {
-  nightlife: 'Nightlife', concert: 'Concert', festival: 'Festival', other: 'Event',
+  nightlife: 'Nightlife',
+  concert: 'Concert',
+  festival: 'Festival',
+  other: 'Event',
 }
+
 const CATEGORY_ACCENT: Record<Event['category'], string> = {
-  nightlife: COLORS.primary, concert: COLORS.accent, festival: COLORS.highlight, other: '#ff8800',
+  nightlife: COLORS.primary,
+  concert: COLORS.accent,
+  festival: COLORS.highlight,
+  other: '#ff8800',
 }
 
 function useUser() {
@@ -50,9 +57,9 @@ function NavActions({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
   const name = displayName(user)
   const size = compact ? 12 : 13
-  const pad  = compact ? '7px 14px' : '8px 18px'
+  const pad = compact ? '7px 14px' : '8px 18px'
   const icon = compact ? 13 : 14
-  const gap  = compact ? 4 : 6
+  const gap = compact ? 4 : 6
 
   if (user) {
     return (
@@ -61,11 +68,19 @@ function NavActions({ compact = false }: { compact?: boolean }) {
           href="/host/create"
           onClick={e => { e.preventDefault(); router.push('/host/create') }}
           style={{
-            background:COLORS.primary, color:'#000', fontSize:size, fontWeight:700,
-            padding:pad, borderRadius:'100px', textDecoration:'none',
-            fontFamily:'Nunito,sans-serif', letterSpacing:'0.3px',
-            boxShadow:`0 0 ${compact ? 14 : 18}px rgba(255,170,51,0.32)`,
-            display:'inline-flex', alignItems:'center', gap:`${gap}px`,
+            background: COLORS.primary,
+            color: '#000',
+            fontSize: size,
+            fontWeight: 700,
+            padding: pad,
+            borderRadius: '100px',
+            textDecoration: 'none',
+            fontFamily: 'Nunito,sans-serif',
+            letterSpacing: '0.3px',
+            boxShadow: `0 0 ${compact ? 14 : 18}px rgba(255,170,51,0.32)`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: `${gap}px`,
           }}
         >
           <i className="ti ti-plus" style={{fontSize:`${icon}px`}} aria-hidden="true"/>
@@ -76,10 +91,18 @@ function NavActions({ compact = false }: { compact?: boolean }) {
           onClick={e => { e.preventDefault(); router.push('/account') }}
           aria-label={`Account: ${name ?? 'user'}`}
           style={{
-            background:'transparent', color:COLORS.primary, fontSize:size, fontWeight:600,
-            padding:pad, borderRadius:'6px', border:`0.5px solid rgba(255,170,51,0.3)`,
-            textDecoration:'none', fontFamily:'Nunito,sans-serif',
-            display:'inline-flex', alignItems:'center', gap:`${gap}px`,
+            background: 'transparent',
+            color: COLORS.primary,
+            fontSize: size,
+            fontWeight: 600,
+            padding: pad,
+            borderRadius: '6px',
+            border: `0.5px solid rgba(255,170,51,0.3)`,
+            textDecoration: 'none',
+            fontFamily: 'Nunito,sans-serif',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: `${gap}px`,
           }}
         >
           <i className="ti ti-user" style={{fontSize:`${icon}px`}} aria-hidden="true"/>
@@ -93,9 +116,17 @@ function NavActions({ compact = false }: { compact?: boolean }) {
       href="/login"
       onClick={e => { e.preventDefault(); router.push('/login') }}
       style={{
-        background:COLORS.primary, color:'#000', fontSize:size, fontWeight:700,
-        padding:pad, borderRadius:'100px', textDecoration:'none',
-        fontFamily:'Nunito,sans-serif', display:'inline-flex', alignItems:'center', gap:`${gap}px`,
+        background: COLORS.primary,
+        color: '#000',
+        fontSize: size,
+        fontWeight: 700,
+        padding: pad,
+        borderRadius: '100px',
+        textDecoration: 'none',
+        fontFamily: 'Nunito,sans-serif',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: `${gap}px`,
       }}
     >
       <i className="ti ti-login" style={{fontSize:`${icon}px`}} aria-hidden="true"/>
@@ -145,9 +176,9 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
         const ey = Math.sin(angle) * len
         const rayAlpha = 0.025 + 0.02 * Math.sin(t * 0.8 + i * 0.9)
         const grad = ctx.createLinearGradient(cx, 0, ex, ey)
-        grad.addColorStop(0,   `rgba(255,160,40,${rayAlpha * 4})`)
-        grad.addColorStop(0.35,`rgba(255,120,20,${rayAlpha})`)
-        grad.addColorStop(1,   'rgba(255,80,0,0)')
+        grad.addColorStop(0, `rgba(255,160,40,${rayAlpha * 4})`)
+        grad.addColorStop(0.35, `rgba(255,120,20,${rayAlpha})`)
+        grad.addColorStop(1, 'rgba(255,80,0,0)')
         ctx.beginPath()
         ctx.moveTo(cx - 20, 0)
         ctx.lineTo(cx + 20, 0)
@@ -169,8 +200,8 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
         for (let c = 0; c < cols; c++) {
           const bx = spacingX * (c + 1)
           const by = startY + spacingY * (r + 1)
-          const wave  = Math.sin(t * 1.2 + c * 0.45 + r * 0.65) * 0.5 + 0.5
-          const pulse = Math.sin(t * 2.2 + (c + r) * 0.28)    * 0.3 + 0.7
+          const wave = Math.sin(t * 1.2 + c * 0.45 + r * 0.65) * 0.5 + 0.5
+          const pulse = Math.sin(t * 2.2 + (c + r) * 0.28) * 0.3 + 0.7
           const intensity = wave * pulse
           const hue = 28 + Math.sin(t * 0.35 + c * 0.12) * 14
           const sat = 90 + intensity * 10
@@ -195,9 +226,9 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
       }
 
       const fog = ctx.createRadialGradient(cx, H * 0.52, 0, cx, H * 0.52, W * 0.45)
-      fog.addColorStop(0,   `rgba(255,120,20,${0.045 + 0.03 * Math.sin(t * 0.7)})`)
-      fog.addColorStop(0.5, `rgba(255,80,0,${0.02  + 0.01 * Math.sin(t * 0.5)})`)
-      fog.addColorStop(1,   'rgba(255,60,0,0)')
+      fog.addColorStop(0, `rgba(255,120,20,${0.045 + 0.03 * Math.sin(t * 0.7)})`)
+      fog.addColorStop(0.5, `rgba(255,80,0,${0.02 + 0.01 * Math.sin(t * 0.5)})`)
+      fog.addColorStop(1, 'rgba(255,60,0,0)')
       ctx.fillStyle = fog
       ctx.fillRect(0, 0, W, H)
 
@@ -237,33 +268,47 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
 function CardPlaceholder({ accent, index }: { accent: string; index: number }) {
   return (
     <svg
-      width="100%" height="100%" viewBox="0 0 200 300"
+      width="100%"
+      height="100%"
+      viewBox="0 0 200 300"
       xmlns="http://www.w3.org/2000/svg"
       preserveAspectRatio="xMidYMid slice"
-      style={{position:'absolute', inset:0}}
+      style={{position: 'absolute', inset: 0}}
       aria-hidden="true"
     >
       <defs>
         <radialGradient id={`g_${index}`} cx="50%" cy="30%" r="80%">
-          <stop offset="0%"   stopColor={accent} stopOpacity="0.25"/>
-          <stop offset="60%"  stopColor="#ff4400" stopOpacity="0.08"/>
-          <stop offset="100%" stopColor="#000"    stopOpacity="1"/>
+          <stop offset="0%" stopColor={accent} stopOpacity="0.25"/>
+          <stop offset="60%" stopColor="#ff4400" stopOpacity="0.08"/>
+          <stop offset="100%" stopColor="#000" stopOpacity="1"/>
         </radialGradient>
       </defs>
       <rect width="200" height="300" fill={COLORS.cardBg}/>
       <rect width="200" height="300" fill={`url(#g_${index})`}/>
       <g stroke={accent} strokeWidth="0.3" opacity="0.15">
-        {[0,1,2,3,4,5].map(i => (
-          <line key={i} x1={20+i*30} y1="0" x2={20+i*30-40} y2="300"/>
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <line key={i} x1={20 + i * 30} y1="0" x2={20 + i * 30 - 40} y2="300"/>
         ))}
       </g>
-      {[0,1,2,3,4,5,6].map(i => (
-        <circle key={`a${i}`} cx={20+i*27} cy={30+Math.sin(i)*15} r="2"
-          fill={accent} opacity={0.2 + i*0.05}/>
+      {[0, 1, 2, 3, 4, 5, 6].map(i => (
+        <circle
+          key={`a${i}`}
+          cx={20 + i * 27}
+          cy={30 + Math.sin(i) * 15}
+          r="2"
+          fill={accent}
+          opacity={0.2 + i * 0.05}
+        />
       ))}
-      {[0,1,2,3,4,5,6].map(i => (
-        <circle key={`b${i}`} cx={25+i*26} cy={55+Math.cos(i)*10} r="2"
-          fill={accent} opacity={0.15 + i*0.04}/>
+      {[0, 1, 2, 3, 4, 5, 6].map(i => (
+        <circle
+          key={`b${i}`}
+          cx={25 + i * 26}
+          cy={55 + Math.cos(i) * 10}
+          r="2"
+          fill={accent}
+          opacity={0.15 + i * 0.04}
+        />
       ))}
     </svg>
   )
@@ -273,7 +318,8 @@ function getPrice(event: Event): string {
   const tiers = event.ticket_tiers ?? []
   if (!tiers.length) return 'Free'
   const prices = tiers.map(t => t.price)
-  const min = Math.min(...prices), max = Math.max(...prices)
+  const min = Math.min(...prices),
+    max = Math.max(...prices)
   if (min === 0) return 'Free'
   if (min === max) return `$${min}`
   return `$${min}+`
@@ -283,7 +329,7 @@ export default function Home() {
   const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all'|'nightlife'|'concert'|'festival'|'nearme'>('all')
+  const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
   const [userCity, setUserCity] = useState<string | null>(null)
   const [heroVisible, setHeroVisible] = useState(false)
 
@@ -306,7 +352,10 @@ export default function Home() {
         setEvents((data ?? []) as Event[])
         setLoading(false)
       })
-    return () => { alive = false; clearTimeout(id) }
+    return () => {
+      alive = false
+      clearTimeout(id)
+    }
   }, [])
 
   useEffect(() => {
@@ -314,19 +363,21 @@ export default function Home() {
     const cards = gridRef.current.querySelectorAll('.card')
     const timers: number[] = []
     cards.forEach((card, index) => {
-      const id = window.setTimeout(
-        () => (card as HTMLElement).classList.add('visible'),
-        index * 80,
-      )
+      const id = window.setTimeout(() => (card as HTMLElement).classList.add('visible'), index * 80)
       timers.push(id)
     })
-    return () => { timers.forEach(clearTimeout) }
+    return () => {
+      timers.forEach(clearTimeout)
+    }
   }, [loading, filter])
 
   const handleNearMe = useCallback(() => {
-    if (!('geolocation' in navigator)) { setFilter('nearme'); return }
+    if (!('geolocation' in navigator)) {
+      setFilter('nearme')
+      return
+    }
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      async pos => {
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
@@ -335,7 +386,9 @@ export default function Home() {
           const data = await res.json()
           setUserCity(data.address?.city ?? data.address?.town ?? null)
           setFilter('nearme')
-        } catch { setFilter('nearme') }
+        } catch {
+          setFilter('nearme')
+        }
       },
       () => alert('Please enable location access'),
     )
@@ -344,9 +397,7 @@ export default function Home() {
   const filtered = (() => {
     if (filter === 'all') return events
     if (filter === 'nearme') {
-      return userCity
-        ? events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase()))
-        : events
+      return userCity ? events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase())) : events
     }
     return events.filter(e => e.category === filter)
   })()
@@ -354,11 +405,11 @@ export default function Home() {
   const tickerText = 'TONIGHT · YOUR CITY · FIND YOUR PULSE · LIVE EVENTS · HOUSTON · GET ON THE LIST · '
 
   const filters = [
-    { label: 'All',       value: 'all'      as const, icon: 'ti-layout-grid' },
-    { label: 'Nightlife', value: 'nightlife'as const, icon: 'ti-moon'        },
-    { label: 'Concerts',  value: 'concert'  as const, icon: 'ti-music'       },
-    { label: 'Festivals', value: 'festival' as const, icon: 'ti-confetti'    },
-    { label: 'Near me',   value: 'nearme'   as const, icon: 'ti-map-pin'     },
+    { label: 'All', value: 'all' as const, icon: 'ti-layout-grid' },
+    { label: 'Nightlife', value: 'nightlife' as const, icon: 'ti-moon' },
+    { label: 'Concerts', value: 'concert' as const, icon: 'ti-music' },
+    { label: 'Festivals', value: 'festival' as const, icon: 'ti-confetti' },
+    { label: 'Near me', value: 'nearme' as const, icon: 'ti-map-pin' },
   ]
 
   return (
@@ -426,9 +477,9 @@ export default function Home() {
         .card-venue { font-size:10px; color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:3px; }
 
         .tag-nightlife { background:rgba(255,170,51,0.12); color:${COLORS.primary}; border:0.5px solid rgba(255,170,51,0.25); }
-        .tag-concert   { background:rgba(255,102,0,0.12); color:${COLORS.accent};  border:0.5px solid rgba(255,102,0,0.25); }
-        .tag-festival  { background:rgba(255,200,80,0.1); color:${COLORS.highlight}; border:0.5px solid rgba(255,200,80,0.2); }
-        .tag-other     { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); border:0.5px solid rgba(255,255,255,0.1); }
+        .tag-concert { background:rgba(255,102,0,0.12); color:${COLORS.accent}; border:0.5px solid rgba(255,102,0,0.25); }
+        .tag-festival { background:rgba(255,200,80,0.1); color:${COLORS.highlight}; border:0.5px solid rgba(255,200,80,0.2); }
+        .tag-other { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); border:0.5px solid rgba(255,255,255,0.1); }
 
         .skeleton { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
         @media(min-width:600px){ .skeleton { grid-template-columns:repeat(3,1fr); gap:12px; } }
@@ -453,38 +504,50 @@ export default function Home() {
       <div className="page">
         <nav>
           <div className="nav-inner">
-            <button
-              className="logo"
-              onClick={() => router.push('/')}
-              aria-label="Pulse home"
-            >
+            <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
               pulse
             </button>
-            <div className="nav-desktop"><NavActions/></div>
-            <div className="nav-mobile"><NavActions compact/></div>
+            <div className="nav-desktop">
+              <NavActions/>
+            </div>
+            <div className="nav-mobile">
+              <NavActions compact/>
+            </div>
           </div>
         </nav>
 
         <header className="hero-wrap">
-          <canvas
-            ref={canvasRef}
-            className="hero-canvas"
-            aria-hidden="true"
-          />
+          <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
           <div className="hero-fade"/>
           <div className="hero">
             <div className="hero-line">
-              <span className={`hero-word ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'0ms'}}>Find</span>
+              <span
+                className={`hero-word ${heroVisible ? 'show' : ''}`}
+                style={{transitionDelay: '0ms'}}
+              >
+                Find
+              </span>
             </div>
-            <div className="hero-line" style={{overflow:'visible'}}>
-              <span className={`hero-word accent ${heroVisible ? 'show' : ''}`} style={{transitionDelay:'120ms'}}>Your Pulse.</span>
+            <div className="hero-line" style={{overflow: 'visible'}}>
+              <span
+                className={`hero-word accent ${heroVisible ? 'show' : ''}`}
+                style={{transitionDelay: '120ms'}}
+              >
+                Your Pulse.
+              </span>
             </div>
           </div>
           <p className={`hero-sub ${heroVisible ? 'show' : ''}`}>
             Discover the best parties &amp; shows near you.{' '}
-            <a href="/host/create" onClick={e => { e.preventDefault(); router.push('/host/create') }}>
+            <a
+              href="/host/create"
+              onClick={e => {
+                e.preventDefault()
+                router.push('/host/create')
+              }}
+            >
               Host your own
-              <i className="ti ti-arrow-right" style={{fontSize:'14px'}} aria-hidden="true"/>
+              <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
             </a>
           </p>
         </header>
@@ -505,32 +568,55 @@ export default function Home() {
                 role="tab"
                 aria-selected={filter === f.value}
                 className={`pill ${filter === f.value ? 'active' : ''}`}
-                onClick={() => f.value === 'nearme' ? handleNearMe() : setFilter(f.value)}
+                onClick={() => (f.value === 'nearme' ? handleNearMe() : setFilter(f.value))}
               >
-                <i className={`ti ${f.icon}`} style={{fontSize:'13px'}} aria-hidden="true"/>
+                <i className={`ti ${f.icon}`} style={{fontSize: '13px'}} aria-hidden="true"/>
                 {f.label}
               </button>
             ))}
           </div>
 
           <div className="section-label">
-            {filter === 'all' ? 'All events' : filter === 'nearme' ? 'Near you' : CATEGORY_LABEL[filter]}
+            {filter === 'all'
+              ? 'All events'
+              : filter === 'nearme'
+                ? 'Near you'
+                : CATEGORY_LABEL[filter]}
             {' '}— {filtered.length} {filtered.length === 1 ? 'event' : 'events'}
           </div>
 
           <div className="cards-wrap">
             {loading ? (
               <div className="skeleton" aria-busy="true" aria-label="Loading events">
-                {Array.from({length: 8}).map((_, i) => <div key={i} className="skel"/>)}
+                {Array.from({length: 8}).map((_, i) => (
+                  <div key={i} className="skel"/>
+                ))}
               </div>
             ) : filtered.length === 0 ? (
               <div className="empty">
-                {filter === 'nearme' ? 'No events near you yet.' :
-                  events.length === 0 ? (
-                    <>No events yet. <a href="/host/create" onClick={e => { e.preventDefault(); router.push('/host/create') }}>
-                      Create the first <i className="ti ti-arrow-right" style={{fontSize:'13px'}} aria-hidden="true"/>
-                    </a></>
-                  ) : 'No events in this category.'}
+                {filter === 'nearme'
+                  ? 'No events near you yet.'
+                  : events.length === 0
+                    ? (
+                        <>
+                          No events yet.{' '}
+                          <a
+                            href="/host/create"
+                            onClick={e => {
+                              e.preventDefault()
+                              router.push('/host/create')
+                            }}
+                          >
+                            Create the first{' '}
+                            <i
+                              className="ti ti-arrow-right"
+                              style={{fontSize: '13px'}}
+                              aria-hidden="true"
+                            />
+                          </a>
+                        </>
+                      )
+                    : 'No events in this category.'}
               </div>
             ) : (
               <div className="grid" ref={gridRef}>
@@ -538,7 +624,9 @@ export default function Home() {
                   const cat = event.category ?? 'other'
                   const accent = CATEGORY_ACCENT[cat] ?? COLORS.primary
                   const date = event.starts_at
-                    ? new Date(event.starts_at).toLocaleDateString('en-US', { month:'short', day:'numeric' }).toUpperCase()
+                    ? new Date(event.starts_at)
+                        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        .toUpperCase()
                     : 'TBD'
                   const price = getPrice(event)
                   const isFree = price === 'Free'
@@ -551,7 +639,7 @@ export default function Home() {
                       role="link"
                       aria-label={`${event.title}, ${CATEGORY_LABEL[cat]}, ${date}, ${price}`}
                       onClick={() => router.push(`/events/${event.id}`)}
-                      onKeyDown={(e) => {
+                      onKeyDown={e => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
                           router.push(`/events/${event.id}`)
@@ -559,24 +647,41 @@ export default function Home() {
                       }}
                     >
                       {event.cover_image_url ? (
-                        <img src={event.cover_image_url} className="card-bg" alt="" loading="lazy"/>
+                        <img
+                          src={event.cover_image_url}
+                          className="card-bg"
+                          alt=""
+                          loading="lazy"
+                        />
                       ) : (
                         <CardPlaceholder accent={accent} index={index}/>
                       )}
                       <div className="card-overlay"/>
                       <div className="card-content">
                         <div className="card-top">
-                          <span className={`card-tag tag-${cat}`}>{CATEGORY_LABEL[cat] ?? 'Event'}</span>
-                          <span className={`card-price-badge ${isFree ? 'free' : ''}`}>{price}</span>
+                          <span className={`card-tag tag-${cat}`}>
+                            {CATEGORY_LABEL[cat] ?? 'Event'}
+                          </span>
+                          <span className={`card-price-badge ${isFree ? 'free' : ''}`}>
+                            {price}
+                          </span>
                         </div>
                         <div>
                           <div className="card-date">
-                            <i className="ti ti-calendar-event" style={{fontSize:'9px'}} aria-hidden="true"/>
+                            <i
+                              className="ti ti-calendar-event"
+                              style={{fontSize: '9px'}}
+                              aria-hidden="true"
+                            />
                             {date}
                           </div>
                           <div className="card-title">{event.title}</div>
                           <div className="card-venue">
-                            <i className="ti ti-map-pin" style={{fontSize:'10px'}} aria-hidden="true"/>
+                            <i
+                              className="ti ti-map-pin"
+                              style={{fontSize: '10px'}}
+                              aria-hidden="true"
+                            />
                             {event.venue_name ?? event.city ?? 'TBD'}
                           </div>
                         </div>
@@ -587,7 +692,9 @@ export default function Home() {
               </div>
             )}
             <div className="bottom">
-              <span className="showing">{filtered.length} event{filtered.length !== 1 ? 's' : ''}</span>
+              <span className="showing">
+                {filtered.length} event{filtered.length !== 1 ? 's' : ''}
+              </span>
             </div>
           </div>
         </section>
