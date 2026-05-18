@@ -546,8 +546,7 @@ export default function Home() {
                 router.push('/host/create')
               }}
             >
-              Host your own
-              <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
+              Host your own →
             </a>
           </p>
         </header>
@@ -570,7 +569,6 @@ export default function Home() {
                 className={`pill ${filter === f.value ? 'active' : ''}`}
                 onClick={() => (f.value === 'nearme' ? handleNearMe() : setFilter(f.value))}
               >
-                <i className={`ti ${f.icon}`} style={{fontSize: '13px'}} aria-hidden="true"/>
                 {f.label}
               </button>
             ))}
@@ -607,12 +605,7 @@ export default function Home() {
                               router.push('/host/create')
                             }}
                           >
-                            Create the first{' '}
-                            <i
-                              className="ti ti-arrow-right"
-                              style={{fontSize: '13px'}}
-                              aria-hidden="true"
-                            />
+                            Create the first →
                           </a>
                         </>
                       )
@@ -668,20 +661,10 @@ export default function Home() {
                         </div>
                         <div>
                           <div className="card-date">
-                            <i
-                              className="ti ti-calendar-event"
-                              style={{fontSize: '9px'}}
-                              aria-hidden="true"
-                            />
                             {date}
                           </div>
                           <div className="card-title">{event.title}</div>
                           <div className="card-venue">
-                            <i
-                              className="ti ti-map-pin"
-                              style={{fontSize: '10px'}}
-                              aria-hidden="true"
-                            />
                             {event.venue_name ?? event.city ?? 'TBD'}
                           </div>
                         </div>
