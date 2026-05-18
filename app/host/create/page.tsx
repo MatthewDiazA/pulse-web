@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 
+
 export default function CreateEvent() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -14,7 +15,9 @@ export default function CreateEvent() {
     lineup: [{ name: '', role: '', time: '' }],
   })
 
+
   const update = (field: string, value: any) => setForm(f => ({ ...f, [field]: value }))
+
 
   const updateTier = (i: number, field: string, value: string) => {
     const tiers = [...form.tiers]
@@ -22,11 +25,13 @@ export default function CreateEvent() {
     setForm(f => ({ ...f, tiers }))
   }
 
+
   const updateLineup = (i: number, field: string, value: string) => {
     const lineup = [...form.lineup]
     lineup[i] = { ...lineup[i], [field]: value }
     setForm(f => ({ ...f, lineup }))
   }
+
 
   const handlePublish = async () => {
     setLoading(true)
@@ -34,7 +39,9 @@ export default function CreateEvent() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { window.location.href = '/login'; return }
 
+
     const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now()
+
 
     const { data: event, error } = await supabase
       .from('events')
@@ -49,7 +56,9 @@ export default function CreateEvent() {
       })
       .select().single()
 
+
     if (error) { alert('Error: ' + error.message); setLoading(false); return }
+
 
     if (event && form.tiers.length > 0) {
       const tierRows = form.tiers
@@ -61,9 +70,11 @@ export default function CreateEvent() {
       if (tierRows.length > 0) await supabase.from('ticket_tiers').insert(tierRows)
     }
 
+
     setLoading(false)
     window.location.href = '/host'
   }
+
 
   return (
     <>
@@ -126,15 +137,18 @@ export default function CreateEvent() {
         .publish-btn:active { transform:scale(0.98); }
       `}</style>
 
+
       <nav>
         <button className="back" onClick={() => window.location.href='/host'}>← Dashboard</button>
         <div className="logo" onClick={() => window.location.href='/'}>pulse</div>
         <div style={{width:'80px'}}/>
       </nav>
 
+
       <div className="wrap">
         <h1 className="page-title">Create event</h1>
         <p className="page-sub">Fill in the details below to publish your event on PULSE.</p>
+
 
         <div className="steps">
           {[1,2,3,4].map(s => (
@@ -142,6 +156,7 @@ export default function CreateEvent() {
           ))}
         </div>
         <p className="step-label">Step {step} of 4</p>
+
 
         {step === 1 && (
           <>
@@ -199,6 +214,7 @@ export default function CreateEvent() {
           </>
         )}
 
+
         {step === 2 && (
           <div className="section">
             <div className="section-title">Venue details</div>
@@ -235,6 +251,7 @@ export default function CreateEvent() {
           </div>
         )}
 
+
         {step === 3 && (
           <div className="section">
             <div className="section-title">Ticket tiers</div>
@@ -257,8 +274,7 @@ export default function CreateEvent() {
                   </div>
                   <div className="field">
                     <label className="label">Quantity</label>
-                    <input className="input" type="number" placeholder="e.g. 200" value={tier.quantity} onChange={e => update
-                                        <input className="input" type="number" placeholder="e.g. 200" value={tier.quantity} onChange={e => updateTier(i, 'quantity', e.target.value)}/>
+                    <input className="input" type="number" placeholder="e.g. 200" value={tier.quantity} onChange={e => updateTier(i, 'quantity', e.target.value)}/>
                   </div>
                 </div>
               </div>
@@ -268,6 +284,7 @@ export default function CreateEvent() {
             </button>
           </div>
         )}
+
 
         {step === 4 && (
           <div className="section">
@@ -302,6 +319,7 @@ export default function CreateEvent() {
           </div>
         )}
 
+
         <div className="nav-btns">
           {step > 1 && <button className="prev-btn" onClick={() => setStep(s => s - 1)}>← Back</button>}
           {step < 4
@@ -315,3 +333,6 @@ export default function CreateEvent() {
     </>
   )
 }
+
+
+
