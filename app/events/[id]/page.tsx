@@ -79,7 +79,7 @@ export default function EventDetail() {
     return () => { alive = false }
   }, [params.id])
 
-  // Saint Pablo animation — ALWAYS renders behind hero
+  // Saint Pablo animation
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -108,7 +108,6 @@ export default function EventDetail() {
       ctx.fillStyle = 'rgba(0,0,0,0.12)'
       ctx.fillRect(0, 0, W, H)
 
-      // Grid of amber dots
       const cols = W < 600 ? 8 : 12
       const rows = W < 600 ? 5 : 7
       const sx = W / (cols + 1)
@@ -143,7 +142,6 @@ export default function EventDetail() {
         }
       }
 
-      // Sweeping rays
       for (let i = 0; i < 8; i++) {
         const baseAngle = -Math.PI * 0.82 + (i / 7) * Math.PI * 0.64
         const sway = Math.sin(t * 0.55 + i * 0.8) * 0.07
@@ -166,7 +164,6 @@ export default function EventDetail() {
         ctx.fill()
       }
 
-      // Spiraling particles
       for (let i = 0; i < 50; i++) {
         const angle = (i / 50) * Math.PI * 2 + t * 0.22
         const spiral = 15 + i * 2.5 + Math.sin(t * 0.8 + i * 0.22) * 20
@@ -181,7 +178,6 @@ export default function EventDetail() {
         ctx.fill()
       }
 
-      // Fog
       const fog = ctx.createRadialGradient(cx, H * 0.45, 0, cx, H * 0.45, W * 0.5)
       fog.addColorStop(0, `rgba(255,120,20,${0.04 + 0.025 * Math.sin(t * 0.6)})`)
       fog.addColorStop(0.5, `rgba(255,80,0,${0.015 + 0.01 * Math.sin(t * 0.4)})`)
@@ -189,7 +185,6 @@ export default function EventDetail() {
       ctx.fillStyle = fog
       ctx.fillRect(0, 0, W, H)
 
-      // Crowd haze
       const crowd = ctx.createLinearGradient(0, H * 0.75, 0, H)
       crowd.addColorStop(0, 'rgba(0,0,0,0)')
       crowd.addColorStop(1, `rgba(255,70,5,${0.035 + 0.02 * Math.sin(t * 0.3)})`)
@@ -476,7 +471,7 @@ export default function EventDetail() {
                           onChange={e => setSelectedQty(prev => ({...prev, [tier.id]: parseInt(e.target.value)}))}
                         >
                           {Array.from({length: Math.min(available, 10)}).map((_, i) => (
-                            <option key={i+1} value={i+1}>{i+1}</option>
+                            <option key={i + 1} value={i + 1}>{i + 1}</option>
                           ))}
                         </select>
                         {price > 0 && qty > 1 && (
