@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { createClient } from '../../../lib/supabase/client'
+import { createClient } from '../../lib/supabase/client'
 
 type Tier = { id: string; name: string; price: number; quantity: number; sold: number }
 type Event = {
