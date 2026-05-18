@@ -72,17 +72,18 @@ export default function CreateEvent() {
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { background:#0a0a0b; font-family:'DM Sans',sans-serif; color:#f0f0f0; }
         .wrap { max-width:680px; margin:0 auto; padding:0 20px 100px; }
-        nav { border-bottom:none; padding:14px 20px; background:rgba(10,10,11,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(16px); position:relative; }
-        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#e8ff47,#ff4fd8,#6399dc,transparent); background-size:300% 100%; animation:navPulse 4s ease-in-out infinite; }
+        nav { padding:14px 20px; background:rgba(10,10,11,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); position:relative; }
+        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#ED1465,#ff4fd8,#6399dc,transparent); background-size:300% 100%; animation:navPulse 4s ease-in-out infinite; }
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.3} 50%{background-position:100% 50%;opacity:0.7} 100%{background-position:0% 50%;opacity:0.3} }
-        .logo { font-family:'Nunito',sans-serif; font-size:26px; font-weight:900; letter-spacing:-0.5px; color:#e8ff47; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(232,255,71,0.3)); }
-        .back { font-size:13px; color:#555; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; }
+        .logo { font-family:'Nunito',sans-serif; font-size:26px; font-weight:900; letter-spacing:-0.5px; color:#ED1465; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(237,20,101,0.3)); }
+        .back { font-size:13px; color:#555; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; }
+        .back:hover { color:#f0f0f0; }
         .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:clamp(36px,8vw,56px); letter-spacing:1px; color:#f0f0f0; padding:36px 0 6px; text-transform:uppercase; }
         .page-sub { font-size:14px; color:#555; margin-bottom:32px; line-height:1.5; }
         .steps { display:flex; gap:6px; margin-bottom:6px; }
         .step-dot { flex:1; height:3px; border-radius:100px; background:rgba(255,255,255,0.08); transition:background 0.3s; }
-        .step-dot.done { background:#e8ff47; }
-        .step-dot.active { background:rgba(232,255,71,0.4); animation:stepPulse 2s ease-in-out infinite; }
+        .step-dot.done { background:#ED1465; }
+        .step-dot.active { background:rgba(237,20,101,0.4); animation:stepPulse 2s ease-in-out infinite; }
         @keyframes stepPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
         .step-label { font-size:12px; color:#444; margin-bottom:28px; font-family:'DM Sans',sans-serif; letter-spacing:0.3px; }
         .section { margin-bottom:28px; }
@@ -90,18 +91,18 @@ export default function CreateEvent() {
         .field { margin-bottom:14px; }
         .label { font-size:11px; color:#555; margin-bottom:5px; display:block; letter-spacing:0.4px; text-transform:uppercase; font-family:'DM Sans',sans-serif; }
         .input { width:100%; background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 14px; color:#f0f0f0; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color 0.15s; -webkit-appearance:none; }
-        .input:focus { border-color:rgba(232,255,71,0.35); background:rgba(255,255,255,0.06); }
+        .input:focus { border-color:rgba(237,20,101,0.35); background:rgba(255,255,255,0.06); }
         .input::placeholder { color:#333; }
         textarea.input { min-height:100px; resize:vertical; }
         .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
         .select { width:100%; background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 14px; color:#f0f0f0; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; cursor:pointer; -webkit-appearance:none; }
         .toggle-row { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px; margin-bottom:12px; cursor:pointer; transition:border-color 0.15s; }
-        .toggle-row:active { border-color:rgba(232,255,71,0.3); }
+        .toggle-row:active { border-color:rgba(237,20,101,0.3); }
         .toggle-label { font-size:14px; color:#f0f0f0; }
         .toggle-sub { font-size:12px; color:#555; margin-top:2px; }
         .toggle { width:36px; height:20px; border-radius:100px; border:none; cursor:pointer; transition:background 0.2s; flex-shrink:0; }
-        .toggle.on { background:#e8ff47; }
+        .toggle.on { background:#ED1465; }
         .toggle.off { background:rgba(255,255,255,0.1); }
         .tier-card { background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; margin-bottom:10px; }
         .tier-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
@@ -111,15 +112,16 @@ export default function CreateEvent() {
         .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.12); border-radius:10px; padding:12px; font-size:13px; color:#444; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:4px; transition:all 0.15s; }
         .add-btn:active { border-color:rgba(255,255,255,0.3); color:#888; }
         .upload-area { border:0.5px dashed rgba(255,255,255,0.12); border-radius:12px; padding:28px; text-align:center; cursor:pointer; transition:all 0.15s; margin-bottom:16px; }
-        .upload-area:active { border-color:rgba(232,255,71,0.3); background:rgba(232,255,71,0.02); }
+        .upload-area:active { border-color:rgba(237,20,101,0.3); background:rgba(237,20,101,0.02); }
+        .upload-icon { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
         .upload-text { font-size:14px; color:#555; }
         .upload-sub { font-size:12px; color:#333; margin-top:4px; }
         .nav-btns { display:flex; gap:10px; margin-top:40px; padding-top:20px; border-top:0.5px solid rgba(255,255,255,0.06); }
         .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.1); color:#555; font-size:14px; font-family:'DM Sans',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; }
         .prev-btn:active { color:#f0f0f0; }
-        .next-btn { flex:1; background:#e8ff47; color:#0a0a0b; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 16px rgba(232,255,71,0.25); transition:all 0.15s; }
+        .next-btn { flex:1; background:#ED1465; color:#fff; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 16px rgba(237,20,101,0.25); transition:all 0.15s; }
         .next-btn:active { transform:scale(0.98); opacity:0.9; }
-        .publish-btn { flex:1; background:#e8ff47; color:#0a0a0b; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 16px rgba(232,255,71,0.3); transition:all 0.15s; }
+        .publish-btn { flex:1; background:#ED1465; color:#fff; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 16px rgba(237,20,101,0.3); transition:all 0.15s; }
         .publish-btn:disabled { opacity:0.4; cursor:not-allowed; box-shadow:none; }
         .publish-btn:active { transform:scale(0.98); }
       `}</style>
@@ -183,9 +185,15 @@ export default function CreateEvent() {
             <div className="section">
               <div className="section-title">Cover image</div>
               <div className="upload-area">
-                <div style={{fontSize:'28px', marginBottom:'8px'}}>🖼</div>
+                <div className="upload-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                </div>
                 <div className="upload-text">Tap to upload cover image</div>
-                <div className="upload-sub">JPG or PNG · Max 10MB · 1600×900 recommended</div>
+                <div className="upload-sub">JPG or PNG · Max 10MB · 1600x900 recommended</div>
               </div>
             </div>
           </>
@@ -249,7 +257,8 @@ export default function CreateEvent() {
                   </div>
                   <div className="field">
                     <label className="label">Quantity</label>
-                    <input className="input" type="number" placeholder="e.g. 200" value={tier.quantity} onChange={e => updateTier(i, 'quantity', e.target.value)}/>
+                    <input className="input" type="number" placeholder="e.g. 200" value={tier.quantity} onChange={e => update
+                                        <input className="input" type="number" placeholder="e.g. 200" value={tier.quantity} onChange={e => updateTier(i, 'quantity', e.target.value)}/>
                   </div>
                 </div>
               </div>
@@ -282,7 +291,7 @@ export default function CreateEvent() {
                   </div>
                   <div className="field">
                     <label className="label">Set time</label>
-                    <input className="input" placeholder="e.g. 12AM – 3AM" value={act.time} onChange={e => updateLineup(i, 'time', e.target.value)}/>
+                    <input className="input" placeholder="e.g. 12AM - 3AM" value={act.time} onChange={e => updateLineup(i, 'time', e.target.value)}/>
                   </div>
                 </div>
               </div>
