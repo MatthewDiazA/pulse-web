@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     // Fetch tier and event from DB to get real price (never trust client)
     const { data: tier, error: tierErr } = await supabase
       .from('ticket_tiers')
-      .select('id, name, price, quantity, sold')
+      .select('id, name, price, quantity, quantity_sold')
       .eq('id', tierId)
       .single()
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     // Check availability
-    const available = tier.quantity - (tier.sold || 0)
+    const available = tier.quantity - (tier.quantity_sold || 0)
     if (quantity > available) {
       return NextResponse.json({ error: `Only ${available} tickets left` }, { status: 400 })
     }
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       // Update sold count
       await supabase
         .from('ticket_tiers')
-        .update({ sold: (tier.sold || 0) + quantity })
+        .update({ quantity_sold: (tier.quantity_sold || 0) + quantity })
         .eq('id', tierId)
 
       return NextResponse.json({
