@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
 type Tier = { id: string; name: string; price: number; quantity: number; sold: number }
-type Event = {
+type EventData = {
   id: string
   title: string
   description: string
@@ -28,30 +28,45 @@ const COLORS = {
   bg: '#000',
 } as const
 
+const PLATFORM_FEE_RATE = 0.10
+
+function totalWithFee(price: number): string {
+  if (price === 0) return 'Free'
+  const total = price + price * PLATFORM_FEE_RATE
+  return `$${total.toFixed(2)}`
+}
+
+function feeAmount(price: number): string {
+  if (price === 0) return ''
+  return `$${(price * PLATFORM_FEE_RATE).toFixed(2)} service fee`
+}
+
 export default function EventDetail() {
   const router = useRouter()
   const params = useParams()
-  const [event, setEvent] = useState<Event | null>(null)
+  const [event, setEvent] = useState<EventData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [buyingTier, setBuyingTier] = useState<string | null>(null)
+  const [selectedQty, setSelectedQty] = useState<Record<string, number>>({})
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const fetchEvent = async () => {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('events')
-        .select('*, ticket_tiers(*)')
-        .eq('id', params.id)
-        .single()
-
-      if (data) {
-        setEvent(data as Event)
-      }
-      setLoading(false)
-    }
-    fetchEvent()
+    const supabase = createClient()
+    let alive = true
+    supabase
+      .from('events')
+      .select('*, ticket_tiers(*)')
+      .eq('id', params.id)
+      .single()
+      .then(({ data }) => {
+        if (!alive) return
+        if (data) setEvent(data as EventData)
+        setLoading(false)
+      })
+    return () => { alive = false }
   }, [params.id])
 
+  // Saint Pablo hero animation
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -59,87 +74,217 @@ export default function EventDetail() {
     if (!ctx) return
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let raf = 0
     let t = 0
+    let W = 0
+    let H = 0
 
     const resize = () => {
-      canvas.width = Math.round(canvas.offsetWidth * dpr)
-      canvas.height = Math.round(canvas.offsetHeight * dpr)
+      W = canvas.offsetWidth
+      H = canvas.offsetHeight
+      canvas.width = Math.round(W * dpr)
+      canvas.height = Math.round(H * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     resize()
     window.addEventListener('resize', resize)
 
-    const draw = () => {
-      const W = canvas.offsetWidth
-      const H = canvas.offsetHeight
+    const drawFrame = () => {
       const cx = W / 2
-
-      ctx.fillStyle = 'rgba(0,0,0,0.15)'
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'
       ctx.fillRect(0, 0, W, H)
 
-      // psychedelic spiraling dots
-      for (let i = 0; i < 120; i++) {
-        const angle = (i / 120) * Math.PI * 2 + t * 0.3
-        const spiral = 10 + i * 1.8 + Math.sin(t * 0.8 + i * 0.2) * 30
-        const x = cx + spiral * Math.cos(angle + Math.sin(t * 0.4 + i * 0.15))
-        const y = H * 0.35 + spiral * Math.sin(angle + Math.cos(t * 0.35 + i * 0.12))
-        const hue = 28 + Math.sin(t * 0.5 + i * 0.08) * 18
-        const size = 1.5 + Math.sin(t * 2 + i * 0.4) * 0.8
-        const alpha = 0.25 + 0.4 * Math.sin(t * 1.5 + i * 0.2)
+      // Saint Pablo grid — 12x6 warm amber dots
+      const cols = W < 600 ? 8 : 12
+      const rows = W < 600 ? 5 : 6
+      const spacingX = W / (cols + 1)
+      const spacingY = (H * 0.7) / (rows + 1)
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const bx = spacingX * (c + 1)
+          const by = 20 + spacingY * (r + 1)
+          const wave = Math.sin(t * 1.4 + c * 0.5 + r * 0.7) * 0.5 + 0.5
+          const pulse = Math.sin(t * 2.5 + (c + r) * 0.3) * 0.3 + 0.7
+          const intensity = wave * pulse
+          const hue = 28 + Math.sin(t * 0.4 + c * 0.15) * 14
+          const sat = 90 + intensity * 10
+          const light = 30 + intensity * 40
+          const alpha = 0.1 + intensity * 0.7
+
+          ctx.fillStyle = `hsla(${hue},${sat}%,${light}%,${alpha * 0.2})`
+          ctx.beginPath()
+          ctx.arc(bx, by, 6 + intensity * 10, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.fillStyle = `hsla(${hue},${sat}%,${light + 15}%,${alpha * 0.5})`
+          ctx.beginPath()
+          ctx.arc(bx, by, 3 + intensity * 4, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.fillStyle = `hsla(${hue},${sat}%,${light + 30}%,${alpha})`
+          ctx.beginPath()
+          ctx.arc(bx, by, 2, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      // Sweeping rays
+      for (let i = 0; i < 8; i++) {
+        const baseAngle = -Math.PI * 0.8 + (i / 7) * Math.PI * 0.6
+        const sway = Math.sin(t * 0.6 + i * 0.8) * 0.08
+        const angle = baseAngle + sway
+        const len = H * 1.4
+        const ex = cx + Math.cos(angle) * len
+        const ey = Math.sin(angle) * len
+        const rayAlpha = 0.02 + 0.015 * Math.sin(t * 0.7 + i)
+        const grad = ctx.createLinearGradient(cx, 0, ex, ey)
+        grad.addColorStop(0, `rgba(255,150,30,${rayAlpha * 5})`)
+        grad.addColorStop(0.3, `rgba(255,100,10,${rayAlpha})`)
+        grad.addColorStop(1, 'rgba(255,60,0,0)')
         ctx.beginPath()
-        ctx.arc(x, y, size, 0, Math.PI * 2)
-        ctx.fillStyle = `hsla(${hue},100%,60%,${alpha})`
+        ctx.moveTo(cx - 15, 0)
+        ctx.lineTo(cx + 15, 0)
+        ctx.lineTo(ex + 40, ey)
+        ctx.lineTo(ex - 40, ey)
+        ctx.closePath()
+        ctx.fillStyle = grad
         ctx.fill()
       }
 
-      // pulsing rings
-      for (let i = 0; i < 5; i++) {
-        const rad = 15 + i * 45 + Math.sin(t + i * 0.7) * 12
-        const hue = 28 + i * 8
+      // Psychedelic spiraling particles
+      for (let i = 0; i < 60; i++) {
+        const angle = (i / 60) * Math.PI * 2 + t * 0.25
+        const spiral = 20 + i * 2.2 + Math.sin(t * 0.9 + i * 0.25) * 25
+        const x = cx + spiral * Math.cos(angle + Math.sin(t * 0.35 + i * 0.1))
+        const y = H * 0.4 + spiral * Math.sin(angle + Math.cos(t * 0.3 + i * 0.08)) * 0.6
+        const hue = 20 + Math.sin(t * 0.5 + i * 0.1) * 20
+        const size = 1.2 + Math.sin(t * 2 + i * 0.5) * 0.6
+        const alpha = 0.15 + 0.3 * Math.sin(t * 1.5 + i * 0.2)
         ctx.beginPath()
-        ctx.arc(cx, H * 0.35, rad, 0, Math.PI * 2)
-        ctx.strokeStyle = `hsla(${hue},100%,60%,${0.08 + 0.04 * Math.sin(t * 0.9 + i)})`
-        ctx.lineWidth = 0.6
-        ctx.stroke()
+        ctx.arc(x, y, size, 0, Math.PI * 2)
+        ctx.fillStyle = `hsla(${hue},100%,65%,${alpha})`
+        ctx.fill()
       }
 
-      t += 0.014
-      raf = requestAnimationFrame(draw)
+      // Center fog haze
+      const fog = ctx.createRadialGradient(cx, H * 0.45, 0, cx, H * 0.45, W * 0.5)
+      fog.addColorStop(0, `rgba(255,120,20,${0.04 + 0.025 * Math.sin(t * 0.6)})`)
+      fog.addColorStop(0.5, `rgba(255,80,0,${0.015 + 0.01 * Math.sin(t * 0.4)})`)
+      fog.addColorStop(1, 'rgba(255,50,0,0)')
+      ctx.fillStyle = fog
+      ctx.fillRect(0, 0, W, H)
     }
-    draw()
+
+    const loop = () => {
+      t += 0.014
+      drawFrame()
+      raf = requestAnimationFrame(loop)
+    }
+
+    if (prefersReduced) { drawFrame() } else { loop() }
+
+    const onVis = () => {
+      if (document.hidden) cancelAnimationFrame(raf)
+      else if (!prefersReduced) loop()
+    }
+    document.addEventListener('visibilitychange', onVis)
 
     return () => {
       window.removeEventListener('resize', resize)
+      document.removeEventListener('visibilitychange', onVis)
       cancelAnimationFrame(raf)
     }
   }, [])
 
+  const handleBuyTicket = async (tier: Tier) => {
+    setBuyingTier(tier.id)
+    const qty = selectedQty[tier.id] || 1
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tierId: tier.id,
+          eventId: event?.id,
+          quantity: qty,
+          userId: user.id,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert(data.error ?? 'Something went wrong')
+      }
+    } catch {
+      alert('Failed to start checkout. Please try again.')
+    } finally {
+      setBuyingTier(null)
+    }
+  }
+
   if (loading) {
     return (
-      <div style={{minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#665'}}>
-        Loading...
-      </div>
+      <>
+        <style>{`body{background:#000;margin:0;}`}</style>
+        <div style={{
+          minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'DM Sans,sans-serif', color: '#665',
+        }}>
+          <div style={{
+            width: '32px', height: '32px', border: `2px solid ${COLORS.primary}`,
+            borderTopColor: 'transparent', borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+          }}/>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      </>
     )
   }
 
   if (!event) {
     return (
-      <div style={{minHeight: '100vh', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: '#665'}}>
-        Event not found
-        <button onClick={() => router.push('/')} style={{padding: '10px 20px', background: COLORS.primary, color: '#000', border: 'none', borderRadius: '100px', cursor: 'pointer'}}>
-          Go home
-        </button>
-      </div>
+      <>
+        <style>{`body{background:#000;margin:0;}`}</style>
+        <div style={{
+          minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: '16px', fontFamily: 'DM Sans,sans-serif', color: '#665',
+        }}>
+          <div style={{fontSize: '48px', opacity: 0.3}}>404</div>
+          <div>Event not found</div>
+          <button onClick={() => router.push('/')} style={{
+            padding: '12px 24px', background: COLORS.primary, color: '#000', border: 'none',
+            borderRadius: '100px', cursor: 'pointer', fontSize: '14px', fontWeight: 700,
+            fontFamily: 'Nunito,sans-serif',
+          }}>
+            Go home
+          </button>
+        </div>
+      </>
     )
   }
 
   const date = event.starts_at
-    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    ? new Date(event.starts_at).toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+      })
     : 'TBD'
   const time = event.starts_at
     ? new Date(event.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     : ''
+  const doorsTime = event.doors_at
+    ? new Date(event.doors_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null
 
   return (
     <>
@@ -148,162 +293,289 @@ export default function EventDetail() {
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { background:${COLORS.bg}; color:#f0f0f0; font-family:'DM Sans',sans-serif; overflow-x:hidden; }
-        
-        nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:14px; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,170,51,0.1); }
+
+        nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; gap:14px; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},transparent); background-size:300% 100%; animation:navGlow 5s ease-in-out infinite; }
+        @keyframes navGlow { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:0.8} 100%{background-position:0% 50%;opacity:0.2} }
         .back-btn { background:none; border:none; color:#665; cursor:pointer; font-size:13px; font-family:'DM Sans',sans-serif; display:inline-flex; align-items:center; gap:4px; transition:color 0.15s; }
         .back-btn:hover { color:#f0f0f0; }
-        .logo { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; letter-spacing:-0.5px; color:${COLORS.primary}; cursor:pointer; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(255,170,51,0.3)); }
+        .nav-logo { font-family:'Nunito',sans-serif; font-size:24px; font-weight:900; color:${COLORS.primary}; cursor:pointer; text-transform:lowercase; filter:drop-shadow(0 0 8px rgba(255,170,51,0.4)); background:none; border:none; padding:0; }
 
-        .hero { position:relative; height:480px; overflow:hidden; }
+        .hero { position:relative; height:520px; overflow:hidden; }
         .hero-canvas { position:absolute; inset:0; width:100%; height:100%; }
-        .hero-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 50%, ${COLORS.bg} 100%); }
-        .hero-content { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:flex-end; padding:0 20px 40px; max-width:900px; margin:0 auto; }
-        .category-badge { display:inline-block; padding:4px 12px; background:rgba(255,170,51,0.12); border:0.5px solid rgba(255,170,51,0.25); border-radius:100px; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:${COLORS.primary}; margin-bottom:12px; font-weight:600; }
-        .event-title { font-family:'Barlow Condensed',sans-serif; font-size:clamp(32px,8vw,64px); font-weight:900; line-height:0.95; color:#fff; text-transform:uppercase; margin-bottom:16px; text-shadow:0 2px 20px rgba(0,0,0,0.5); }
-        .event-meta { display:flex; flex-wrap:wrap; gap:20px; font-size:14px; color:rgba(255,255,255,0.7); }
-        .meta-item { display:flex; align-items:center; gap:6px; }
+        .hero-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 50%, ${COLORS.bg} 100%); }
+        .hero-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+        .hero-content { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; justify-content:flex-end; padding:0 20px 44px; max-width:900px; margin:0 auto; }
+        .cat-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; background:rgba(255,170,51,0.15); border:0.5px solid rgba(255,170,51,0.3); border-radius:100px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:${COLORS.primary}; margin-bottom:14px; font-weight:600; width:fit-content; }
+        .ev-title { font-family:'Barlow Condensed',sans-serif; font-size:clamp(36px,9vw,72px); font-weight:900; line-height:0.92; color:#fff; text-transform:uppercase; margin-bottom:18px; text-shadow:0 4px 30px rgba(0,0,0,0.7); }
+        .ev-meta { display:flex; flex-wrap:wrap; gap:18px; font-size:14px; color:rgba(255,255,255,0.75); }
+        .meta-item { display:flex; align-items:center; gap:7px; }
 
-        .content { max-width:900px; margin:0 auto; padding:40px 20px 100px; }
-        .section { margin-bottom:48px; }
-        .section-title { font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; letter-spacing:1px; text-transform:uppercase; color:#fff; margin-bottom:20px; }
-        .description { font-size:15px; line-height:1.8; color:#aaa; }
+        .content { max-width:900px; margin:0 auto; padding:44px 20px 120px; }
+        .two-col { display:grid; gap:40px; }
+        @media(min-width:700px){ .two-col { grid-template-columns:1fr 340px; } }
 
-        .info-grid { display:grid; gap:16px; }
-        .info-card { background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.08); border-radius:12px; padding:18px; }
-        .info-label { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#665; margin-bottom:8px; font-weight:500; }
-        .info-value { font-size:16px; color:#f0f0f0; font-weight:500; }
-        .info-sub { font-size:13px; color:#888; margin-top:4px; }
+        .section { margin-bottom:40px; }
+        .sec-title { font-family:'Barlow Condensed',sans-serif; font-size:24px; font-weight:900; letter-spacing:1px; text-transform:uppercase; color:#fff; margin-bottom:16px; padding-bottom:10px; border-bottom:0.5px solid rgba(255,255,255,0.06); }
+        .desc { font-size:15px; line-height:1.85; color:#999; }
 
-        .tiers-grid { display:grid; gap:14px; }
-        .tier-card { background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.08); border-radius:14px; padding:20px; transition:all 0.2s; }
-        .tier-card:active { transform:scale(0.98); }
-        .tier-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
-        .tier-name { font-size:18px; font-weight:600; color:#fff; }
-        .tier-price { font-family:'Barlow Condensed',sans-serif; font-size:26px; font-weight:900; color:${COLORS.primary}; }
+        .detail-row { display:flex; align-items:flex-start; gap:14px; padding:16px 0; border-bottom:0.5px solid rgba(255,255,255,0.04); }
+        .detail-icon { width:36px; height:36px; border-radius:10px; background:rgba(255,170,51,0.08); border:0.5px solid rgba(255,170,51,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:${COLORS.primary}; }
+        .detail-label { font-size:11px; letter-spacing:0.8px; text-transform:uppercase; color:#554; margin-bottom:3px; }
+        .detail-value { font-size:15px; color:#f0f0f0; font-weight:500; }
+        .detail-sub { font-size:12px; color:#776; margin-top:2px; }
+
+        .badge-21 { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,102,0,0.1); border:0.5px solid rgba(255,102,0,0.2); border-radius:100px; font-size:12px; color:${COLORS.accent}; font-weight:600; }
+        .badge-dress { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,200,80,0.08); border:0.5px solid rgba(255,200,80,0.15); border-radius:100px; font-size:12px; color:${COLORS.highlight}; font-weight:500; }
+
+        .tickets-panel { position:sticky; top:80px; }
+        .ticket-card { background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.08); border-radius:16px; padding:22px; margin-bottom:14px; transition:border-color 0.2s; }
+        .ticket-card:hover { border-color:rgba(255,170,51,0.15); }
+        .tier-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+        .tier-name { font-size:17px; font-weight:600; color:#fff; }
+        .tier-price { font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:${COLORS.primary}; line-height:1; }
         .tier-price.free { color:${COLORS.highlight}; }
-        .tier-avail { font-size:12px; color:#665; }
-        .buy-btn { width:100%; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 18px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        .tier-base { font-size:11px; color:#665; margin-top:2px; }
+        .tier-fee { font-size:11px; color:#554; }
+        .tier-avail { font-size:12px; color:#665; margin-bottom:14px; }
+        .qty-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+        .qty-label { font-size:12px; color:#776; }
+        .qty-select { background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.12); border-radius:8px; padding:6px 10px; color:#f0f0f0; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; cursor:pointer; -webkit-appearance:none; }
+        .buy-btn { width:100%; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:15px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 22px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+        .buy-btn:hover { box-shadow:0 0 30px rgba(255,170,51,0.45); }
         .buy-btn:active { transform:scale(0.96); }
-        .buy-btn:disabled { opacity:0.3; cursor:not-allowed; }
+        .buy-btn:disabled { opacity:0.35; cursor:not-allowed; box-shadow:none; }
+        .buy-btn.loading { background:rgba(255,170,51,0.3); }
+        .soldout-btn { width:100%; background:rgba(255,255,255,0.05); color:#554; border:0.5px solid rgba(255,255,255,0.08); border-radius:100px; padding:15px; font-size:15px; font-weight:600; font-family:'DM Sans',sans-serif; cursor:not-allowed; }
+        .total-line { font-size:13px; color:#887; text-align:center; margin-top:8px; }
 
-        .badge-21 { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,102,0,0.12); border:0.5px solid rgba(255,102,0,0.25); border-radius:100px; font-size:12px; color:${COLORS.accent}; font-weight:600; }
-        .badge-dress { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; background:rgba(255,200,80,0.1); border:0.5px solid rgba(255,200,80,0.2); border-radius:100px; font-size:12px; color:${COLORS.highlight}; font-weight:500; }
+        .share-row { display:flex; gap:10px; margin-top:20px; }
+        .share-btn { flex:1; padding:12px; border-radius:12px; border:0.5px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:#888; font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.15s; }
+        .share-btn:hover { background:rgba(255,255,255,0.06); color:#f0f0f0; }
 
-        @media(min-width:600px){ .info-grid { grid-template-columns:repeat(2,1fr); } .tiers-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (prefers-reduced-motion: reduce) {
+          nav::after { animation:none !important; }
+        }
       `}</style>
 
       <nav>
-        <button className="back-btn" onClick={() => router.push('/')}>
-          <i className="ti ti-arrow-left" style={{fontSize:'14px'}} aria-hidden="true"/>
+        <button className="back-btn" onClick={() => router.back()}>
+          <i className="ti ti-arrow-left" style={{fontSize: '15px'}} aria-hidden="true"/>
           Back
         </button>
-        <button className="logo" onClick={() => router.push('/')}>pulse</button>
+        <button className="nav-logo" onClick={() => router.push('/')}>pulse</button>
       </nav>
 
       <div className="hero">
-        <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
+        {event.cover_image_url ? (
+          <img src={event.cover_image_url} className="hero-img" alt={event.title}/>
+        ) : (
+          <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
+        )}
         <div className="hero-overlay"/>
         <div className="hero-content">
-          <span className="category-badge">{event.category}</span>
-          <h1 className="event-title">{event.title}</h1>
-          <div className="event-meta">
+          <div className="cat-badge">{event.category}</div>
+          <h1 className="ev-title">{event.title}</h1>
+          <div className="ev-meta">
             <div className="meta-item">
-              <i className="ti ti-calendar" style={{fontSize:'16px'}} aria-hidden="true"/>
+              <i className="ti ti-calendar" style={{fontSize: '16px', color: COLORS.primary}} aria-hidden="true"/>
               {date}
             </div>
             {time && (
               <div className="meta-item">
-                <i className="ti ti-clock" style={{fontSize:'16px'}} aria-hidden="true"/>
+                <i className="ti ti-clock" style={{fontSize: '16px', color: COLORS.primary}} aria-hidden="true"/>
                 {time}
               </div>
             )}
-            <div className="meta-item">
-              <i className="ti ti-map-pin" style={{fontSize:'16px'}} aria-hidden="true"/>
-              {event.venue_name ?? event.city ?? 'TBD'}
-            </div>
+            {event.venue_name && (
+              <div className="meta-item">
+                <i className="ti ti-map-pin" style={{fontSize: '16px', color: COLORS.primary}} aria-hidden="true"/>
+                {event.venue_name}{event.city ? `, ${event.city}` : ''}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div className="content">
-        {event.description && (
-          <div className="section">
-            <h2 className="section-title">About this event</h2>
-            <p className="description">{event.description}</p>
-          </div>
-        )}
+        <div className="two-col">
+          <div className="left">
+            {event.description && (
+              <div className="section">
+                <h2 className="sec-title">About</h2>
+                <p className="desc">{event.description}</p>
+              </div>
+            )}
 
-        <div className="section">
-          <h2 className="section-title">Tickets</h2>
-          <div className="tiers-grid">
+            <div className="section">
+              <h2 className="sec-title">Details</h2>
+
+              <div className="detail-row">
+                <div className="detail-icon">
+                  <i className="ti ti-calendar-event" style={{fontSize: '16px'}} aria-hidden="true"/>
+                </div>
+                <div>
+                  <div className="detail-label">Date</div>
+                  <div className="detail-value">{date}</div>
+                  {time && <div className="detail-sub">Show starts at {time}</div>}
+                </div>
+              </div>
+
+              {doorsTime && (
+                <div className="detail-row">
+                  <div className="detail-icon">
+                    <i className="ti ti-door" style={{fontSize: '16px'}} aria-hidden="true"/>
+                  </div>
+                  <div>
+                    <div className="detail-label">Doors</div>
+                    <div className="detail-value">{doorsTime}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="detail-row">
+                <div className="detail-icon">
+                  <i className="ti ti-building" style={{fontSize: '16px'}} aria-hidden="true"/>
+                </div>
+                <div>
+                  <div className="detail-label">Venue</div>
+                  <div className="detail-value">{event.venue_name ?? 'TBD'}</div>
+                  {event.address && <div className="detail-sub">{event.address}</div>}
+                  {event.city && event.state && <div className="detail-sub">{event.city}, {event.state}</div>}
+                </div>
+              </div>
+
+              {event.is_21_plus && (
+                <div className="detail-row">
+                  <div className="detail-icon">
+                    <i className="ti ti-id" style={{fontSize: '16px'}} aria-hidden="true"/>
+                  </div>
+                  <div>
+                    <div className="detail-label">Age</div>
+                    <div className="badge-21">21+ only · Valid ID required</div>
+                  </div>
+                </div>
+              )}
+
+              {event.dress_code && (
+                <div className="detail-row">
+                  <div className="detail-icon">
+                    <i className="ti ti-hanger" style={{fontSize: '16px'}} aria-hidden="true"/>
+                  </div>
+                  <div>
+                    <div className="detail-label">Dress code</div>
+                    <div className="badge-dress">{event.dress_code}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="share-row">
+              <button className="share-btn" onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ title: event.title, url: window.location.href })
+                } else {
+                  navigator.clipboard.writeText(window.location.href)
+                  alert('Link copied!')
+                }
+              }}>
+                <i className="ti ti-share" style={{fontSize: '15px'}} aria-hidden="true"/>
+                Share
+              </button>
+              <button className="share-btn" onClick={() => {
+                navigator.clipboard.writeText(window.location.href)
+                alert('Link copied!')
+              }}>
+                <i className="ti ti-link" style={{fontSize: '15px'}} aria-hidden="true"/>
+                Copy link
+              </button>
+            </div>
+          </div>
+
+          <div className="tickets-panel">
+            <h2 className="sec-title">Tickets</h2>
             {event.ticket_tiers && event.ticket_tiers.length > 0 ? (
               event.ticket_tiers.map(tier => {
                 const available = tier.quantity - (tier.sold || 0)
                 const soldOut = available <= 0
+                const qty = selectedQty[tier.id] || 1
+                const isBuying = buyingTier === tier.id
+
                 return (
-                  <div key={tier.id} className="tier-card">
-                    <div className="tier-header">
+                  <div key={tier.id} className="ticket-card">
+                    <div className="tier-row">
                       <div>
                         <div className="tier-name">{tier.name}</div>
-                        <div className="tier-avail">
-                          {soldOut ? 'Sold out' : `${available} available`}
-                        </div>
+                        {tier.price > 0 && (
+                          <div className="tier-fee">{feeAmount(tier.price)} included</div>
+                        )}
                       </div>
-                      <div className={`tier-price ${tier.price === 0 ? 'free' : ''}`}>
-                        {tier.price === 0 ? 'Free' : `$${tier.price}`}
+                      <div>
+                        <div className={`tier-price ${tier.price === 0 ? 'free' : ''}`}>
+                          {totalWithFee(tier.price)}
+                        </div>
+                        {tier.price > 0 && (
+                          <div className="tier-base">${tier.price.toFixed(2)} + fee</div>
+                        )}
                       </div>
                     </div>
-                    <button className="buy-btn" disabled={soldOut}>
-                      <i className="ti ti-ticket" style={{fontSize:'16px'}} aria-hidden="true"/>
-                      {soldOut ? 'Sold out' : 'Get tickets'}
-                    </button>
+                    <div className="tier-avail">
+                      {soldOut
+                        ? 'Sold out'
+                        : available <= 20
+                          ? `Only ${available} left!`
+                          : `${available} available`}
+                    </div>
+
+                    {!soldOut && (
+                      <div className="qty-row">
+                        <span className="qty-label">Qty</span>
+                        <select
+                          className="qty-select"
+                          value={qty}
+                          onChange={e => setSelectedQty(prev => ({
+                            ...prev,
+                            [tier.id]: parseInt(e.target.value),
+                          }))}
+                        >
+                          {Array.from({ length: Math.min(available, 10) }).map((_, i) => (
+                            <option key={i + 1} value={i + 1}>{i + 1}</option>
+                          ))}
+                        </select>
+                        {tier.price > 0 && qty > 1 && (
+                          <span className="qty-label">
+                            Total: {totalWithFee(tier.price * qty)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {soldOut ? (
+                      <div className="soldout-btn">Sold out</div>
+                    ) : (
+                      <button
+                        className={`buy-btn ${isBuying ? 'loading' : ''}`}
+                        disabled={isBuying}
+                        onClick={() => handleBuyTicket(tier)}
+                      >
+                        <i className="ti ti-ticket" style={{fontSize: '16px'}} aria-hidden="true"/>
+                        {isBuying ? 'Processing...' : tier.price === 0 ? 'RSVP — Free' : `Get tickets · ${totalWithFee(tier.price * qty)}`}
+                      </button>
+                    )}
+                    {tier.price > 0 && !soldOut && (
+                      <div className="total-line">
+                        Includes 10% service fee
+                      </div>
+                    )}
                   </div>
                 )
               })
             ) : (
-              <div style={{color:'#665', fontSize:'14px'}}>No tickets available yet</div>
-            )}
-          </div>
-        </div>
-
-        <div className="section">
-          <h2 className="section-title">Details</h2>
-          <div className="info-grid">
-            <div className="info-card">
-              <div className="info-label">Venue</div>
-              <div className="info-value">{event.venue_name ?? 'TBD'}</div>
-              {event.address && <div className="info-sub">{event.address}</div>}
-              {event.city && event.state && (
-                <div className="info-sub">{event.city}, {event.state}</div>
-              )}
-            </div>
-
-            {event.doors_at && (
-              <div className="info-card">
-                <div className="info-label">Doors open</div>
-                <div className="info-value">
-                  {new Date(event.doors_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              <div className="ticket-card" style={{textAlign: 'center', padding: '40px 20px'}}>
+                <div style={{fontSize: '14px', color: '#665', marginBottom: '12px'}}>
+                  Tickets not available yet
                 </div>
-              </div>
-            )}
-
-            {event.is_21_plus && (
-              <div className="info-card">
-                <div className="info-label">Age restriction</div>
-                <div className="badge-21">
-                  <i className="ti ti-alert-circle" style={{fontSize:'14px'}} aria-hidden="true"/>
-                  21+ only · Valid ID required
-                </div>
-              </div>
-            )}
-
-            {event.dress_code && (
-              <div className="info-card">
-                <div className="info-label">Dress code</div>
-                <div className="badge-dress">
-                  <i className="ti ti-hanger" style={{fontSize:'14px'}} aria-hidden="true"/>
-                  {event.dress_code}
-                </div>
+                <div style={{fontSize: '12px', color: '#443'}}>Check back soon</div>
               </div>
             )}
           </div>
