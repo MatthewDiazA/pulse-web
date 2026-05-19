@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
+import EventLounge from '../../components/EventLounge'
 
 type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
 type Comment = {
@@ -78,6 +79,7 @@ export default function EventDetail() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [posting, setPosting] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -98,11 +100,19 @@ export default function EventDetail() {
     return () => { alive = false }
   }, [params.id])
 
-  // Fetch current user
+  // Fetch current user + admin status
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCurrentUser(data.user)
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        setCurrentUser(data.user)
+        const { data: admin } = await supabase
+          .from('admins')
+          .select('user_id')
+          .eq('user_id', data.user.id)
+          .single()
+        if (admin) setIsAdmin(true)
+      }
     })
   }, [])
 
@@ -169,9 +179,8 @@ export default function EventDetail() {
 
     let query = supabase.from('comments').delete().eq('id', commentId)
 
-    // If owner, delete by user_id match (RLS will allow)
-    // If host, delete without user_id filter (needs RLS policy)
-    if (!isHost) {
+    // Only filter by user_id if not host and not admin
+    if (!isHost && !isAdmin) {
       query = query.eq('user_id', currentUser?.id)
     }
 
@@ -724,6 +733,8 @@ export default function EventDetail() {
               })()
               const isOwner = currentUser?.id === c.user_id
               const isHost = currentUser?.id === event?.host_id
+              const canDelete = isOwner || isHost || isAdmin
+              const canEdit = isOwner
               return (
                 <div key={c.id} className="comment-card">
                   <div className="comment-avatar" style={{background: AVATARS.find(a => a.emoji === c.user_avatar)?.bg ?? 'rgba(255,255,255,0.06)'}}>
@@ -751,10 +762,10 @@ export default function EventDetail() {
                     ) : (
                       <>
                         <div className="comment-text">{c.content}</div>
-                        {(isOwner || isHost) && (
+                        {(canEdit || canDelete) && (
                           <div className="comment-actions">
-                            {isOwner && <button className="comment-action" onClick={() => { setEditingId(c.id); setEditText(c.content) }}>Edit</button>}
-                            <button className="comment-action delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>
+                            {canEdit && <button className="comment-action" onClick={() => { setEditingId(c.id); setEditText(c.content) }}>Edit</button>}
+                            {canDelete && <button className="comment-action delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>}
                           </div>
                         )}
                       </>
@@ -766,6 +777,14 @@ export default function EventDetail() {
           )}
         </div>
       </div>
+
+      {event && (
+        <EventLounge
+          eventId={event.id}
+          eventTitle={event.title}
+          hostId={event.host_id}
+        />
+      )}
     </>
   )
 }
