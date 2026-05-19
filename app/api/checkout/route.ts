@@ -65,7 +65,12 @@ export async function POST(request: Request) {
 
       const { error: insertErr } = await supabase.from('tickets').insert(ticketRows)
       if (insertErr) {
-        return NextResponse.json({ error: 'Failed to create tickets' }, { status: 500 })
+        console.error('Failed to insert tickets:', insertErr)
+        return NextResponse.json({ 
+          error: 'Failed to create tickets',
+          details: insertErr.message,
+          code: insertErr.code 
+        }, { status: 500 })
       }
 
       // Update sold count
