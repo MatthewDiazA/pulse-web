@@ -6,6 +6,7 @@ import { createClient } from '../../lib/supabase/client'
 type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
 type Comment = {
   id: string
+  user_id: string
   user_name: string
   user_avatar: string
   content: string
@@ -72,10 +73,12 @@ export default function EventDetail() {
   const [selectedQty, setSelectedQty] = useState<Record<string, number>>({})
   const [comments, setComments] = useState<Comment[]>([])
   const [newComment, setNewComment] = useState('')
-  const [commentName, setCommentName] = useState('')
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0])
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [posting, setPosting] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -94,6 +97,14 @@ export default function EventDetail() {
     return () => { alive = false }
   }, [params.id])
 
+  // Fetch current user
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUser(data.user)
+    })
+  }, [])
+
   // Fetch comments
   useEffect(() => {
     if (!params.id) return
@@ -109,15 +120,17 @@ export default function EventDetail() {
   }, [params.id])
 
   const handlePostComment = async () => {
-    if (!newComment.trim() || !commentName.trim()) return
+    if (!newComment.trim() || !currentUser) return
     setPosting(true)
     const supabase = createClient()
+    const userName = currentUser.user_metadata?.full_name ?? currentUser.email?.split('@')[0] ?? 'Anonymous'
 
     const { data, error } = await supabase
       .from('comments')
       .insert({
         event_id: params.id,
-        user_name: commentName.trim(),
+        user_id: currentUser.id,
+        user_name: userName,
         user_avatar: selectedAvatar.emoji,
         content: newComment.trim(),
       })
@@ -129,6 +142,35 @@ export default function EventDetail() {
       setNewComment('')
     }
     setPosting(false)
+  }
+
+  const handleEditComment = async (commentId: string) => {
+    if (!editText.trim()) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('comments')
+      .update({ content: editText.trim() })
+      .eq('id', commentId)
+      .eq('user_id', currentUser?.id)
+
+    if (!error) {
+      setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editText.trim() } : c))
+      setEditingId(null)
+      setEditText('')
+    }
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('user_id', currentUser?.id)
+
+    if (!error) {
+      setComments(prev => prev.filter(c => c.id !== commentId))
+    }
   }
 
   // Saint Pablo animation
@@ -421,9 +463,22 @@ export default function EventDetail() {
         .comment-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
         .comment-body{flex:1;min-width:0;}
         .comment-header{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
-        .comment-name{font-size:13px;font-weight:600;color:#f0f0f0;}
+        .comment-name{font-size:13px;font-weight:600;color:#f0f0f0;cursor:pointer;transition:color 0.15s;}
+        .comment-name:hover{color:${COLORS.primary};}
         .comment-time{font-size:11px;color:#443;}
         .comment-text{font-size:14px;color:#bbb;line-height:1.6;}
+        .comment-actions{display:flex;gap:12px;margin-top:6px;}
+        .comment-action{font-size:11px;color:#554;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:color 0.15s;padding:0;}
+        .comment-action:hover{color:#f0f0f0;}
+        .comment-action.delete:hover{color:#ff6666;}
+        .edit-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,170,51,0.3);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:50px;margin-top:6px;}
+        .edit-actions{display:flex;gap:8px;margin-top:6px;}
+        .edit-save{font-size:12px;color:#000;background:${COLORS.primary};border:none;border-radius:6px;padding:5px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;}
+        .edit-cancel{font-size:12px;color:#888;background:none;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+        .login-prompt{text-align:center;padding:20px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;margin-bottom:24px;}
+        .login-prompt-text{font-size:14px;color:#665;margin-bottom:10px;}
+        .login-prompt-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;transition:all 0.15s;}
+        .login-prompt-btn:hover{box-shadow:0 0 16px rgba(255,170,51,0.3);}
         .no-comments{text-align:center;padding:32px;color:#443;font-size:14px;}
 
         @media(prefers-reduced-motion:reduce){nav::after{animation:none!important;}}
@@ -592,53 +647,56 @@ export default function EventDetail() {
       <div className="comments-section">
         <h2 className="comments-title">Comments</h2>
 
-        <div className="comment-form">
-          <div className="comment-top-row">
-            <div
-              className="avatar-btn"
-              style={{background: selectedAvatar.bg}}
-              onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-            >
-              {selectedAvatar.emoji}
-              {showAvatarPicker && (
-                <div className="avatar-picker" onClick={e => e.stopPropagation()}>
-                  {AVATARS.map(av => (
-                    <div
-                      key={av.id}
-                      className={`avatar-option ${selectedAvatar.id === av.id ? 'selected' : ''}`}
-                      style={{background: av.bg}}
-                      onClick={() => { setSelectedAvatar(av); setShowAvatarPicker(false) }}
-                    >
-                      {av.emoji}
-                    </div>
-                  ))}
-                </div>
-              )}
+        {currentUser ? (
+          <div className="comment-form">
+            <div className="comment-top-row">
+              <div
+                className="avatar-btn"
+                style={{background: selectedAvatar.bg}}
+                onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+              >
+                {selectedAvatar.emoji}
+                {showAvatarPicker && (
+                  <div className="avatar-picker" onClick={e => e.stopPropagation()}>
+                    {AVATARS.map(av => (
+                      <div
+                        key={av.id}
+                        className={`avatar-option ${selectedAvatar.id === av.id ? 'selected' : ''}`}
+                        style={{background: av.bg}}
+                        onClick={() => { setSelectedAvatar(av); setShowAvatarPicker(false) }}
+                      >
+                        {av.emoji}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <span style={{fontSize:'14px',color:'#f0f0f0',fontWeight:500}}>
+                {currentUser.user_metadata?.full_name ?? currentUser.email?.split('@')[0]}
+              </span>
             </div>
-            <input
-              className="name-input"
-              placeholder="Your name"
-              value={commentName}
-              onChange={e => setCommentName(e.target.value)}
-              maxLength={30}
+            <textarea
+              className="comment-input"
+              placeholder="Say something about this event..."
+              value={newComment}
+              onChange={e => setNewComment(e.target.value)}
+              maxLength={500}
             />
+            <button
+              className="post-btn"
+              disabled={posting || !newComment.trim()}
+              onClick={handlePostComment}
+            >
+              {posting ? 'Posting...' : 'Post'}
+            </button>
+            <div style={{clear:'both'}}/>
           </div>
-          <textarea
-            className="comment-input"
-            placeholder="Say something about this event..."
-            value={newComment}
-            onChange={e => setNewComment(e.target.value)}
-            maxLength={500}
-          />
-          <button
-            className="post-btn"
-            disabled={posting || !newComment.trim() || !commentName.trim()}
-            onClick={handlePostComment}
-          >
-            {posting ? 'Posting...' : 'Post'}
-          </button>
-          <div style={{clear:'both'}}/>
-        </div>
+        ) : (
+          <div className="login-prompt">
+            <div className="login-prompt-text">Sign in to leave a comment</div>
+            <button className="login-prompt-btn" onClick={() => router.push('/login')}>Sign in</button>
+          </div>
+        )}
 
         <div className="comment-list">
           {comments.length === 0 ? (
@@ -655,6 +713,7 @@ export default function EventDetail() {
                 const days = Math.floor(hrs / 24)
                 return `${days}d ago`
               })()
+              const isOwner = currentUser?.id === c.user_id
               return (
                 <div key={c.id} className="comment-card">
                   <div className="comment-avatar" style={{background: AVATARS.find(a => a.emoji === c.user_avatar)?.bg ?? 'rgba(255,255,255,0.06)'}}>
@@ -662,10 +721,33 @@ export default function EventDetail() {
                   </div>
                   <div className="comment-body">
                     <div className="comment-header">
-                      <span className="comment-name">{c.user_name}</span>
+                      <span className="comment-name" onClick={() => router.push(`/profile/${c.user_id}`)}>{c.user_name}</span>
                       <span className="comment-time">{timeAgo}</span>
                     </div>
-                    <div className="comment-text">{c.content}</div>
+                    {editingId === c.id ? (
+                      <>
+                        <textarea
+                          className="edit-input"
+                          value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          maxLength={500}
+                        />
+                        <div className="edit-actions">
+                          <button className="edit-save" onClick={() => handleEditComment(c.id)}>Save</button>
+                          <button className="edit-cancel" onClick={() => { setEditingId(null); setEditText('') }}>Cancel</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="comment-text">{c.content}</div>
+                        {isOwner && (
+                          <div className="comment-actions">
+                            <button className="comment-action" onClick={() => { setEditingId(c.id); setEditText(c.content) }}>Edit</button>
+                            <button className="comment-action delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               )
