@@ -48,7 +48,9 @@ export default function CreateEvent() {
     state: '',
     is21Plus: false,
     dressCode: '',
-    tiers: [{ name: 'General Admission', price: '', quantity: '' }],
+    tiers: [
+      { name: '', price: '', quantity: '' },
+    ],
     lineup: [{ name: '', role: '', time: '' }],
     coverImage: null,
   })
@@ -482,12 +484,21 @@ export default function CreateEvent() {
                 </div>
                 <div className="field">
                   <label className="label">Tier name</label>
-                  <input
-                    className="input"
-                    placeholder="e.g. General Admission, VIP"
+                  <select
+                    className="select"
                     value={tier.name}
                     onChange={e => updateTier(i, 'name', e.target.value)}
-                  />
+                  >
+                    <option value="">Select tier type...</option>
+                    <option value="GA">GA</option>
+                    <option value="GA 2">GA 2</option>
+                    <option value="GA 3">GA 3</option>
+                    <option value="Early Bird">Early Bird</option>
+                    <option value="VIP">VIP</option>
+                    <option value="VIP Table">VIP Table</option>
+                    <option value="Presale">Presale</option>
+                    <option value="Door">Door</option>
+                  </select>
                 </div>
                 <div className="row-2">
                   <div className="field">
