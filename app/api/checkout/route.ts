@@ -10,6 +10,7 @@ const supabase = createClient(
 )
 
 const PLATFORM_FEE_RATE = 0.10
+const MAX_TICKETS_PER_USER_PER_EVENT = 10
 
 export async function POST(request: Request) {
   try {
@@ -20,11 +21,24 @@ export async function POST(request: Request) {
     const quantity = parseInt(String(body.quantity)) || 1
     const userId = body.userId ?? body.user_id
 
-    if (!tierId || !eventId) {
-      return NextResponse.json({ error: 'Missing tierId or eventId' }, { status: 400 })
+    if (!tierId || !eventId || !userId) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Fetch tier and event from DB to get real price (never trust client)
+    // Rate limit: max tickets per user per event
+    const { count } = await supabase
+      .from('tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('event_id', eventId)
+
+    if ((count ?? 0) + quantity > MAX_TICKETS_PER_USER_PER_EVENT) {
+      return NextResponse.json({
+        error: `Limit ${MAX_TICKETS_PER_USER_PER_EVENT} tickets per event. You already have ${count ?? 0}.`,
+      }, { status: 400 })
+    }
+
+    // Fetch tier and event from DB (never trust client)
     const { data: tier, error: tierErr } = await supabase
       .from('ticket_tiers')
       .select('id, name, price, quantity, quantity_sold')
@@ -32,6 +46,7 @@ export async function POST(request: Request) {
       .single()
 
     if (tierErr || !tier) {
+      console.error('Tier lookup failed:', tierErr)
       return NextResponse.json({ error: 'Ticket tier not found' }, { status: 404 })
     }
 
@@ -42,6 +57,7 @@ export async function POST(request: Request) {
       .single()
 
     if (eventErr || !event) {
+      console.error('Event lookup failed:', eventErr)
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
@@ -59,18 +75,14 @@ export async function POST(request: Request) {
         user_id: userId,
         event_id: eventId,
         tier_id: tierId,
-        qr_code: `PULSE-${eventId.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        qr_code: `PULSE-${crypto.randomUUID()}`,
         status: 'active',
       }))
 
       const { error: insertErr } = await supabase.from('tickets').insert(ticketRows)
       if (insertErr) {
         console.error('Failed to insert tickets:', insertErr)
-        return NextResponse.json({ 
-          error: 'Failed to create tickets',
-          details: insertErr.message,
-          code: insertErr.code 
-        }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to create tickets' }, { status: 500 })
       }
 
       // Update sold count
@@ -115,6 +127,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url })
   } catch (error: any) {
     console.error('Checkout error:', error)
-    return NextResponse.json({ error: error.message ?? 'Checkout failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Checkout failed. Please try again.' }, { status: 500 })
   }
 }
