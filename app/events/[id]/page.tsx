@@ -28,30 +28,17 @@ const COLORS = {
   bg: '#000',
 } as const
 
-const FEE_RATE = 0.10
+const FEE_RATE = 0.10 // internal only — not shown to customer
 
 function safePrice(p: unknown): number {
   const n = Number(p)
   return isNaN(n) || n < 0 ? 0 : n
 }
 
-function totalWithFee(price: number, qty: number): string {
+function displayPrice(price: number, qty: number): string {
   const p = safePrice(price)
   if (p === 0) return 'Free'
-  const total = (p + p * FEE_RATE) * qty
-  return `$${total.toFixed(2)}`
-}
-
-function feeForOne(price: number): string {
-  const p = safePrice(price)
-  if (p === 0) return ''
-  return `$${(p * FEE_RATE).toFixed(2)} fee`
-}
-
-function basePrice(price: number): string {
-  const p = safePrice(price)
-  if (p === 0) return 'Free'
-  return `$${p.toFixed(2)}`
+  return `$${(p * qty).toFixed(2)}`
 }
 
 export default function EventDetail() {
@@ -451,11 +438,8 @@ export default function EventDetail() {
                       <div className="tier-name">{tier.name}</div>
                       <div>
                         <div className={`tier-price ${price === 0 ? 'free' : ''}`}>
-                          {totalWithFee(price, 1)}
+                          {displayPrice(price, 1)}
                         </div>
-                        {price > 0 && (
-                          <div className="tier-breakdown">{basePrice(price)} + {feeForOne(price)}</div>
-                        )}
                       </div>
                     </div>
                     {soldOut && (
@@ -475,7 +459,7 @@ export default function EventDetail() {
                           ))}
                         </select>
                         {price > 0 && qty > 1 && (
-                          <span className="qty-label">Total: {totalWithFee(price, qty)}</span>
+                          <span className="qty-label">Total: {displayPrice(price, qty)}</span>
                         )}
                       </div>
                     )}
@@ -493,11 +477,8 @@ export default function EventDetail() {
                           ? 'Processing...'
                           : price === 0
                             ? 'RSVP — Free'
-                            : `Get tickets · ${totalWithFee(price, qty)}`}
+                            : `Get tickets · ${displayPrice(price, qty)}`}
                       </button>
-                    )}
-                    {price > 0 && !soldOut && (
-                      <div className="fee-note">Includes 10% service fee</div>
                     )}
                   </div>
                 )
@@ -513,4 +494,4 @@ export default function EventDetail() {
       </div>
     </>
   )
-}// force rebuild
+}

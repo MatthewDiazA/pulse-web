@@ -97,7 +97,8 @@ export async function POST(request: Request) {
     }
 
     // Paid ticket — create Stripe checkout session
-    const totalPerTicketCents = Math.round((basePrice + basePrice * PLATFORM_FEE_RATE) * 100)
+    // Customer pays base price. Platform fee is internal (taken from host payout).
+    const totalPerTicketCents = Math.round(basePrice * 100)
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -109,7 +110,6 @@ export async function POST(request: Request) {
             unit_amount: totalPerTicketCents,
             product_data: {
               name: `${tier.name} — ${event.title}`,
-              description: `Includes ${Math.round(PLATFORM_FEE_RATE * 100)}% service fee`,
             },
           },
         },
