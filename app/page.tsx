@@ -105,7 +105,6 @@ function NavActions({ compact = false }: { compact?: boolean }) {
             gap: `${gap}px`,
           }}
         >
-          <i className="ti ti-user" style={{fontSize:`${icon}px`}} aria-hidden="true"/>
           {name}
         </a>
       </div>
@@ -321,8 +320,11 @@ function getPrice(event: Event): string {
   const min = Math.min(...prices),
     max = Math.max(...prices)
   if (min === 0) return 'Free'
-  if (min === max) return `$${min}`
-  return `$${min}+`
+  // Add 10% platform fee to display total price
+  const minWithFee = min + min * 0.10
+  const maxWithFee = max + max * 0.10
+  if (min === max) return `$${minWithFee.toFixed(2)}`
+  return `$${minWithFee.toFixed(2)}+`
 }
 
 export default function Home() {

@@ -458,9 +458,9 @@ export default function EventDetail() {
                         )}
                       </div>
                     </div>
-                    <div className="tier-avail">
-                      {soldOut ? 'Sold out' : available <= 20 ? `Only ${available} left` : `${available} available`}
-                    </div>
+                    {soldOut && (
+                      <div className="tier-avail">Sold out</div>
+                    )}
 
                     {!soldOut && (
                       <div className="qty-row">

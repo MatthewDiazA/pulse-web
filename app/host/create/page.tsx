@@ -20,6 +20,7 @@ type FormData = {
   dressCode: string
   tiers: Tier[]
   lineup: LineupAct[]
+  coverImage: File | null
 }
 
 const COLORS = {
@@ -32,6 +33,8 @@ export default function CreateEvent() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [form, setForm] = useState<FormData>({
     title: '',
     category: 'nightlife',
@@ -47,6 +50,7 @@ export default function CreateEvent() {
     dressCode: '',
     tiers: [{ name: 'General Admission', price: '', quantity: '' }],
     lineup: [{ name: '', role: '', time: '' }],
+    coverImage: null,
   })
 
   const update = useCallback((field: keyof FormData, value: any) => {
@@ -69,70 +73,126 @@ export default function CreateEvent() {
     })
   }, [])
 
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image must be under 10MB')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      alert('File must be an image')
+      return
+    }
+
+    setForm(f => ({ ...f, coverImage: file }))
+    const reader = new FileReader()
+    reader.onload = () => setImagePreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }, [])
+
   const handlePublish = async () => {
     setLoading(true)
     const supabase = createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
     if (!user) {
       router.push('/login')
       return
     }
 
-    const slug =
-      form.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '') +
-      '-' +
-      Date.now()
+    try {
+      let coverImageUrl: string | null = null
 
-    const { data: event, error } = await supabase
-      .from('events')
-      .insert({
-        host_id: user.id,
-        title: form.title,
-        slug,
-        description: form.description,
-        category: form.category,
-        status: 'published',
-        venue_name: form.venueName,
-        address: form.address,
-        city: form.city,
-        state: form.state,
-        is_21_plus: form.is21Plus,
-        dress_code: form.dressCode,
-        starts_at:
-          form.date && form.showTime
-            ? `${form.date}T${form.showTime}:00`
-            : new Date().toISOString(),
-        doors_at: form.date && form.doorsTime ? `${form.date}T${form.doorsTime}:00` : null,
-      })
-      .select()
-      .single()
+      // Upload image if present
+      if (form.coverImage) {
+        setUploading(true)
+        const fileName = `${Date.now()}-${form.coverImage.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('event-covers')
+          .upload(fileName, form.coverImage, {
+            cacheControl: '3600',
+            upsert: false,
+          })
 
-    if (error) {
-      alert('Error: ' + error.message)
+        if (uploadError) {
+          console.error('Upload error:', uploadError)
+          alert('Failed to upload image: ' + uploadError.message)
+          setUploading(false)
+          setLoading(false)
+          return
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('event-covers').getPublicUrl(uploadData.path)
+        coverImageUrl = publicUrl
+        setUploading(false)
+      }
+
+      const slug =
+        form.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '') +
+        '-' +
+        Date.now()
+
+      const { data: event, error } = await supabase
+        .from('events')
+        .insert({
+          host_id: user.id,
+          title: form.title,
+          slug,
+          description: form.description,
+          category: form.category,
+          status: 'published',
+          venue_name: form.venueName,
+          address: form.address,
+          city: form.city,
+          state: form.state,
+          is_21_plus: form.is21Plus,
+          dress_code: form.dressCode,
+          cover_image_url: coverImageUrl,
+          starts_at:
+            form.date && form.showTime
+              ? `${form.date}T${form.showTime}:00`
+              : new Date().toISOString(),
+          doors_at: form.date && form.doorsTime ? `${form.date}T${form.doorsTime}:00` : null,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        alert('Error: ' + error.message)
+        setLoading(false)
+        return
+      }
+
+      if (event && form.tiers.length > 0) {
+        const tierRows = form.tiers
+          .filter(t => t.name && t.price && t.quantity)
+          .map((t, i) => ({
+            event_id: event.id,
+            name: t.name,
+            price: parseFloat(t.price),
+            quantity: parseInt(t.quantity),
+            sort_order: i,
+          }))
+        if (tierRows.length > 0) await supabase.from('ticket_tiers').insert(tierRows)
+      }
+
       setLoading(false)
-      return
+      router.push('/host')
+    } catch (err) {
+      console.error(err)
+      alert('Something went wrong')
+      setLoading(false)
     }
-
-    if (event && form.tiers.length > 0) {
-      const tierRows = form.tiers
-        .filter(t => t.name && t.price && t.quantity)
-        .map((t, i) => ({
-          event_id: event.id,
-          name: t.name,
-          price: parseFloat(t.price),
-          quantity: parseInt(t.quantity),
-          sort_order: i,
-        }))
-      if (tierRows.length > 0) await supabase.from('ticket_tiers').insert(tierRows)
-    }
-
-    setLoading(false)
-    router.push('/host')
   }
 
   return (
@@ -148,7 +208,7 @@ export default function CreateEvent() {
         .bg-pattern { position:fixed; inset:0; background:radial-gradient(circle at 50% 0%, rgba(255,170,51,0.03) 0%, transparent 60%); pointer-events:none; z-index:0; }
         .wrap { max-width:680px; margin:0 auto; padding:0 20px 100px; position:relative; z-index:1; }
         nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,170,51,0.1); }
-        .logo { font-family:'Nunito',sans-serif; font-size:26px; font-weight:900; letter-spacing:-0.5px; color:${COLORS.primary}; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 10px rgba(255,170,51,0.3)); }
+        .logo { font-family:'Nunito',sans-serif; font-size:26px; font-weight:900; letter-spacing:-0.5px; color:${COLORS.primary}; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 10px rgba(255,170,51,0.3)); background:none; border:none; padding:0; }
         .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .back:hover { color:#f0f0f0; }
         .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:clamp(36px,8vw,56px); letter-spacing:1px; color:#f0f0f0; padding:36px 0 6px; text-transform:uppercase; }
@@ -184,11 +244,15 @@ export default function CreateEvent() {
         .remove-btn:hover { color:#ff6666; }
         .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.12); border-radius:10px; padding:12px; font-size:13px; color:#554; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:4px; transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
         .add-btn:active { border-color:rgba(255,255,255,0.3); color:#888; }
-        .upload-area { border:0.5px dashed rgba(255,255,255,0.12); border-radius:12px; padding:28px; text-align:center; cursor:pointer; transition:all 0.15s; margin-bottom:16px; }
-        .upload-area:active { border-color:rgba(255,170,51,0.3); background:rgba(255,170,51,0.02); }
+        .upload-area { border:0.5px dashed rgba(255,255,255,0.12); border-radius:12px; padding:28px; text-align:center; cursor:pointer; transition:all 0.15s; margin-bottom:16px; position:relative; overflow:hidden; }
+        .upload-area:hover { border-color:rgba(255,170,51,0.25); }
+        .upload-area.has-image { border-color:rgba(255,170,51,0.3); background:rgba(255,170,51,0.03); }
         .upload-icon { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
         .upload-text { font-size:14px; color:#665; }
         .upload-sub { font-size:12px; color:#444; margin-top:4px; }
+        .image-preview { max-width:100%; max-height:200px; border-radius:10px; margin-bottom:12px; }
+        .remove-image { font-size:12px; color:#665; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.1); padding:6px 12px; border-radius:6px; cursor:pointer; transition:all 0.15s; }
+        .remove-image:hover { color:#ff6666; border-color:rgba(255,102,102,0.3); }
         .nav-btns { display:flex; gap:10px; margin-top:40px; padding-top:20px; border-top:0.5px solid rgba(255,255,255,0.06); }
         .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.1); color:#665; font-size:14px; font-family:'DM Sans',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; }
         .prev-btn:active { color:#f0f0f0; }
@@ -206,7 +270,7 @@ export default function CreateEvent() {
 
       <nav>
         <button className="back" onClick={() => router.push('/host')}>
-          <i className="ti ti-arrow-left" style={{fontSize:'14px'}} aria-hidden="true"/>
+          <i className="ti ti-arrow-left" style={{fontSize: '14px'}} aria-hidden="true"/>
           Dashboard
         </button>
         <button className="logo" onClick={() => router.push('/')}>
@@ -247,7 +311,7 @@ export default function CreateEvent() {
                 <select
                   className="select"
                   value={form.category}
-                  onChange={e => update('category', e.target.value)}
+                  onChange={e => update('category', e.target.value as any)}
                 >
                   <option value="nightlife">Nightlife</option>
                   <option value="concert">Concert</option>
@@ -299,13 +363,37 @@ export default function CreateEvent() {
             </div>
             <div className="section">
               <div className="section-title">Cover image</div>
-              <div className="upload-area">
-                <div className="upload-icon">
-                  <i className="ti ti-photo" style={{fontSize:'20px', color:'#665'}} aria-hidden="true"/>
-                </div>
-                <div className="upload-text">Tap to upload cover image</div>
-                <div className="upload-sub">JPG or PNG · Max 10MB · 1600x900 recommended</div>
-              </div>
+              <label className={`upload-area ${imagePreview ? 'has-image' : ''}`}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{display: 'none'}}
+                />
+                {imagePreview ? (
+                  <div>
+                    <img src={imagePreview} alt="Preview" className="image-preview" />
+                    <button
+                      className="remove-image"
+                      onClick={e => {
+                        e.preventDefault()
+                        setForm(f => ({ ...f, coverImage: null }))
+                        setImagePreview(null)
+                      }}
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="upload-icon">
+                      <i className="ti ti-photo" style={{fontSize: '20px', color: '#665'}} aria-hidden="true"/>
+                    </div>
+                    <div className="upload-text">Tap to upload cover image</div>
+                    <div className="upload-sub">JPG or PNG · Max 10MB · 1600×900 recommended</div>
+                  </>
+                )}
+              </label>
             </div>
           </>
         )}
@@ -387,7 +475,7 @@ export default function CreateEvent() {
                         setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
                       }
                     >
-                      <i className="ti ti-x" style={{fontSize:'12px'}} aria-hidden="true"/>
+                      <i className="ti ti-x" style={{fontSize: '12px'}} aria-hidden="true"/>
                       Remove
                     </button>
                   )}
@@ -431,7 +519,7 @@ export default function CreateEvent() {
                 setForm(f => ({ ...f, tiers: [...f.tiers, { name: '', price: '', quantity: '' }] }))
               }
             >
-              <i className="ti ti-plus" style={{fontSize:'14px'}} aria-hidden="true"/>
+              <i className="ti ti-plus" style={{fontSize: '14px'}} aria-hidden="true"/>
               Add another tier
             </button>
           </div>
@@ -451,7 +539,7 @@ export default function CreateEvent() {
                         setForm(f => ({ ...f, lineup: f.lineup.filter((_, j) => j !== i) }))
                       }
                     >
-                      <i className="ti ti-x" style={{fontSize:'12px'}} aria-hidden="true"/>
+                      <i className="ti ti-x" style={{fontSize: '12px'}} aria-hidden="true"/>
                       Remove
                     </button>
                   )}
@@ -496,7 +584,7 @@ export default function CreateEvent() {
                 }))
               }
             >
-              <i className="ti ti-plus" style={{fontSize:'14px'}} aria-hidden="true"/>
+              <i className="ti ti-plus" style={{fontSize: '14px'}} aria-hidden="true"/>
               Add performer
             </button>
           </div>
@@ -505,20 +593,24 @@ export default function CreateEvent() {
         <div className="nav-btns">
           {step > 1 && (
             <button className="prev-btn" onClick={() => setStep(s => s - 1)}>
-              <i className="ti ti-arrow-left" style={{fontSize:'14px'}} aria-hidden="true"/>
+              <i className="ti ti-arrow-left" style={{fontSize: '14px'}} aria-hidden="true"/>
               Back
             </button>
           )}
           {step < 4 ? (
             <button className="next-btn" onClick={() => setStep(s => s + 1)}>
               Continue
-              <i className="ti ti-arrow-right" style={{fontSize:'14px'}} aria-hidden="true"/>
+              <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
             </button>
           ) : (
-            <button className="publish-btn" disabled={loading} onClick={handlePublish}>
-              {loading ? 'Publishing...' : (
+            <button className="publish-btn" disabled={loading || uploading} onClick={handlePublish}>
+              {uploading ? (
+                'Uploading image...'
+              ) : loading ? (
+                'Publishing...'
+              ) : (
                 <>
-                  <i className="ti ti-check" style={{fontSize:'16px'}} aria-hidden="true"/>
+                  <i className="ti ti-check" style={{fontSize: '16px'}} aria-hidden="true"/>
                   Publish event
                 </>
               )}
