@@ -42,6 +42,7 @@ export default function ConnectPage() {
   const [newCrewName, setNewCrewName] = useState('')
   const [newCrewAvatar, setNewCrewAvatar] = useState('⚡')
   const [creating, setCreating] = useState(false)
+  const [showAvatarDrop, setShowAvatarDrop] = useState(false)
 
   const crewAvatars = ['⚡', '🔥', '💀', '👽', '😈', '👑', '💎', '🌙', '🖤', '🎧', '🎭', '🍾']
 
@@ -256,26 +257,24 @@ export default function ConnectPage() {
             {showCreate ? (
               <div className="create-form">
                 <div className="create-row">
-                  <div className="crew-avatar-btn" onClick={e => {
-                    const dropdown = e.currentTarget.querySelector('.crew-avatar-dropdown') as HTMLElement
-                    if (dropdown) dropdown.style.display = dropdown.style.display === 'grid' ? 'none' : 'grid'
-                  }}>
+                  <div className="crew-avatar-btn" onClick={() => setShowAvatarDrop(!showAvatarDrop)}>
                     {newCrewAvatar}
-                    <div className="crew-avatar-dropdown" style={{display:'none'}} onClick={e => e.stopPropagation()}>
-                      {crewAvatars.map(av => (
-                        <div
-                          key={av}
-                          className={`crew-av-opt ${newCrewAvatar === av ? 'sel' : ''}`}
-                          onClick={() => {
-                            setNewCrewAvatar(av)
-                            const dropdown = document.querySelector('.crew-avatar-dropdown') as HTMLElement
-                            if (dropdown) dropdown.style.display = 'none'
-                          }}
-                        >
-                          {av}
-                        </div>
-                      ))}
-                    </div>
+                    {showAvatarDrop && (
+                      <div className="crew-avatar-dropdown" onClick={e => e.stopPropagation()}>
+                        {crewAvatars.map(av => (
+                          <div
+                            key={av}
+                            className={`crew-av-opt ${newCrewAvatar === av ? 'sel' : ''}`}
+                            onClick={() => {
+                              setNewCrewAvatar(av)
+                              setShowAvatarDrop(false)
+                            }}
+                          >
+                            {av}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <input
                     className="crew-name-input"
