@@ -617,7 +617,7 @@ export default function Home() {
                   const accent = CATEGORY_ACCENT[cat] ?? COLORS.primary
                   const date = event.starts_at
                     ? new Date(event.starts_at)
-                        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
                         .toUpperCase()
                     : 'TBD'
                   const price = getPrice(event)

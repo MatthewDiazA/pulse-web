@@ -262,13 +262,13 @@ export default function EventDetail() {
   }
 
   const date = event.starts_at
-    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' })
     : 'TBD'
   const time = event.starts_at
-    ? new Date(event.starts_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+    ? new Date(event.starts_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:'UTC' })
     : ''
   const doorsTime = event.doors_at
-    ? new Date(event.doors_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+    ? new Date(event.doors_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:'UTC' })
     : null
   const location = [event.venue_name, event.city, event.state].filter(Boolean).join(', ')
 
