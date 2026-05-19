@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 
 type LoungeMessage = {
@@ -47,6 +48,7 @@ export default function EventLounge({
   const [showPicker, setShowPicker] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [unread, setUnread] = useState(0)
+  const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -192,7 +194,8 @@ export default function EventLounge({
         .msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px;}
         .msg-body{flex:1;min-width:0;}
         .msg-header{display:flex;align-items:baseline;gap:6px;margin-bottom:1px;}
-        .msg-name{font-size:12px;font-weight:600;color:#f0f0f0;}
+        .msg-name{font-size:12px;font-weight:600;color:#f0f0f0;cursor:pointer;transition:color 0.1s;}
+        .msg-name:hover{color:#ffaa33;}
         .msg-name.host{color:#ffaa33;}
         .msg-time{font-size:10px;color:#332;}
         .msg-text{font-size:13px;color:#bbb;line-height:1.5;word-wrap:break-word;}
@@ -287,7 +290,13 @@ export default function EventLounge({
                   <div className="msg-body">
                     {showName && (
                       <div className="msg-header">
-                        <span className={`msg-name ${isMsgHost ? 'host' : ''}`}>
+                        <span
+                          className={`msg-name ${isMsgHost ? 'host' : ''}`}
+                          onClick={() => {
+                            if (!isMe) router.push(`/connect/whisper/${msg.user_id}?event=${eventId}`)
+                          }}
+                          title={isMe ? '' : `Whisper ${msg.user_name}`}
+                        >
                           {msg.user_name}
                           {isMsgHost && <span style={{fontSize:'9px',color:'#ffaa33',marginLeft:'4px',letterSpacing:'0.5px'}}>HOST</span>}
                         </span>

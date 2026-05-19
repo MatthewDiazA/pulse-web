@@ -466,6 +466,7 @@ export default function AccountPage() {
         <button className="logo" onClick={() => router.push('/')}>pulse</button>
         <div className="nav-right">
           <a href="/" onClick={e => { e.preventDefault(); router.push('/') }} className="nav-btn">Discover</a>
+          <a href="/connect" onClick={e => { e.preventDefault(); router.push('/connect') }} className="nav-btn">Connect</a>
           <a href="/host" onClick={e => { e.preventDefault(); router.push('/host') }} className="nav-btn highlight">Dashboard</a>
           <button className="create-btn" onClick={() => router.push('/host/create')} aria-label="Create event">+</button>
         </div>
