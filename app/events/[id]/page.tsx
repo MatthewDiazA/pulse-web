@@ -425,7 +425,7 @@ export default function EventDetail() {
           <div className="tickets-panel">
             <h2 className="sec-title">Tickets</h2>
             {event.ticket_tiers && event.ticket_tiers.length > 0 ? (
-              event.ticket_tiers.map(tier => {
+              [...event.ticket_tiers].sort((a, b) => safePrice(a.price) - safePrice(b.price)).map(tier => {
                 const price = safePrice(tier.price)
                 const available = tier.quantity - (tier.quantity_sold || 0)
                 const soldOut = available <= 0
