@@ -513,4 +513,4 @@ export default function EventDetail() {
       </div>
     </>
   )
-}
+}// force rebuild
