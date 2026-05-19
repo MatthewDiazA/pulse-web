@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
-type Tier = { id: string; name: string; price: number; quantity: number; sold: number }
+type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
 type EventData = {
   id: string
   title: string
@@ -440,7 +440,7 @@ export default function EventDetail() {
             {event.ticket_tiers && event.ticket_tiers.length > 0 ? (
               event.ticket_tiers.map(tier => {
                 const price = safePrice(tier.price)
-                const available = tier.quantity - (tier.sold || 0)
+                const available = tier.quantity - (tier.quantity_sold || 0)
                 const soldOut = available <= 0
                 const qty = selectedQty[tier.id] || 1
                 const isBuying = buyingTier === tier.id
