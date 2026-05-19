@@ -14,6 +14,7 @@ type Comment = {
 }
 type EventData = {
   id: string
+  host_id: string
   title: string
   description: string
   category: 'nightlife' | 'concert' | 'festival' | 'other'
@@ -162,11 +163,19 @@ export default function EventDetail() {
 
   const handleDeleteComment = async (commentId: string) => {
     const supabase = createClient()
-    const { error } = await supabase
-      .from('comments')
-      .delete()
-      .eq('id', commentId)
-      .eq('user_id', currentUser?.id)
+    const isHost = currentUser?.id === event?.host_id
+    const comment = comments.find(c => c.id === commentId)
+    const isOwner = comment?.user_id === currentUser?.id
+
+    let query = supabase.from('comments').delete().eq('id', commentId)
+
+    // If owner, delete by user_id match (RLS will allow)
+    // If host, delete without user_id filter (needs RLS policy)
+    if (!isHost) {
+      query = query.eq('user_id', currentUser?.id)
+    }
+
+    const { error } = await query
 
     if (!error) {
       setComments(prev => prev.filter(c => c.id !== commentId))
@@ -714,6 +723,7 @@ export default function EventDetail() {
                 return `${days}d ago`
               })()
               const isOwner = currentUser?.id === c.user_id
+              const isHost = currentUser?.id === event?.host_id
               return (
                 <div key={c.id} className="comment-card">
                   <div className="comment-avatar" style={{background: AVATARS.find(a => a.emoji === c.user_avatar)?.bg ?? 'rgba(255,255,255,0.06)'}}>
@@ -723,6 +733,7 @@ export default function EventDetail() {
                     <div className="comment-header">
                       <span className="comment-name" onClick={() => router.push(`/profile/${c.user_id}`)}>{c.user_name}</span>
                       <span className="comment-time">{timeAgo}</span>
+                      {isHost && !isOwner && <span style={{fontSize:'9px',color:'#554',background:'rgba(255,170,51,0.08)',padding:'2px 6px',borderRadius:'4px',marginLeft:'4px'}}>HOST</span>}
                     </div>
                     {editingId === c.id ? (
                       <>
@@ -740,9 +751,9 @@ export default function EventDetail() {
                     ) : (
                       <>
                         <div className="comment-text">{c.content}</div>
-                        {isOwner && (
+                        {(isOwner || isHost) && (
                           <div className="comment-actions">
-                            <button className="comment-action" onClick={() => { setEditingId(c.id); setEditText(c.content) }}>Edit</button>
+                            {isOwner && <button className="comment-action" onClick={() => { setEditingId(c.id); setEditText(c.content) }}>Edit</button>}
                             <button className="comment-action delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>
                           </div>
                         )}
