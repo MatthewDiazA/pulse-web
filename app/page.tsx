@@ -189,7 +189,9 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
       }
 
       const isMobile = W < 600
-      const cols = isMobile ? 10 : 14
+      // Scale columns to keep dot spacing even across screen widths
+      const targetSpacing = isMobile ? 38 : 52
+      const cols = Math.max(8, Math.round(W / targetSpacing))
       const rows = isMobile ? 7 : 9
       const spacingX = W / (cols + 1)
       const spacingY = (H * 0.65) / (rows + 1)
