@@ -35,8 +35,6 @@ export default function CrewChat() {
   const [newMsg, setNewMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviting, setInviting] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -107,24 +105,18 @@ export default function CrewChat() {
     setSending(false)
   }
 
+  const [copied, setCopied] = useState(false)
+
   const handleInvite = async () => {
-    if (!inviteEmail.trim() || inviting) return
-    setInviting(true)
-    const supabase = createClient()
-
-    // Find user by email
-    const { data: users } = await supabase
-      .from('tickets')
-      .select('user_id')
-      .limit(1)
-
-    // Try to find user in auth (we can't query auth.users from client)
-    // Instead, use a simpler approach: share invite link
     const inviteLink = `${window.location.origin}/connect/crew/${params.id}/join`
-    navigator.clipboard.writeText(inviteLink)
-    alert('Invite link copied! Share it with your crew.')
-    setInviteEmail('')
-    setInviting(false)
+    try {
+      await navigator.clipboard.writeText(inviteLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Fallback for browsers that block clipboard
+      prompt('Copy this invite link:', inviteLink)
+    }
   }
 
   const handleLeave = async () => {
@@ -287,7 +279,7 @@ export default function CrewChat() {
         <div className="invite-row">
           <button className="invite-btn" onClick={handleInvite}>
             <i className="ti ti-link" style={{fontSize:'13px',marginRight:'4px'}} aria-hidden="true"/>
-            Copy invite link
+            {copied ? 'Copied!' : 'Copy invite link'}
           </button>
         </div>
         <button className="leave-btn" onClick={handleLeave}>Leave crew</button>
