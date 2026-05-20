@@ -15,10 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pulse — Find Your Night",
   description: "Discover the best parties, concerts, and events near you. Buy tickets instantly.",
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
   openGraph: {
     title: "Pulse — Find Your Night",
     description: "Discover the best parties, concerts, and events near you.",
     type: "website",
+    images: '/favicon.png',
   },
 };
 
@@ -29,6 +34,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" type="image/png" href="/favicon.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
