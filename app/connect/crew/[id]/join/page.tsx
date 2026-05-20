@@ -42,10 +42,12 @@ export default function JoinCrew() {
       }
 
       setStatus('joining')
+      const userName = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Anonymous'
       const { error } = await supabase.from('crew_members').insert({
         crew_id: crewId,
         user_id: user.id,
         role: 'member',
+        user_name: userName,
       })
 
       if (error) { setStatus('error'); return }

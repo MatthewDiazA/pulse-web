@@ -62,7 +62,7 @@ export default function CrewChat() {
 
       const { data: mems } = await supabase
         .from('crew_members')
-        .select('user_id, role')
+        .select('user_id, role, user_name')
         .eq('crew_id', crewId)
       if (mems) setMembers(mems as Member[])
 
@@ -229,7 +229,13 @@ export default function CrewChat() {
                   <div className="msg-body">
                     {showName && (
                       <div className="msg-head">
-                        <span className="msg-name">{msg.user_name}</span>
+                        <span
+                          className="msg-name"
+                          style={{cursor:'pointer'}}
+                          onClick={() => router.push(`/profile/${msg.user_id}`)}
+                        >
+                          {msg.user_name}
+                        </span>
                         <span className="msg-time">{time}</span>
                       </div>
                     )}
@@ -271,8 +277,14 @@ export default function CrewChat() {
         </div>
         {members.map(m => (
           <div key={m.user_id} className="member-row">
-            <div className="member-av">{m.user_id.slice(0, 2).toUpperCase()}</div>
-            <div className="member-name">{m.user_id === user?.id ? 'You' : m.user_id.slice(0, 8)}</div>
+            <div className="member-av">{(m.user_name ?? m.user_id).slice(0, 2).toUpperCase()}</div>
+            <div
+              className="member-name"
+              style={{cursor:'pointer'}}
+              onClick={() => router.push(`/profile/${m.user_id}`)}
+            >
+              {m.user_id === user?.id ? 'You' : (m.user_name ?? m.user_id.slice(0, 8))}
+            </div>
             {m.role === 'owner' && <span className="member-role">Owner</span>}
           </div>
         ))}
