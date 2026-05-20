@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pulse — Find Your Night",
+  title: "Pulse",
   description: "Discover the best parties, concerts, and events near you. Buy tickets instantly.",
   icons: {
     icon: '/favicon.png',
