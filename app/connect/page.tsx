@@ -135,6 +135,8 @@ export default function ConnectPage() {
     setCreating(true)
     const supabase = createClient()
 
+    console.log('Creating crew:', { name: newCrewName.trim(), user_id: user.id, avatar: newCrewAvatar })
+
     const { data: crew, error } = await supabase
       .from('crews')
       .insert({
@@ -145,12 +147,29 @@ export default function ConnectPage() {
       .select()
       .single()
 
+    console.log('Crew insert result:', { crew, error })
+
+    if (error) {
+      console.error('Crew creation failed:', error)
+      alert(`Error: ${error.message}`)
+      setCreating(false)
+      return
+    }
+
     if (!error && crew) {
-      await supabase.from('crew_members').insert({
+      const { error: memberError } = await supabase.from('crew_members').insert({
         crew_id: crew.id,
         user_id: user.id,
         role: 'owner',
       })
+
+      console.log('Member insert result:', { memberError })
+
+      if (memberError) {
+        console.error('Member insert failed:', memberError)
+        alert(`Member error: ${memberError.message}`)
+      }
+
       setCrews(prev => [{ ...crew, member_count: 1 }, ...prev])
       setNewCrewName('')
       setShowCreate(false)
