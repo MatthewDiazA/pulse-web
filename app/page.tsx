@@ -209,19 +209,22 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
           const light = 35 + intensity * 38
           const alpha = 0.12 + intensity * 0.7
 
+          // Scale dot size to grid spacing so dots stay proportionally large
+          const unit = spacingX / 14
+
           ctx.fillStyle = `hsla(${hue},${sat}%,${light}%,${alpha * 0.25})`
           ctx.beginPath()
-          ctx.arc(bx, by, 5 + intensity * 9, 0, Math.PI * 2)
+          ctx.arc(bx, by, unit * (5 + intensity * 9), 0, Math.PI * 2)
           ctx.fill()
 
           ctx.fillStyle = `hsla(${hue},${sat}%,${light + 10}%,${alpha * 0.5})`
           ctx.beginPath()
-          ctx.arc(bx, by, 3 + intensity * 4, 0, Math.PI * 2)
+          ctx.arc(bx, by, unit * (3 + intensity * 4), 0, Math.PI * 2)
           ctx.fill()
 
           ctx.fillStyle = `hsla(${hue},${sat}%,${light + 25}%,${alpha})`
           ctx.beginPath()
-          ctx.arc(bx, by, 2.2, 0, Math.PI * 2)
+          ctx.arc(bx, by, unit * 2.2, 0, Math.PI * 2)
           ctx.fill()
         }
       }
