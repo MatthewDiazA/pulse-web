@@ -433,19 +433,16 @@ export default function Home() {
         nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},${COLORS.accent},transparent); background-size:300% 100%; animation:navPulse 5s ease-in-out infinite; }
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.2} }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
-        .logo { font-family:'Nunito',sans-serif; font-size:28px; font-weight:900; letter-spacing:-0.5px; color:${COLORS.primary}; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 10px rgba(255,170,51,0.5)); background:none; border:none; padding:0; }
+        .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
+        .logo-img { height:24px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
 
-        .hero-wrap { position:relative; overflow:hidden; min-height:480px; display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:40px; }
+        .hero-wrap { position:relative; overflow:hidden; min-height:min(74vh,620px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px 20px 50px; }
         .hero-canvas { position:absolute; inset:0; width:100%; height:100%; }
-        .hero-fade { position:absolute; bottom:0; left:0; right:0; height:180px; background:linear-gradient(to bottom,transparent,${COLORS.bg}); pointer-events:none; z-index:1; }
-        .hero { position:relative; z-index:2; padding:60px 20px 0; }
-        .hero-line { overflow:hidden; line-height:1; }
-        .hero-word { font-family:'Barlow Condensed',sans-serif; font-size:clamp(44px,12vw,130px); line-height:0.88; color:#f0f0f0; letter-spacing:1px; font-weight:900; text-transform:uppercase; display:block; transform:translateY(110%); transition:transform 0.8s cubic-bezier(0.16,1,0.3,1); }
-        .hero-word.accent { color:${COLORS.primary}; text-shadow:0 0 60px rgba(255,170,51,0.5), 0 0 120px rgba(255,100,0,0.25); white-space:nowrap; }
-        .hero-word.show { transform:translateY(0); }
-        .hero-sub { position:relative; z-index:2; margin-top:16px; padding:0 20px; font-size:14px; color:#665; font-weight:300; font-family:'DM Sans',sans-serif; line-height:1.6; opacity:0; transition:opacity 0.8s ease 0.6s; }
-        .hero-sub.show { opacity:1; }
-        .hero-sub a { color:${COLORS.primary}; text-decoration:none; font-weight:500; display:inline-flex; align-items:center; gap:4px; }
+        .hero-fade { position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to bottom,transparent,${COLORS.bg}); pointer-events:none; z-index:1; }
+        .hero-logo-wrap { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; }
+        .hero-logo { width:min(64vw,420px); height:auto; opacity:0; transform:scale(0.86); transition:opacity 1.1s ease, transform 1.1s cubic-bezier(0.16,1,0.3,1); filter:drop-shadow(0 0 40px rgba(255,170,51,0.45)) drop-shadow(0 0 90px rgba(255,100,0,0.22)); }
+        .hero-logo.show { opacity:1; transform:scale(1); animation:logoBreathe 6s ease-in-out infinite 1.1s; }
+        @keyframes logoBreathe { 0%,100%{ filter:drop-shadow(0 0 36px rgba(255,170,51,0.4)) drop-shadow(0 0 80px rgba(255,100,0,0.18)); } 50%{ filter:drop-shadow(0 0 60px rgba(255,170,51,0.62)) drop-shadow(0 0 120px rgba(255,100,0,0.32)); } }
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }
@@ -500,7 +497,7 @@ export default function Home() {
         @media(min-width:680px){ .nav-desktop { display:flex; } .nav-mobile { display:none !important; } }
 
         @media (prefers-reduced-motion: reduce) {
-          .hero-word, .hero-sub, .card { transition:none !important; }
+          .hero-logo, .card { transition:none !important; animation:none !important; }
           .ticker-track, nav::after, .skel { animation:none !important; }
         }
       `}</style>
@@ -509,7 +506,7 @@ export default function Home() {
         <nav>
           <div className="nav-inner">
             <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
-              pulse
+              <img src="/pulse-word.png" alt="pulse" className="logo-img"/>
             </button>
             <div className="nav-desktop">
               <NavActions/>
@@ -523,36 +520,13 @@ export default function Home() {
         <header className="hero-wrap">
           <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
           <div className="hero-fade"/>
-          <div className="hero">
-            <div className="hero-line">
-              <span
-                className={`hero-word ${heroVisible ? 'show' : ''}`}
-                style={{transitionDelay: '0ms'}}
-              >
-                Find
-              </span>
-            </div>
-            <div className="hero-line" style={{overflow: 'visible'}}>
-              <span
-                className={`hero-word accent ${heroVisible ? 'show' : ''}`}
-                style={{transitionDelay: '120ms'}}
-              >
-                Your Pulse.
-              </span>
-            </div>
+          <div className="hero-logo-wrap">
+            <img
+              src="/pulse-logo.png"
+              alt="pulse"
+              className={`hero-logo ${heroVisible ? 'show' : ''}`}
+            />
           </div>
-          <p className={`hero-sub ${heroVisible ? 'show' : ''}`}>
-            Discover the best parties &amp; shows near you.{' '}
-            <a
-              href="/host/create"
-              onClick={e => {
-                e.preventDefault()
-                router.push('/host/create')
-              }}
-            >
-              Host your own →
-            </a>
-          </p>
         </header>
 
         <div className="ticker-wrap" aria-hidden="true">

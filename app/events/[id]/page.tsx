@@ -35,15 +35,14 @@ type EventData = {
   ticket_tiers: Tier[]
 }
 
-// Convert any Spotify link into its embeddable player URL
 function spotifyEmbed(url: string): string | null {
   try {
     const u = new URL(url)
     if (!u.hostname.includes('spotify.com')) return null
-    const parts = u.pathname.split('/').filter(Boolean)
+    const parts = u.pathname.split('/').filter(Boolean).filter(p => !/^intl-/i.test(p))
     if (parts.length < 2) return null
     const [type, id] = parts
-    return `https://open.spotify.com/embed/${type}/${id}`
+    return `https://open.spotify.com/embed/${type}/${id.split('?')[0]}?autoplay=1`
   } catch {
     return null
   }
@@ -105,6 +104,12 @@ export default function EventDetail() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  // Spotify autoplay state
+  const [soundOpen, setSoundOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined) // undefined=loading, null=none
+  const [soundMeta, setSoundMeta] = useState<{ title: string; artist: string } | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -122,6 +127,41 @@ export default function EventDetail() {
       })
     return () => { alive = false }
   }, [params.id])
+
+  // Resolve Spotify preview MP3 once the event is loaded
+  useEffect(() => {
+    if (!event?.spotify_playlist_url) { setPreviewUrl(null); return }
+    let alive = true
+    fetch(`/api/spotify-preview?url=${encodeURIComponent(event.spotify_playlist_url)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!alive) return
+        setPreviewUrl(d.preview ?? null)
+        if (d.title) setSoundMeta({ title: d.title, artist: d.artist ?? '' })
+      })
+      .catch(() => { if (alive) setPreviewUrl(null) })
+    return () => { alive = false }
+  }, [event?.spotify_playlist_url])
+
+  // Create the audio element
+  useEffect(() => {
+    const a = new Audio()
+    a.loop = true
+    audioRef.current = a
+    return () => { a.pause(); a.src = '' }
+  }, [])
+
+  const toggleSound = () => {
+    const a = audioRef.current
+    if (!a || !previewUrl) return
+    if (playing) {
+      a.pause()
+      setPlaying(false)
+    } else {
+      if (a.src !== previewUrl) a.src = previewUrl
+      a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    }
+  }
 
   // Fetch current user + admin status
   useEffect(() => {
@@ -158,7 +198,6 @@ export default function EventDetail() {
     setPosting(true)
     const supabase = createClient()
     const userName = currentUser.user_metadata?.full_name ?? currentUser.email?.split('@')[0] ?? 'Anonymous'
-
     const { data, error } = await supabase
       .from('comments')
       .insert({
@@ -170,7 +209,6 @@ export default function EventDetail() {
       })
       .select()
       .single()
-
     if (!error && data) {
       setComments(prev => [data as Comment, ...prev])
       setNewComment('')
@@ -186,7 +224,6 @@ export default function EventDetail() {
       .update({ content: editText.trim() })
       .eq('id', commentId)
       .eq('user_id', currentUser?.id)
-
     if (!error) {
       setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editText.trim() } : c))
       setEditingId(null)
@@ -197,18 +234,11 @@ export default function EventDetail() {
   const handleDeleteComment = async (commentId: string) => {
     const supabase = createClient()
     const isHost = currentUser?.id === event?.host_id
-    const comment = comments.find(c => c.id === commentId)
-    const isOwner = comment?.user_id === currentUser?.id
-
     let query = supabase.from('comments').delete().eq('id', commentId)
-
-    // Only filter by user_id if not host and not admin
     if (!isHost && !isAdmin) {
       query = query.eq('user_id', currentUser?.id)
     }
-
     const { error } = await query
-
     if (!error) {
       setComments(prev => prev.filter(c => c.id !== commentId))
     }
@@ -419,6 +449,7 @@ export default function EventDetail() {
     ? new Date(event.doors_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:'UTC' })
     : null
   const location = [event.venue_name, event.city, event.state].filter(Boolean).join(', ')
+  const hasSocial = event.instagram_handle || event.tiktok_url
 
   return (
     <>
@@ -427,17 +458,16 @@ export default function EventDetail() {
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:${COLORS.bg};color:#f0f0f0;font-family:'DM Sans',sans-serif;overflow-x:hidden;}
-
         nav{padding:14px 20px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},transparent);background-size:300% 100%;animation:navGlow 5s ease-in-out infinite;}
         @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
         .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
-        .nav-logo{font-family:'Nunito',sans-serif;font-size:24px;font-weight:900;color:${COLORS.primary};cursor:pointer;text-transform:lowercase;filter:drop-shadow(0 0 8px rgba(255,170,51,0.4));background:none;border:none;padding:0;flex:1;text-align:center;}
+        .nav-logo{cursor:pointer;background:none;border:none;padding:0;flex:1;display:flex;justify-content:center;line-height:0;}
+        .nav-logo img{height:22px;width:auto;filter:drop-shadow(0 0 8px rgba(255,170,51,0.4));}
         .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
         .edit-event-btn:hover{background:rgba(255,170,51,0.16);border-color:rgba(255,170,51,0.5);}
         .edit-event-btn:active{transform:scale(0.96);}
-
         .hero{position:relative;height:480px;overflow:hidden;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
         .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
@@ -447,32 +477,35 @@ export default function EventDetail() {
         .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(34px,9vw,68px);font-weight:900;line-height:0.92;color:#fff;text-transform:uppercase;margin-bottom:14px;text-shadow:0 4px 30px rgba(0,0,0,0.7);}
         .ev-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:rgba(255,255,255,0.7);}
         .meta-item{display:flex;align-items:center;gap:5px;}
-
         .content{max-width:900px;margin:0 auto;padding:36px 20px 120px;}
         .two-col{display:grid;gap:36px;}
         @media(min-width:700px){.two-col{grid-template-columns:1fr 340px;}}
-
-        .section{margin-bottom:32px;}
+        .section{margin-bottom:28px;}
         .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:14px;}
-        .sec-eyebrow{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${COLORS.primary};margin-bottom:4px;}
-        .social-card{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 18px;cursor:pointer;transition:all 0.18s;text-decoration:none;}
-        .social-card:hover{border-color:rgba(255,170,51,0.3);background:rgba(255,170,51,0.04);transform:translateY(-1px);}
-        .social-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px;}
-        .social-icon.ig{background:rgba(255,170,51,0.12);color:${COLORS.primary};border:0.5px solid rgba(255,170,51,0.25);}
-        .social-icon.tt{background:rgba(255,255,255,0.06);color:#fff;border:0.5px solid rgba(255,255,255,0.15);}
-        .social-info{flex:1;min-width:0;}
-        .social-handle{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#fff;margin-bottom:1px;}
-        .social-action{font-family:'DM Sans',sans-serif;font-size:12px;color:#776;}
-        .social-arrow{color:#554;font-size:18px;flex-shrink:0;}
-        .spotify-frame{border-radius:12px;overflow:hidden;border:0.5px solid rgba(255,255,255,0.08);}
         .desc{font-size:14px;line-height:1.85;color:#999;}
-
         .details-compact{display:flex;flex-wrap:wrap;gap:8px;}
         .detail-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;font-size:13px;color:#ccc;}
         .detail-chip i{color:${COLORS.primary};font-size:14px;}
         .detail-chip.warn{background:rgba(255,102,0,0.08);border-color:rgba(255,102,0,0.18);color:${COLORS.accent};}
         .detail-chip.dress{background:rgba(255,200,80,0.06);border-color:rgba(255,200,80,0.14);color:${COLORS.highlight};}
-
+        /* compact inline social links under details */
+        .social-links{display:flex;gap:10px;margin-top:14px;}
+        .social-link{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:#ccc;font-size:19px;cursor:pointer;transition:all 0.15s;text-decoration:none;}
+        .social-link:hover{border-color:rgba(255,170,51,0.4);color:${COLORS.primary};transform:translateY(-1px);}
+        /* compact sound bar */
+        .sound-bar{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all 0.15s;}
+        .sound-bar:hover{border-color:rgba(255,170,51,0.3);}
+        .sound-play{width:40px;height:40px;border-radius:50%;background:${COLORS.primary};color:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+        .sound-info{flex:1;min-width:0;}
+        .sound-label{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .sound-sub{font-family:'DM Sans',sans-serif;font-size:11px;color:#776;margin-top:1px;}
+        .sound-eq{display:flex;align-items:flex-end;gap:2px;height:16px;flex-shrink:0;}
+        .sound-eq span{width:3px;background:${COLORS.primary};border-radius:2px;animation:eq 0.9s ease-in-out infinite;}
+        .sound-eq span:nth-child(2){animation-delay:0.15s}
+        .sound-eq span:nth-child(3){animation-delay:0.3s}
+        .sound-eq span:nth-child(4){animation-delay:0.45s}
+        @keyframes eq{0%,100%{height:4px}50%{height:16px}}
+        .spotify-fallback{border-radius:12px;overflow:hidden;border:0.5px solid rgba(255,255,255,0.08);margin-top:4px;}
         .tickets-panel{position:sticky;top:80px;}
         .ticket-card{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:12px;transition:border-color 0.2s;}
         .ticket-card:hover{border-color:rgba(255,170,51,0.15);}
@@ -480,7 +513,6 @@ export default function EventDetail() {
         .tier-name{font-size:16px;font-weight:600;color:#fff;}
         .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:${COLORS.primary};line-height:1;}
         .tier-price.free{color:${COLORS.highlight};}
-        .tier-breakdown{font-size:11px;color:#554;text-align:right;}
         .tier-avail{font-size:12px;color:#665;margin:6px 0 12px;}
         .qty-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
         .qty-label{font-size:12px;color:#776;}
@@ -490,8 +522,6 @@ export default function EventDetail() {
         .buy-btn:active{transform:scale(0.96);}
         .buy-btn:disabled{opacity:0.35;cursor:not-allowed;box-shadow:none;}
         .soldout-btn{width:100%;background:rgba(255,255,255,0.05);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:14px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:not-allowed;text-align:center;}
-        .fee-note{font-size:11px;color:#554;text-align:center;margin-top:6px;}
-
         .comments-section{margin-top:48px;max-width:900px;margin-left:auto;margin-right:auto;padding:0 20px 60px;}
         .comments-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:20px;}
         .comment-form{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:24px;}
@@ -502,9 +532,6 @@ export default function EventDetail() {
         .avatar-option{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:1.5px solid transparent;transition:all 0.15s;}
         .avatar-option:hover{transform:scale(1.15);}
         .avatar-option.selected{border-color:${COLORS.primary};background:rgba(255,170,51,0.1);}
-        .name-input{flex:1;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;}
-        .name-input:focus{border-color:rgba(255,170,51,0.3);}
-        .name-input::placeholder{color:#444;}
         .comment-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:70px;}
         .comment-input:focus{border-color:rgba(255,170,51,0.3);}
         .comment-input::placeholder{color:#444;}
@@ -535,8 +562,13 @@ export default function EventDetail() {
         .login-prompt-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;transition:all 0.15s;}
         .login-prompt-btn:hover{box-shadow:0 0 16px rgba(255,170,51,0.3);}
         .no-comments{text-align:center;padding:32px;color:#443;font-size:14px;}
-
-        @media(prefers-reduced-motion:reduce){nav::after{animation:none!important;}}
+        @media(max-width:700px){
+          .hero{height:62vh;min-height:380px;}
+          .content{padding:24px 18px 90px;}
+          .two-col{gap:24px;}
+          .ev-meta{gap:10px 14px;}
+        }
+        @media(prefers-reduced-motion:reduce){nav::after,.sound-eq span{animation:none!important;}}
       `}</style>
 
       <nav>
@@ -544,7 +576,9 @@ export default function EventDetail() {
           <i className="ti ti-arrow-left" style={{fontSize:'15px'}} aria-hidden="true"/>
           Back
         </button>
-        <button className="nav-logo" onClick={() => router.push('/')}>pulse</button>
+        <button className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
+          <img src="/pulse-word.png" alt="pulse"/>
+        </button>
         {(isAdmin || currentUser?.id === event.host_id) ? (
           <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>
             <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
@@ -595,56 +629,45 @@ export default function EventDetail() {
               </div>
             )}
 
-            {event.instagram_handle && (
+            {/* Sound — compact bar, autoplays preview when available */}
+            {event.spotify_playlist_url && (
               <div className="section">
-                <div className="sec-eyebrow">The Vibe</div>
-                <h2 className="sec-title">Instagram</h2>
-                <a className="social-card" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">
-                  <div className="social-icon ig">
-                    <i className="ti ti-brand-instagram" aria-hidden="true"/>
+                <h2 className="sec-title">Sound</h2>
+                {previewUrl ? (
+                  <div className="sound-bar" onClick={toggleSound}>
+                    <div className="sound-play">
+                      <i className={`ti ${playing ? 'ti-player-pause-filled' : 'ti-player-play-filled'}`} aria-hidden="true"/>
+                    </div>
+                    <div className="sound-info">
+                      <div className="sound-label">{soundMeta?.title ?? 'Preview the night'}</div>
+                      <div className="sound-sub">{soundMeta?.artist || 'Tap to play a 30-second preview'}</div>
+                    </div>
+                    {playing && (
+                      <div className="sound-eq"><span/><span/><span/><span/></div>
+                    )}
                   </div>
-                  <div className="social-info">
-                    <div className="social-handle">@{event.instagram_handle.replace(/^@/, '')}</div>
-                    <div className="social-action">See the latest posts & stories</div>
+                ) : previewUrl === null ? (
+                  // No preview available — fall back to the compact Spotify embed
+                  spotifyEmbed(event.spotify_playlist_url) && (
+                    <div className="spotify-fallback">
+                      <iframe
+                        src={spotifyEmbed(event.spotify_playlist_url)!}
+                        width="100%"
+                        height="152"
+                        frameBorder="0"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        loading="lazy"
+                        title="Spotify player"
+                        style={{display:'block'}}
+                      />
+                    </div>
+                  )
+                ) : (
+                  <div className="sound-bar" style={{cursor:'default',opacity:0.6}}>
+                    <div className="sound-play"><i className="ti ti-loader-2" aria-hidden="true"/></div>
+                    <div className="sound-info"><div className="sound-label">Loading sound…</div></div>
                   </div>
-                  <i className="ti ti-external-link social-arrow" aria-hidden="true"/>
-                </a>
-              </div>
-            )}
-
-            {event.tiktok_url && (
-              <div className="section">
-                <div className="sec-eyebrow">The Energy</div>
-                <h2 className="sec-title">TikTok</h2>
-                <a className="social-card" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">
-                  <div className="social-icon tt">
-                    <i className="ti ti-brand-tiktok" aria-hidden="true"/>
-                  </div>
-                  <div className="social-info">
-                    <div className="social-handle">Watch the energy</div>
-                    <div className="social-action">Clips from past nights</div>
-                  </div>
-                  <i className="ti ti-external-link social-arrow" aria-hidden="true"/>
-                </a>
-              </div>
-            )}
-
-            {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
-              <div className="section">
-                <div className="sec-eyebrow">The Sound</div>
-                <h2 className="sec-title">Hear the night</h2>
-                <div className="spotify-frame">
-                  <iframe
-                    src={spotifyEmbed(event.spotify_playlist_url)!}
-                    width="100%"
-                    height="352"
-                    frameBorder="0"
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                    loading="lazy"
-                    title="Spotify player"
-                    style={{display: 'block'}}
-                  />
-                </div>
+                )}
               </div>
             )}
 
@@ -686,6 +709,22 @@ export default function EventDetail() {
                   </div>
                 )}
               </div>
+
+              {/* tiny inline social icon-links under the details */}
+              {hasSocial && (
+                <div className="social-links">
+                  {event.instagram_handle && (
+                    <a className="social-link" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                      <i className="ti ti-brand-instagram" aria-hidden="true"/>
+                    </a>
+                  )}
+                  {event.tiktok_url && (
+                    <a className="social-link" href={event.tiktok_url} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                      <i className="ti ti-brand-tiktok" aria-hidden="true"/>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -698,7 +737,6 @@ export default function EventDetail() {
                 const soldOut = available <= 0
                 const qty = selectedQty[tier.id] || 1
                 const isBuying = buyingTier === tier.id
-
                 return (
                   <div key={tier.id} className="ticket-card">
                     <div className="tier-row">
@@ -712,7 +750,6 @@ export default function EventDetail() {
                     {soldOut && (
                       <div className="tier-avail">Sold out</div>
                     )}
-
                     {!soldOut && (
                       <div className="qty-row">
                         <span className="qty-label">Qty</span>
@@ -730,7 +767,6 @@ export default function EventDetail() {
                         )}
                       </div>
                     )}
-
                     {soldOut ? (
                       <div className="soldout-btn">Sold out</div>
                     ) : (
@@ -762,7 +798,6 @@ export default function EventDetail() {
 
       <div className="comments-section">
         <h2 className="comments-title">Comments</h2>
-
         {currentUser ? (
           <div className="comment-form">
             <div className="comment-top-row">
@@ -813,7 +848,6 @@ export default function EventDetail() {
             <button className="login-prompt-btn" onClick={() => router.push('/login')}>Sign in</button>
           </div>
         )}
-
         <div className="comment-list">
           {comments.length === 0 ? (
             <div className="no-comments">No comments yet — be the first</div>
