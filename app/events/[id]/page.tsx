@@ -5,14 +5,6 @@ import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
 
 type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
-type Comment = {
-  id: string
-  user_id: string
-  user_name: string
-  user_avatar: string
-  content: string
-  created_at: string
-}
 type EventData = {
   id: string
   host_id: string
@@ -410,7 +402,10 @@ export default function EventDetail() {
         @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
         .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
-        .nav-logo{font-family:'Nunito',sans-serif;font-size:24px;font-weight:900;color:${COLORS.primary};cursor:pointer;text-transform:lowercase;filter:drop-shadow(0 0 8px rgba(255,170,51,0.4));background:none;border:none;padding:0;}
+        .nav-logo{font-family:'Nunito',sans-serif;font-size:24px;font-weight:900;color:${COLORS.primary};cursor:pointer;text-transform:lowercase;filter:drop-shadow(0 0 8px rgba(255,170,51,0.4));background:none;border:none;padding:0;flex:1;text-align:center;}
+        .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
+        .edit-event-btn:hover{background:rgba(255,170,51,0.16);border-color:rgba(255,170,51,0.5);}
+        .edit-event-btn:active{transform:scale(0.96);}
 
         .hero{position:relative;height:480px;overflow:hidden;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
@@ -508,6 +503,14 @@ export default function EventDetail() {
           Back
         </button>
         <button className="nav-logo" onClick={() => router.push('/')}>pulse</button>
+        {(isAdmin || currentUser?.id === event.host_id) ? (
+          <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>
+            <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
+            Edit
+          </button>
+        ) : (
+          <div style={{width:'60px'}}/>
+        )}
       </nav>
 
       <div className="hero">
