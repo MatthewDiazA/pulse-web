@@ -5,6 +5,14 @@ import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
 
 type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
+type Comment = {
+  id: string
+  user_id: string
+  user_name: string
+  user_avatar: string
+  content: string
+  created_at: string
+}
 type EventData = {
   id: string
   host_id: string
