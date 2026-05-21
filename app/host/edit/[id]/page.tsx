@@ -36,12 +36,23 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const { data: event } = await supabase
+      // Check admin status — admins can edit any event
+      const { data: adminRow } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      const userIsAdmin = !!adminRow
+
+      // Admins load any event; everyone else is restricted to their own
+      let query = supabase
         .from('events')
         .select('*, ticket_tiers(*)')
         .eq('id', eventId)
-        .eq('host_id', user.id)
-        .single()
+      if (!userIsAdmin) {
+        query = query.eq('host_id', user.id)
+      }
+      const { data: event } = await query.single()
 
       if (!event) { router.push('/host'); return }
 
