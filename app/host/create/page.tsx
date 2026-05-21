@@ -9,6 +9,7 @@ type FormData = {
   title: string
   category: 'nightlife' | 'concert' | 'festival' | 'other'
   description: string
+  tagline: string
   date: string
   doorsTime: string
   showTime: string
@@ -21,6 +22,10 @@ type FormData = {
   tiers: Tier[]
   lineup: LineupAct[]
   coverImage: File | null
+  instagramHandle: string
+  tiktokUrl: string
+  spotifyUrl: string
+  feedVideoUrl: string
 }
 
 const COLORS = {
@@ -39,6 +44,7 @@ export default function CreateEvent() {
     title: '',
     category: 'nightlife',
     description: '',
+    tagline: '',
     date: '',
     doorsTime: '',
     showTime: '',
@@ -53,6 +59,10 @@ export default function CreateEvent() {
     ],
     lineup: [{ name: '', role: '', time: '' }],
     coverImage: null,
+    instagramHandle: '',
+    tiktokUrl: '',
+    spotifyUrl: '',
+    feedVideoUrl: '',
   })
 
   const update = useCallback((field: keyof FormData, value: any) => {
@@ -94,6 +104,25 @@ export default function CreateEvent() {
     reader.onload = () => setImagePreview(reader.result as string)
     reader.readAsDataURL(file)
   }, [])
+
+  // Normalize an Instagram handle: strip URL, @, trailing slash
+  const normalizeIgHandle = (raw: string): string | null => {
+    const v = raw.trim()
+    if (!v) return null
+    let h = v
+    h = h.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+    h = h.replace(/^@/, '')
+    h = h.replace(/\/+$/, '')
+    h = h.split(/[/?]/)[0]
+    return h || null
+  }
+
+  const cleanUrl = (raw: string): string | null => {
+    const v = raw.trim()
+    if (!v) return null
+    if (!/^https?:\/\//i.test(v)) return `https://${v}`
+    return v
+  }
 
   const handlePublish = async () => {
     setLoading(true)
@@ -144,6 +173,11 @@ export default function CreateEvent() {
         '-' +
         Date.now()
 
+      // Build clean lineup array (drop empty rows) for storage as JSON text
+      const lineupClean = form.lineup
+        .filter(a => a.name.trim())
+        .map(a => ({ name: a.name.trim(), role: a.role.trim(), time: a.time.trim() }))
+
       const { data: event, error } = await supabase
         .from('events')
         .insert({
@@ -151,6 +185,7 @@ export default function CreateEvent() {
           title: form.title,
           slug,
           description: form.description,
+          tagline: form.tagline.trim() || null,
           category: form.category,
           status: 'published',
           venue_name: form.venueName,
@@ -165,6 +200,13 @@ export default function CreateEvent() {
               ? `${form.date}T${form.showTime}:00`
               : new Date().toISOString(),
           doors_at: form.date && form.doorsTime ? `${form.date}T${form.doorsTime}:00` : null,
+          // Lineup fix — was previously collected but never saved
+          lineup: lineupClean.length > 0 ? JSON.stringify(lineupClean) : null,
+          // Social fields — power Vibe / Energy / Sound and the feed
+          instagram_handle: normalizeIgHandle(form.instagramHandle),
+          tiktok_url: cleanUrl(form.tiktokUrl),
+          spotify_playlist_url: cleanUrl(form.spotifyUrl),
+          feed_video_url: cleanUrl(form.feedVideoUrl),
         })
         .select()
         .single()
@@ -255,6 +297,13 @@ export default function CreateEvent() {
         .image-preview { max-width:100%; max-height:200px; border-radius:10px; margin-bottom:12px; }
         .remove-image { font-size:12px; color:#aaa; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); padding:6px 12px; border-radius:6px; cursor:pointer; transition:all 0.15s; }
         .remove-image:hover { color:#ff8888; border-color:rgba(255,102,102,0.3); }
+        .social-intro { background:rgba(255,170,51,0.05); border:0.5px solid rgba(255,170,51,0.18); border-radius:12px; padding:16px; margin-bottom:20px; }
+        .social-intro-title { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:900; color:${COLORS.primary}; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        .social-intro-text { font-size:13px; color:#999; line-height:1.5; }
+        .powers { font-size:11px; color:${COLORS.primary}; opacity:0.8; margin-top:3px; font-style:italic; }
+        .input-prefix-wrap { position:relative; display:flex; align-items:center; }
+        .input-prefix { position:absolute; left:14px; color:#666; font-size:15px; pointer-events:none; }
+        .input.has-prefix { padding-left:30px; }
         .nav-btns { display:flex; gap:10px; margin-top:40px; padding-top:20px; border-top:0.5px solid rgba(255,255,255,0.08); }
         .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.2); color:#aaa; font-size:14px; font-family:'DM Sans',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
         .prev-btn:active { color:#fff; border-color:rgba(255,255,255,0.4); }
@@ -286,14 +335,14 @@ export default function CreateEvent() {
         <p className="page-sub">Fill in the details below to publish your event on PULSE.</p>
 
         <div className="steps">
-          {[1, 2, 3, 4].map(s => (
+          {[1, 2, 3, 4, 5].map(s => (
             <div
               key={s}
               className={`step-dot ${s < step ? 'done' : s === step ? 'active' : ''}`}
             />
           ))}
         </div>
-        <p className="step-label">Step {step} of 4</p>
+        <p className="step-label">Step {step} of 5</p>
 
         {step === 1 && (
           <>
@@ -306,6 +355,16 @@ export default function CreateEvent() {
                   placeholder="e.g. Club Noir — Grand Opening"
                   value={form.title}
                   onChange={e => update('title', e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label className="label">Tagline (optional)</label>
+                <input
+                  className="input"
+                  placeholder="e.g. 5 rounds. No rules. Pure energy."
+                  value={form.tagline}
+                  onChange={e => update('tagline', e.target.value)}
+                  maxLength={80}
                 />
               </div>
               <div className="field">
@@ -601,6 +660,68 @@ export default function CreateEvent() {
           </div>
         )}
 
+        {step === 5 && (
+          <div className="section">
+            <div className="social-intro">
+              <div className="social-intro-title">Make it come alive</div>
+              <div className="social-intro-text">
+                Add your socials so people can feel the vibe before they buy. Every field is optional — but the more you add, the harder your page hits. All of this shows up on your event page and in the Discover feed.
+              </div>
+            </div>
+
+            <div className="section-title">The Vibe · Instagram</div>
+            <div className="field">
+              <label className="label">Instagram handle</label>
+              <div className="input-prefix-wrap">
+                <span className="input-prefix">@</span>
+                <input
+                  className="input has-prefix"
+                  placeholder="yourhandle"
+                  value={form.instagramHandle}
+                  onChange={e => update('instagramHandle', e.target.value)}
+                />
+              </div>
+              <div className="powers">Powers the Instagram preview on your page</div>
+            </div>
+
+            <div className="section-title" style={{marginTop: '24px'}}>The Energy · TikTok</div>
+            <div className="field">
+              <label className="label">TikTok profile or video URL</label>
+              <input
+                className="input"
+                placeholder="tiktok.com/@yourhandle"
+                value={form.tiktokUrl}
+                onChange={e => update('tiktokUrl', e.target.value)}
+              />
+              <div className="powers">Powers the TikTok energy section</div>
+            </div>
+
+            <div className="section-title" style={{marginTop: '24px'}}>The Sound · Spotify</div>
+            <div className="field">
+              <label className="label">Spotify playlist, artist, or track URL</label>
+              <input
+                className="input"
+                placeholder="open.spotify.com/playlist/..."
+                value={form.spotifyUrl}
+                onChange={e => update('spotifyUrl', e.target.value)}
+              />
+              <div className="powers">Plays 30-second previews right on your page</div>
+            </div>
+
+            <div className="section-title" style={{marginTop: '24px'}}>Feed video (optional)</div>
+            <div className="field">
+              <label className="label">Looping video URL for the Discover feed</label>
+              <input
+                className="input"
+                placeholder="Link to a short looping clip (plays muted)"
+                value={form.feedVideoUrl}
+                onChange={e => update('feedVideoUrl', e.target.value)}
+              />
+              <div className="powers">If empty, your cover image is used instead</div>
+            </div>
+          </div>
+        )}
+
         <div className="nav-btns">
           {step > 1 && (
             <button className="prev-btn" onClick={() => setStep(s => s - 1)}>
@@ -608,7 +729,7 @@ export default function CreateEvent() {
               Back
             </button>
           )}
-          {step < 4 ? (
+          {step < 5 ? (
             <button className="next-btn" onClick={() => setStep(s => s + 1)}>
               Continue
               <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
