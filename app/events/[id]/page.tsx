@@ -28,7 +28,30 @@ type EventData = {
   is_21_plus: boolean
   dress_code: string | null
   cover_image_url: string | null
+  tagline: string | null
+  instagram_handle: string | null
+  tiktok_url: string | null
+  spotify_playlist_url: string | null
   ticket_tiers: Tier[]
+}
+
+// Convert any Spotify link into its embeddable player URL
+function spotifyEmbed(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (!u.hostname.includes('spotify.com')) return null
+    const parts = u.pathname.split('/').filter(Boolean)
+    if (parts.length < 2) return null
+    const [type, id] = parts
+    return `https://open.spotify.com/embed/${type}/${id}`
+  } catch {
+    return null
+  }
+}
+
+function igUrl(handle: string): string {
+  const clean = handle.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/+$/, '')
+  return `https://www.instagram.com/${clean}/`
 }
 
 const COLORS = {
@@ -431,6 +454,17 @@ export default function EventDetail() {
 
         .section{margin-bottom:32px;}
         .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:14px;}
+        .sec-eyebrow{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${COLORS.primary};margin-bottom:4px;}
+        .social-card{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 18px;cursor:pointer;transition:all 0.18s;text-decoration:none;}
+        .social-card:hover{border-color:rgba(255,170,51,0.3);background:rgba(255,170,51,0.04);transform:translateY(-1px);}
+        .social-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px;}
+        .social-icon.ig{background:rgba(255,170,51,0.12);color:${COLORS.primary};border:0.5px solid rgba(255,170,51,0.25);}
+        .social-icon.tt{background:rgba(255,255,255,0.06);color:#fff;border:0.5px solid rgba(255,255,255,0.15);}
+        .social-info{flex:1;min-width:0;}
+        .social-handle{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#fff;margin-bottom:1px;}
+        .social-action{font-family:'DM Sans',sans-serif;font-size:12px;color:#776;}
+        .social-arrow{color:#554;font-size:18px;flex-shrink:0;}
+        .spotify-frame{border-radius:12px;overflow:hidden;border:0.5px solid rgba(255,255,255,0.08);}
         .desc{font-size:14px;line-height:1.85;color:#999;}
 
         .details-compact{display:flex;flex-wrap:wrap;gap:8px;}
@@ -558,6 +592,59 @@ export default function EventDetail() {
               <div className="section">
                 <h2 className="sec-title">About</h2>
                 <p className="desc">{event.description}</p>
+              </div>
+            )}
+
+            {event.instagram_handle && (
+              <div className="section">
+                <div className="sec-eyebrow">The Vibe</div>
+                <h2 className="sec-title">Instagram</h2>
+                <a className="social-card" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">
+                  <div className="social-icon ig">
+                    <i className="ti ti-brand-instagram" aria-hidden="true"/>
+                  </div>
+                  <div className="social-info">
+                    <div className="social-handle">@{event.instagram_handle.replace(/^@/, '')}</div>
+                    <div className="social-action">See the latest posts & stories</div>
+                  </div>
+                  <i className="ti ti-external-link social-arrow" aria-hidden="true"/>
+                </a>
+              </div>
+            )}
+
+            {event.tiktok_url && (
+              <div className="section">
+                <div className="sec-eyebrow">The Energy</div>
+                <h2 className="sec-title">TikTok</h2>
+                <a className="social-card" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">
+                  <div className="social-icon tt">
+                    <i className="ti ti-brand-tiktok" aria-hidden="true"/>
+                  </div>
+                  <div className="social-info">
+                    <div className="social-handle">Watch the energy</div>
+                    <div className="social-action">Clips from past nights</div>
+                  </div>
+                  <i className="ti ti-external-link social-arrow" aria-hidden="true"/>
+                </a>
+              </div>
+            )}
+
+            {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
+              <div className="section">
+                <div className="sec-eyebrow">The Sound</div>
+                <h2 className="sec-title">Hear the night</h2>
+                <div className="spotify-frame">
+                  <iframe
+                    src={spotifyEmbed(event.spotify_playlist_url)!}
+                    width="100%"
+                    height="352"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    title="Spotify player"
+                    style={{display: 'block'}}
+                  />
+                </div>
               </div>
             )}
 
