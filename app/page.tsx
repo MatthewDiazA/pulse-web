@@ -189,13 +189,14 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
       }
 
       const isMobile = W < 600
-      // Even square-ish grid: derive spacing from width, match vertical to it
+      // Even square-ish grid: derive spacing from width, match vertical to it.
+      // Fill the ENTIRE hero (full height, edge to edge) — not just a top band.
       const targetSpacing = isMobile ? 40 : 64
       const cols = Math.max(8, Math.round(W / targetSpacing))
       const spacingX = W / (cols + 1)
       const spacingY = spacingX
-      const rows = Math.max(5, Math.floor((H * 0.6) / spacingY))
-      const startY = 18
+      const rows = Math.max(5, Math.ceil(H / spacingY) + 1)
+      const startY = spacingY / 2
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -434,15 +435,17 @@ export default function Home() {
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.2} }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
-        .logo-img { height:24px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        .logo-img { height:30px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        @media(max-width:680px){ .logo-img { height:24px; } }
 
-        .hero-wrap { position:relative; overflow:hidden; min-height:min(74vh,620px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px 20px 50px; }
-        .hero-canvas { position:absolute; inset:0; width:100%; height:100%; }
-        .hero-fade { position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to bottom,transparent,${COLORS.bg}); pointer-events:none; z-index:1; }
-        .hero-logo-wrap { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; }
-        .hero-logo { width:min(64vw,420px); height:auto; opacity:0; transform:scale(0.86); transition:opacity 1.1s ease, transform 1.1s cubic-bezier(0.16,1,0.3,1); filter:drop-shadow(0 0 40px rgba(255,170,51,0.45)) drop-shadow(0 0 90px rgba(255,100,0,0.22)); }
-        .hero-logo.show { opacity:1; transform:scale(1); animation:logoBreathe 6s ease-in-out infinite 1.1s; }
-        @keyframes logoBreathe { 0%,100%{ filter:drop-shadow(0 0 36px rgba(255,170,51,0.4)) drop-shadow(0 0 80px rgba(255,100,0,0.18)); } 50%{ filter:drop-shadow(0 0 60px rgba(255,170,51,0.62)) drop-shadow(0 0 120px rgba(255,100,0,0.32)); } }
+        .hero-wrap { position:relative; overflow:hidden; min-height:min(78vh,680px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px 20px 50px; }
+        .hero-canvas { position:absolute; inset:0; width:100%; height:100%; z-index:2; }
+        .hero-fade { position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to bottom,transparent,${COLORS.bg}); pointer-events:none; z-index:3; }
+        .hero-logo-wrap { position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center; width:100%; pointer-events:none; }
+        .hero-logo { width:min(58vw,560px); height:auto; opacity:0; transform:scale(0.9); transition:opacity 1.2s ease, transform 1.2s cubic-bezier(0.16,1,0.3,1);
+          filter:brightness(0) saturate(100%) invert(74%) sepia(55%) saturate(1100%) hue-rotate(343deg) brightness(103%) contrast(101%) drop-shadow(0 0 50px rgba(255,150,30,0.55)) drop-shadow(0 0 110px rgba(255,90,0,0.3)); }
+        .hero-logo.show { opacity:0.85; transform:scale(1); animation:logoBreathe 6s ease-in-out infinite 1.2s; }
+        @keyframes logoBreathe { 0%,100%{ opacity:0.8; } 50%{ opacity:0.95; } }
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }

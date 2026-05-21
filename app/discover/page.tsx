@@ -203,7 +203,7 @@ export default function Discover() {
         .bubble i{font-size:21px;}
         .bubble.tickets{background:${COLORS.primary};border-color:${COLORS.primary};color:#000;box-shadow:0 0 20px rgba(255,170,51,0.45);}
 
-        .np{position:fixed;left:20px;bottom:calc(44px + env(safe-area-inset-bottom));z-index:40;display:flex;align-items:center;gap:9px;pointer-events:none;}
+        .np{position:fixed;top:58px;left:18px;z-index:40;display:flex;align-items:center;gap:9px;pointer-events:none;background:rgba(0,0,0,0.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:0.5px solid rgba(255,255,255,0.12);border-radius:100px;padding:7px 13px 7px 11px;max-width:64vw;}
         .np-eq{display:flex;align-items:flex-end;gap:2px;height:15px;}
         .np-eq span{width:2.5px;background:${COLORS.primary};border-radius:2px;animation:eq 0.9s ease-in-out infinite;}
         .np-eq span:nth-child(2){animation-delay:0.15s}
