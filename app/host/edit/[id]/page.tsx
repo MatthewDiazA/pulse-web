@@ -9,6 +9,8 @@ const COLORS = {
   bg: '#000',
 } as const
 
+type LineupAct = { name: string; role: string; time: string }
+
 export default function EditEvent({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [id, setId] = useState<string>('')
@@ -17,12 +19,13 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
   const [saving, setSaving] = useState(false)
   const [deletedTierIds, setDeletedTierIds] = useState<string[]>([])
   const [form, setForm] = useState({
-    title: '', category: 'nightlife', description: '',
+    title: '', category: 'nightlife', description: '', tagline: '',
     date: '', doorsTime: '', showTime: '',
     venueName: '', address: '', city: '', state: '',
     is21Plus: false, dressCode: '',
     tiers: [{ id: '', name: '', price: '', quantity: '' }],
-    lineup: [{ name: '', role: '', time: '' }],
+    lineup: [{ name: '', role: '', time: '' }] as LineupAct[],
+    instagramHandle: '', tiktokUrl: '', spotifyUrl: '', feedVideoUrl: '',
   })
 
   useEffect(() => {
@@ -45,10 +48,31 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
       const startsAt = event.starts_at ? new Date(event.starts_at) : null
       const doorsAt = event.doors_at ? new Date(event.doors_at) : null
 
+      // Parse saved lineup (stored as JSON text). Fall back to one blank row.
+      let parsedLineup: LineupAct[] = [{ name: '', role: '', time: '' }]
+      if (event.lineup) {
+        try {
+          const arr = typeof event.lineup === 'string' ? JSON.parse(event.lineup) : event.lineup
+          if (Array.isArray(arr) && arr.length > 0) {
+            parsedLineup = arr.map((a: any) => ({
+              name: a.name ?? '', role: a.role ?? '', time: a.time ?? '',
+            }))
+          }
+        } catch {
+          // leave default blank row
+        }
+      }
+
+      // Strip stored https:// prefix off IG handle for display (we re-add @ visually)
+      const igDisplay = (event.instagram_handle ?? '')
+        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+        .replace(/^@/, '')
+
       setForm({
         title: event.title ?? '',
         category: event.category ?? 'nightlife',
         description: event.description ?? '',
+        tagline: event.tagline ?? '',
         date: startsAt ? startsAt.toISOString().slice(0, 10) : '',
         showTime: startsAt ? startsAt.toTimeString().slice(0, 5) : '',
         doorsTime: doorsAt ? doorsAt.toTimeString().slice(0, 5) : '',
@@ -63,7 +87,11 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
               id: t.id, name: t.name, price: String(t.price), quantity: String(t.quantity),
             }))
           : [{ id: '', name: '', price: '', quantity: '' }],
-        lineup: [{ name: '', role: '', time: '' }],
+        lineup: parsedLineup,
+        instagramHandle: igDisplay,
+        tiktokUrl: event.tiktok_url ?? '',
+        spotifyUrl: event.spotify_playlist_url ?? '',
+        feedVideoUrl: event.feed_video_url ?? '',
       })
       setLoading(false)
     }
@@ -78,6 +106,14 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
     setForm(f => ({ ...f, tiers }))
   }
 
+  const updateLineup = (i: number, field: keyof LineupAct, value: string) => {
+    setForm(f => {
+      const lineup = [...f.lineup]
+      lineup[i] = { ...lineup[i], [field]: value }
+      return { ...f, lineup }
+    })
+  }
+
   const removeTier = (i: number) => {
     const tier = form.tiers[i]
     if (tier.id) {
@@ -86,15 +122,38 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
     setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
   }
 
+  const normalizeIgHandle = (raw: string): string | null => {
+    const v = raw.trim()
+    if (!v) return null
+    let h = v
+    h = h.replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+    h = h.replace(/^@/, '')
+    h = h.replace(/\/+$/, '')
+    h = h.split(/[/?]/)[0]
+    return h || null
+  }
+
+  const cleanUrl = (raw: string): string | null => {
+    const v = raw.trim()
+    if (!v) return null
+    if (!/^https?:\/\//i.test(v)) return `https://${v}`
+    return v
+  }
+
   const handleSave = async () => {
     setSaving(true)
     const supabase = createClient()
+
+    const lineupClean = form.lineup
+      .filter(a => a.name.trim())
+      .map(a => ({ name: a.name.trim(), role: a.role.trim(), time: a.time.trim() }))
 
     const { error } = await supabase
       .from('events')
       .update({
         title: form.title,
         description: form.description,
+        tagline: form.tagline.trim() || null,
         category: form.category,
         venue_name: form.venueName,
         address: form.address,
@@ -104,6 +163,11 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         dress_code: form.dressCode,
         starts_at: form.date && form.showTime ? `${form.date}T${form.showTime}:00` : undefined,
         doors_at: form.date && form.doorsTime ? `${form.date}T${form.doorsTime}:00` : null,
+        lineup: lineupClean.length > 0 ? JSON.stringify(lineupClean) : null,
+        instagram_handle: normalizeIgHandle(form.instagramHandle),
+        tiktok_url: cleanUrl(form.tiktokUrl),
+        spotify_playlist_url: cleanUrl(form.spotifyUrl),
+        feed_video_url: cleanUrl(form.feedVideoUrl),
       })
       .eq('id', id)
 
@@ -190,6 +254,13 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         .remove-btn:hover { color:#ff8888; }
         .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.2); border-radius:10px; padding:12px; font-size:13px; color:#888; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:4px; transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:500; }
         .add-btn:active { border-color:rgba(255,255,255,0.4); color:#aaa; }
+        .social-intro { background:rgba(255,170,51,0.05); border:0.5px solid rgba(255,170,51,0.18); border-radius:12px; padding:16px; margin-bottom:20px; }
+        .social-intro-title { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:900; color:${COLORS.primary}; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+        .social-intro-text { font-size:13px; color:#999; line-height:1.5; }
+        .powers { font-size:11px; color:${COLORS.primary}; opacity:0.8; margin-top:3px; font-style:italic; }
+        .input-prefix-wrap { position:relative; display:flex; align-items:center; }
+        .input-prefix { position:absolute; left:14px; color:#666; font-size:15px; pointer-events:none; }
+        .input.has-prefix { padding-left:30px; }
         .nav-btns { display:flex; gap:10px; margin-top:40px; padding-top:20px; border-top:0.5px solid rgba(255,255,255,0.08); }
         .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.2); color:#aaa; font-size:14px; font-family:'DM Sans',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
         .prev-btn:active { color:#fff; }
@@ -216,11 +287,11 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         <p className="page-sub">Update your event details below.</p>
 
         <div className="steps">
-          {[1, 2, 3].map(s => (
+          {[1, 2, 3, 4, 5].map(s => (
             <div key={s} className={`step-dot ${s < step ? 'done' : s === step ? 'active' : ''}`}/>
           ))}
         </div>
-        <p className="step-label">Step {step} of 3</p>
+        <p className="step-label">Step {step} of 5</p>
 
         {step === 1 && (
           <div className="section">
@@ -228,6 +299,10 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
             <div className="field">
               <label className="label">Event name</label>
               <input className="input" placeholder="Event name" value={form.title} onChange={e => update('title', e.target.value)}/>
+            </div>
+            <div className="field">
+              <label className="label">Tagline (optional)</label>
+              <input className="input" placeholder="e.g. 5 rounds. No rules. Pure energy." value={form.tagline} onChange={e => update('tagline', e.target.value)} maxLength={80}/>
             </div>
             <div className="field">
               <label className="label">Category</label>
@@ -350,6 +425,111 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
+        {step === 4 && (
+          <div className="section">
+            <div className="section-title">Lineup (optional)</div>
+            {form.lineup.map((act, i) => (
+              <div key={i} className="tier-card">
+                <div className="tier-header">
+                  <span className="tier-num">Performer {i + 1}</span>
+                  {form.lineup.length > 1 && (
+                    <button
+                      className="remove-btn"
+                      onClick={() => setForm(f => ({ ...f, lineup: f.lineup.filter((_, j) => j !== i) }))}
+                    >
+                      <i className="ti ti-x" style={{fontSize: '12px'}} aria-hidden="true"/>
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="label">Name</label>
+                  <input className="input" placeholder="e.g. DJ Sasha Vee" value={act.name} onChange={e => updateLineup(i, 'name', e.target.value)}/>
+                </div>
+                <div className="row-2">
+                  <div className="field">
+                    <label className="label">Role</label>
+                    <input className="input" placeholder="e.g. Headliner" value={act.role} onChange={e => updateLineup(i, 'role', e.target.value)}/>
+                  </div>
+                  <div className="field">
+                    <label className="label">Set time</label>
+                    <input className="input" placeholder="e.g. 12AM - 3AM" value={act.time} onChange={e => updateLineup(i, 'time', e.target.value)}/>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button
+              className="add-btn"
+              onClick={() => setForm(f => ({ ...f, lineup: [...f.lineup, { name: '', role: '', time: '' }] }))}
+            >
+              <i className="ti ti-plus" style={{fontSize: '14px'}} aria-hidden="true"/>
+              Add performer
+            </button>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="section">
+            <div className="social-intro">
+              <div className="social-intro-title">Make it come alive</div>
+              <div className="social-intro-text">
+                Add your socials so people can feel the vibe before they buy. Every field is optional — but the more you add, the harder your page hits. All of this shows up on your event page and in the Discover feed.
+              </div>
+            </div>
+
+            <div className="section-title">The Vibe · Instagram</div>
+            <div className="field">
+              <label className="label">Instagram handle</label>
+              <div className="input-prefix-wrap">
+                <span className="input-prefix">@</span>
+                <input
+                  className="input has-prefix"
+                  placeholder="yourhandle"
+                  value={form.instagramHandle}
+                  onChange={e => update('instagramHandle', e.target.value)}
+                />
+              </div>
+              <div className="powers">Powers the Instagram preview on your page</div>
+            </div>
+
+            <div className="section-title" style={{marginTop: '24px'}}>The Energy · TikTok</div>
+            <div className="field">
+              <label className="label">TikTok profile or video URL</label>
+              <input
+                className="input"
+                placeholder="tiktok.com/@yourhandle"
+                value={form.tiktokUrl}
+                onChange={e => update('tiktokUrl', e.target.value)}
+              />
+              <div className="powers">Powers the TikTok energy section</div>
+            </div>
+
+            <div className="section-title" style={{marginTop: '24px'}}>The Sound · Spotify</div>
+            <div className="field">
+              <label className="label">Spotify playlist, artist, or track URL</label>
+              <input
+                className="input"
+                placeholder="open.spotify.com/playlist/..."
+                value={form.spotifyUrl}
+                onChange={e => update('spotifyUrl', e.target.value)}
+              />
+              <div className="powers">Plays 30-second previews right on your page</div>
+            </div>
+
+            <div className="section-title" style={{marginTop: '24px'}}>Feed video (optional)</div>
+            <div className="field">
+              <label className="label">Looping video URL for the Discover feed</label>
+              <input
+                className="input"
+                placeholder="Link to a short looping clip (plays muted)"
+                value={form.feedVideoUrl}
+                onChange={e => update('feedVideoUrl', e.target.value)}
+              />
+              <div className="powers">If empty, your cover image is used instead</div>
+            </div>
+          </div>
+        )}
+
         <div className="nav-btns">
           {step > 1 && (
             <button className="prev-btn" onClick={() => setStep(s => s - 1)}>
@@ -357,7 +537,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
               Back
             </button>
           )}
-          {step < 3 ? (
+          {step < 5 ? (
             <button className="next-btn" onClick={() => setStep(s => s + 1)}>
               Continue
               <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
