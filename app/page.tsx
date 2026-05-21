@@ -189,12 +189,12 @@ function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
       }
 
       const isMobile = W < 600
-      // Cap columns so dots stay large and spaced like mobile
-      const targetSpacing = 95
-      const cols = Math.min(14, Math.max(8, Math.round(W / targetSpacing)))
-      const rows = isMobile ? 7 : 9
+      // Even square-ish grid: derive spacing from width, match vertical to it
+      const targetSpacing = isMobile ? 40 : 64
+      const cols = Math.max(8, Math.round(W / targetSpacing))
       const spacingX = W / (cols + 1)
-      const spacingY = (H * 0.55) / (rows + 1)
+      const spacingY = spacingX
+      const rows = Math.max(5, Math.floor((H * 0.6) / spacingY))
       const startY = 18
 
       for (let r = 0; r < rows; r++) {
