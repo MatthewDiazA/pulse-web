@@ -134,141 +134,6 @@ function NavActions({ compact = false }: { compact?: boolean }) {
   )
 }
 
-function useHeroAnimation(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d', { alpha: true })
-    if (!ctx) return
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-    let raf = 0
-    let t = 0
-    let W = 0
-    let H = 0
-
-    const resize = () => {
-      W = canvas.offsetWidth
-      H = canvas.offsetHeight
-      canvas.width = Math.round(W * dpr)
-      canvas.height = Math.round(H * dpr)
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    const drawFrame = () => {
-      const cx = W / 2
-
-      ctx.fillStyle = 'rgba(0,0,0,0.14)'
-      ctx.fillRect(0, 0, W, H)
-
-      const numRays = 10
-      for (let i = 0; i < numRays; i++) {
-        const baseAngle = -Math.PI * 0.85 + (i / (numRays - 1)) * Math.PI * 0.7
-        const sway = Math.sin(t * 0.5 + i * 0.7) * 0.06
-        const angle = baseAngle + sway
-        const len = H * 1.2
-        const ex = cx + Math.cos(angle) * len
-        const ey = Math.sin(angle) * len
-        const rayAlpha = 0.025 + 0.02 * Math.sin(t * 0.8 + i * 0.9)
-        const grad = ctx.createLinearGradient(cx, 0, ex, ey)
-        grad.addColorStop(0, `rgba(255,160,40,${rayAlpha * 4})`)
-        grad.addColorStop(0.35, `rgba(255,120,20,${rayAlpha})`)
-        grad.addColorStop(1, 'rgba(255,80,0,0)')
-        ctx.beginPath()
-        ctx.moveTo(cx - 20, 0)
-        ctx.lineTo(cx + 20, 0)
-        ctx.lineTo(ex + 50, ey)
-        ctx.lineTo(ex - 50, ey)
-        ctx.closePath()
-        ctx.fillStyle = grad
-        ctx.fill()
-      }
-
-      const isMobile = W < 600
-      // Even square-ish grid: derive spacing from width, match vertical to it.
-      // Fill the ENTIRE hero (full height, edge to edge) — not just a top band.
-      const targetSpacing = isMobile ? 40 : 64
-      const cols = Math.max(8, Math.round(W / targetSpacing))
-      const spacingX = W / (cols + 1)
-      const spacingY = spacingX
-      const rows = Math.max(5, Math.ceil(H / spacingY) + 1)
-      const startY = spacingY / 2
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const bx = spacingX * (c + 1)
-          const by = startY + spacingY * (r + 1)
-          const wave = Math.sin(t * 1.2 + c * 0.45 + r * 0.65) * 0.5 + 0.5
-          const pulse = Math.sin(t * 2.2 + (c + r) * 0.28) * 0.3 + 0.7
-          const intensity = wave * pulse
-          const hue = 28 + Math.sin(t * 0.35 + c * 0.12) * 14
-          const sat = 90 + intensity * 10
-          const light = 35 + intensity * 38
-          const alpha = 0.12 + intensity * 0.7
-
-          // Scale dot size to grid spacing so dots stay proportionally large
-          const unit = isMobile ? 1 : spacingX / 30
-
-          ctx.fillStyle = `hsla(${hue},${sat}%,${light}%,${alpha * 0.25})`
-          ctx.beginPath()
-          ctx.arc(bx, by, unit * (5 + intensity * 9), 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.fillStyle = `hsla(${hue},${sat}%,${light + 10}%,${alpha * 0.5})`
-          ctx.beginPath()
-          ctx.arc(bx, by, unit * (3 + intensity * 4), 0, Math.PI * 2)
-          ctx.fill()
-
-          ctx.fillStyle = `hsla(${hue},${sat}%,${light + 25}%,${alpha})`
-          ctx.beginPath()
-          ctx.arc(bx, by, unit * 2.2, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-
-      const fog = ctx.createRadialGradient(cx, H * 0.52, 0, cx, H * 0.52, W * 0.45)
-      fog.addColorStop(0, `rgba(255,120,20,${0.045 + 0.03 * Math.sin(t * 0.7)})`)
-      fog.addColorStop(0.5, `rgba(255,80,0,${0.02 + 0.01 * Math.sin(t * 0.5)})`)
-      fog.addColorStop(1, 'rgba(255,60,0,0)')
-      ctx.fillStyle = fog
-      ctx.fillRect(0, 0, W, H)
-
-      const crowd = ctx.createLinearGradient(0, H * 0.7, 0, H)
-      crowd.addColorStop(0, 'rgba(0,0,0,0)')
-      crowd.addColorStop(1, `rgba(255,80,10,${0.04 + 0.02 * Math.sin(t * 0.3)})`)
-      ctx.fillStyle = crowd
-      ctx.fillRect(0, H * 0.7, W, H * 0.3)
-    }
-
-    const loop = () => {
-      t += 0.016
-      drawFrame()
-      raf = requestAnimationFrame(loop)
-    }
-
-    if (prefersReduced) {
-      drawFrame()
-    } else {
-      loop()
-    }
-
-    const onVisibility = () => {
-      if (document.hidden) cancelAnimationFrame(raf)
-      else if (!prefersReduced) loop()
-    }
-    document.addEventListener('visibilitychange', onVisibility)
-
-    return () => {
-      window.removeEventListener('resize', resize)
-      document.removeEventListener('visibilitychange', onVisibility)
-      cancelAnimationFrame(raf)
-    }
-  }, [canvasRef])
-}
 
 function CardPlaceholder({ accent, index }: { accent: string; index: number }) {
   return (
@@ -338,10 +203,7 @@ export default function Home() {
   const [userCity, setUserCity] = useState<string | null>(null)
   const [heroVisible, setHeroVisible] = useState(false)
 
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
-
-  useHeroAnimation(canvasRef)
 
   useEffect(() => {
     const id = setTimeout(() => setHeroVisible(true), 100)
@@ -429,6 +291,7 @@ export default function Home() {
         html, body { background:${COLORS.bg}; min-height:100vh; overflow-x:hidden; }
 
         .page { position:relative; z-index:1; }
+        .events-section { position:relative; z-index:1; }
 
         nav { padding:14px 0; background:rgba(0,0,0,0.9); position:sticky; top:0; z-index:100; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
         nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},${COLORS.accent},transparent); background-size:300% 100%; animation:navPulse 5s ease-in-out infinite; }
@@ -438,14 +301,21 @@ export default function Home() {
         .logo-img { height:30px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
         @media(max-width:680px){ .logo-img { height:24px; } }
 
-        .hero-wrap { position:relative; overflow:hidden; min-height:min(78vh,680px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px 20px 50px; }
-        .hero-canvas { position:absolute; inset:0; width:100%; height:100%; z-index:2; }
-        .hero-fade { position:absolute; bottom:0; left:0; right:0; height:200px; background:linear-gradient(to bottom,transparent,${COLORS.bg}); pointer-events:none; z-index:3; }
-        .hero-logo-wrap { position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center; width:100%; pointer-events:none; }
-        .hero-logo { width:min(58vw,560px); height:auto; opacity:0; transform:scale(0.9); transition:opacity 1.2s ease, transform 1.2s cubic-bezier(0.16,1,0.3,1);
-          filter:brightness(0) saturate(100%) invert(74%) sepia(55%) saturate(1100%) hue-rotate(343deg) brightness(103%) contrast(101%) drop-shadow(0 0 50px rgba(255,150,30,0.55)) drop-shadow(0 0 110px rgba(255,90,0,0.3)); }
-        .hero-logo.show { opacity:0.85; transform:scale(1); animation:logoBreathe 6s ease-in-out infinite 1.2s; }
-        @keyframes logoBreathe { 0%,100%{ opacity:0.8; } 50%{ opacity:0.95; } }
+        .hero-wrap { position:relative; overflow:hidden; min-height:min(70vh,560px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px 40px; background:${COLORS.bg}; }
+        .hero-logo-wrap { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; }
+        .hero-logo { width:min(56vw,440px); height:auto; opacity:0; transform:scale(0.92) translateY(8px); transition:opacity 1s ease, transform 1s cubic-bezier(0.16,1,0.3,1); filter:drop-shadow(0 0 30px rgba(255,170,51,0.25)); }
+        .hero-logo.show { opacity:1; transform:scale(1) translateY(0); animation:logoBreathe 7s ease-in-out infinite 1s; }
+        @keyframes logoBreathe { 0%,100%{ filter:drop-shadow(0 0 24px rgba(255,170,51,0.2)); } 50%{ filter:drop-shadow(0 0 44px rgba(255,170,51,0.4)); } }
+
+        /* ACID — morphing amber/red/magenta liquid behind the event cards */
+        .acid { position:fixed; inset:0; z-index:0; background:${COLORS.bg}; overflow:hidden; pointer-events:none; }
+        .acid::before, .acid::after, .acid .blob3 { content:''; position:absolute; border-radius:50%; filter:blur(80px); opacity:0.55; mix-blend-mode:screen; }
+        .acid::before { width:55vw; height:55vw; background:radial-gradient(circle, ${COLORS.accent} 0%, transparent 68%); top:-10%; left:-8%; animation:acidA 18s ease-in-out infinite; }
+        .acid::after { width:50vw; height:50vw; background:radial-gradient(circle, #e8001d 0%, transparent 66%); bottom:-12%; right:-6%; animation:acidB 22s ease-in-out infinite; }
+        .acid .blob3 { width:46vw; height:46vw; background:radial-gradient(circle, #c01a6f 0%, transparent 64%); top:38%; left:42%; animation:acidC 26s ease-in-out infinite; }
+        @keyframes acidA { 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(34vw,22vh) scale(1.3); } 66%{ transform:translate(12vw,46vh) scale(0.85); } }
+        @keyframes acidB { 0%,100%{ transform:translate(0,0) scale(1.1); } 33%{ transform:translate(-30vw,-18vh) scale(0.8); } 66%{ transform:translate(-14vw,-40vh) scale(1.25); } }
+        @keyframes acidC { 0%,100%{ transform:translate(0,0) scale(1); } 25%{ transform:translate(-26vw,18vh) scale(1.2); } 50%{ transform:translate(20vw,-22vh) scale(0.9); } 75%{ transform:translate(-18vw,-28vh) scale(1.15); } }
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }
@@ -501,9 +371,12 @@ export default function Home() {
 
         @media (prefers-reduced-motion: reduce) {
           .hero-logo, .card { transition:none !important; animation:none !important; }
+          .acid::before, .acid::after, .acid .blob3 { animation:none !important; }
           .ticker-track, nav::after, .skel { animation:none !important; }
         }
       `}</style>
+
+      <div className="acid" aria-hidden="true"><div className="blob3"/></div>
 
       <div className="page">
         <nav>
@@ -521,8 +394,6 @@ export default function Home() {
         </nav>
 
         <header className="hero-wrap">
-          <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
-          <div className="hero-fade"/>
           <div className="hero-logo-wrap">
             <img
               src="/pulse-logo.png"

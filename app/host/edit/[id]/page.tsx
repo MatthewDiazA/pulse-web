@@ -289,7 +289,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
           <i className="ti ti-arrow-left" style={{fontSize:'14px'}} aria-hidden="true"/>
           Dashboard
         </button>
-        <button className="logo" onClick={() => router.push('/')}>pulse</button>
+        <button className="logo" onClick={() => router.push('/')}><img src="/pulse-word.png" alt="pulse" style={{height:'26px',width:'auto',display:'block'}}/></button>
         <div style={{width: '80px'}} />
       </nav>
 

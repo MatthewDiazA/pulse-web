@@ -325,7 +325,7 @@ export default function CreateEvent() {
           Dashboard
         </button>
         <button className="logo" onClick={() => router.push('/')}>
-          pulse
+          <img src="/pulse-word.png" alt="pulse" style={{height:'26px',width:'auto',display:'block'}}/>
         </button>
         <div style={{width: '80px'}} />
       </nav>

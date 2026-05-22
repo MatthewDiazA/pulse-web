@@ -463,9 +463,9 @@ export default function AccountPage() {
       {selectedTicket && <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)}/>}
 
       <nav>
-        <button className="logo" onClick={() => router.push('/')}>pulse</button>
+        <button className="logo" onClick={() => router.push('/')}><img src="/pulse-word.png" alt="pulse" style={{height:'28px',width:'auto',display:'block'}}/></button>
         <div className="nav-right">
-          <a href="/discover" onClick={e => { e.preventDefault(); router.push('/discover') }} className="nav-btn">Discover</a>
+          <a href="/" onClick={e => { e.preventDefault(); router.push('/') }} className="nav-btn">Discover</a>
           <a href="/connect" onClick={e => { e.preventDefault(); router.push('/connect') }} className="nav-btn">Connect</a>
           <a href="/host" onClick={e => { e.preventDefault(); router.push('/host') }} className="nav-btn highlight">Dashboard</a>
           <button className="create-btn" onClick={() => router.push('/host/create')} aria-label="Create event">+</button>
