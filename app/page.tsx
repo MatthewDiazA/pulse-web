@@ -298,10 +298,10 @@ export default function Home() {
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.2} }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
-        .logo-img { height:34px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
-        @media(max-width:680px){ .logo-img { height:28px; } }
+        .logo-img { height:28px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        @media(max-width:680px){ .logo-img { height:24px; } }
 
-        .hero-wrap { position:relative; overflow:hidden; min-height:min(70vh,560px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px 40px; }
+        .hero-wrap { position:relative; overflow:hidden; min-height:min(34vh,280px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px 20px; }
         .hero-logo-wrap { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; }
         .hero-logo { width:min(56vw,440px); height:auto; opacity:0; transform:scale(0.92) translateY(8px); transition:opacity 1s ease, transform 1s cubic-bezier(0.16,1,0.3,1); filter:drop-shadow(0 0 30px rgba(255,170,51,0.25)); }
         .hero-logo.show { opacity:1; transform:scale(1) translateY(0); animation:logoBreathe 7s ease-in-out infinite 1s; }
@@ -395,15 +395,7 @@ export default function Home() {
           </div>
         </nav>
 
-        <header className="hero-wrap">
-          <div className="hero-logo-wrap">
-            <img
-              src="/pulse-logo.png"
-              alt="pulse"
-              className={`hero-logo ${heroVisible ? 'show' : ''}`}
-            />
-          </div>
-        </header>
+        <header className="hero-wrap" aria-hidden="true" />
 
         <div className="ticker-wrap" aria-hidden="true">
           <div className="ticker-track">
