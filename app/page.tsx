@@ -298,24 +298,26 @@ export default function Home() {
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.2} }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
-        .logo-img { height:30px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
-        @media(max-width:680px){ .logo-img { height:24px; } }
+        .logo-img { height:34px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        @media(max-width:680px){ .logo-img { height:28px; } }
 
-        .hero-wrap { position:relative; overflow:hidden; min-height:min(70vh,560px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px 40px; background:${COLORS.bg}; }
+        .hero-wrap { position:relative; overflow:hidden; min-height:min(70vh,560px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px 40px; }
         .hero-logo-wrap { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; }
         .hero-logo { width:min(56vw,440px); height:auto; opacity:0; transform:scale(0.92) translateY(8px); transition:opacity 1s ease, transform 1s cubic-bezier(0.16,1,0.3,1); filter:drop-shadow(0 0 30px rgba(255,170,51,0.25)); }
         .hero-logo.show { opacity:1; transform:scale(1) translateY(0); animation:logoBreathe 7s ease-in-out infinite 1s; }
         @keyframes logoBreathe { 0%,100%{ filter:drop-shadow(0 0 24px rgba(255,170,51,0.2)); } 50%{ filter:drop-shadow(0 0 44px rgba(255,170,51,0.4)); } }
 
-        /* ACID — morphing amber/red/magenta liquid behind the event cards */
+        /* ACID — morphing amber/red/magenta liquid filling the WHOLE background */
         .acid { position:fixed; inset:0; z-index:0; background:${COLORS.bg}; overflow:hidden; pointer-events:none; }
-        .acid::before, .acid::after, .acid .blob3 { content:''; position:absolute; border-radius:50%; filter:blur(80px); opacity:0.55; mix-blend-mode:screen; }
-        .acid::before { width:55vw; height:55vw; background:radial-gradient(circle, ${COLORS.accent} 0%, transparent 68%); top:-10%; left:-8%; animation:acidA 18s ease-in-out infinite; }
-        .acid::after { width:50vw; height:50vw; background:radial-gradient(circle, #e8001d 0%, transparent 66%); bottom:-12%; right:-6%; animation:acidB 22s ease-in-out infinite; }
-        .acid .blob3 { width:46vw; height:46vw; background:radial-gradient(circle, #c01a6f 0%, transparent 64%); top:38%; left:42%; animation:acidC 26s ease-in-out infinite; }
-        @keyframes acidA { 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(34vw,22vh) scale(1.3); } 66%{ transform:translate(12vw,46vh) scale(0.85); } }
-        @keyframes acidB { 0%,100%{ transform:translate(0,0) scale(1.1); } 33%{ transform:translate(-30vw,-18vh) scale(0.8); } 66%{ transform:translate(-14vw,-40vh) scale(1.25); } }
-        @keyframes acidC { 0%,100%{ transform:translate(0,0) scale(1); } 25%{ transform:translate(-26vw,18vh) scale(1.2); } 50%{ transform:translate(20vw,-22vh) scale(0.9); } 75%{ transform:translate(-18vw,-28vh) scale(1.15); } }
+        .acid::before, .acid::after, .acid .blob3 { content:''; position:absolute; border-radius:50%; filter:blur(90px); opacity:0.6; mix-blend-mode:screen; }
+        .acid::before { width:70vw; height:70vw; background:radial-gradient(circle, ${COLORS.accent} 0%, transparent 66%); top:-18%; left:-10%; animation:acidA 20s ease-in-out infinite; }
+        .acid::after { width:65vw; height:65vw; background:radial-gradient(circle, #e8001d 0%, transparent 64%); top:30%; right:-12%; animation:acidB 24s ease-in-out infinite; }
+        .acid .blob3 { width:60vw; height:60vw; background:radial-gradient(circle, #c01a6f 0%, transparent 62%); bottom:-15%; left:25%; animation:acidC 28s ease-in-out infinite; }
+        @keyframes acidA { 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(40vw,40vh) scale(1.3); } 66%{ transform:translate(18vw,75vh) scale(0.85); } }
+        @keyframes acidB { 0%,100%{ transform:translate(0,0) scale(1.1); } 33%{ transform:translate(-40vw,30vh) scale(0.8); } 66%{ transform:translate(-22vw,-30vh) scale(1.25); } }
+        @keyframes acidC { 0%,100%{ transform:translate(0,0) scale(1); } 25%{ transform:translate(-30vw,-40vh) scale(1.2); } 50%{ transform:translate(30vw,-60vh) scale(0.9); } 75%{ transform:translate(-20vw,-20vh) scale(1.15); } }
+        /* keep the hero readable: a soft dark vignette only behind the logo */
+        .hero-wrap::after { content:''; position:absolute; inset:0; z-index:1; background:radial-gradient(ellipse 60% 50% at 50% 45%, rgba(0,0,0,0.55), transparent 75%); pointer-events:none; }
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }
@@ -382,7 +384,7 @@ export default function Home() {
         <nav>
           <div className="nav-inner">
             <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
-              <img src="/pulse-word.png" alt="pulse" className="logo-img"/>
+              <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
             </button>
             <div className="nav-desktop">
               <NavActions/>
