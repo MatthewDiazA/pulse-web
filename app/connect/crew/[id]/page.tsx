@@ -46,6 +46,19 @@ export default function CrewChat() {
 
       const crewId = params.id as string
 
+      // Membership gate — only members can open this crew
+      const { data: membership } = await supabase
+        .from('crew_members')
+        .select('user_id')
+        .eq('crew_id', crewId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!membership) {
+        router.push('/connect')
+        return
+      }
+
       const { data: crewData } = await supabase
         .from('crews')
         .select('*')

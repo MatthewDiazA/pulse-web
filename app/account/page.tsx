@@ -322,14 +322,14 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
             >
               ×
             </button>
-            <div className="badge-pop" style={{display: 'inline-block', background: 'rgba(255,170,51,0.1)', border: '1px solid rgba(255,170,51,0.3)', borderRadius: '100px', padding: '6px 16px', marginBottom: '16px'}}>
-              <span style={{fontSize: '12px', color: '#ffaa33', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'DM Sans,sans-serif', fontWeight: 500}}>You're on the list</span>
+            <div className="badge-pop" style={{display: 'inline-block', background: ticket.is_guestlist ? 'linear-gradient(135deg,rgba(255,170,51,0.2),rgba(255,102,0,0.15))' : 'rgba(255,170,51,0.1)', border: '1px solid rgba(255,170,51,0.3)', borderRadius: '100px', padding: '6px 16px', marginBottom: '16px'}}>
+              <span style={{fontSize: '12px', color: '#ffaa33', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'DM Sans,sans-serif', fontWeight: 500}}>{ticket.is_guestlist ? 'Guest List · On the list' : "You're on the list"}</span>
             </div>
             <div style={{fontFamily: 'Barlow Condensed,sans-serif', fontSize: '34px', fontWeight: 900, color: '#f0f0f0', textTransform: 'uppercase', lineHeight: 1, marginBottom: '6px'}}>
               {ticket.event?.title ?? 'Event'}
             </div>
             <div style={{fontSize: '13px', color: '#665', marginBottom: '4px', fontFamily: 'DM Sans,sans-serif'}}>
-              {ticket.tier?.name} · {date}
+              {ticket.is_guestlist ? 'Guest List' : ticket.tier?.name} · {date}
             </div>
             <div style={{fontSize: '12px', color: '#443', marginBottom: '24px', fontFamily: 'DM Sans,sans-serif'}}>
               {ticket.event?.venue_name ?? ''}
@@ -440,7 +440,9 @@ export default function AccountPage() {
         .signout-btn{margin-left:auto;font-size:12px;color:#554;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
         .signout-btn:hover{color:#e24b4a;border-color:rgba(226,75,74,0.3);}
         .section-title{font-size:11px;color:#443;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:0.5px solid rgba(255,255,255,0.05);}
-        .ticket-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;margin-bottom:12px;display:flex;transition:all 0.2s;cursor:pointer;}
+        .ticket-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;margin-bottom:12px;display:flex;transition:all 0.2s;cursor:pointer;position:relative;}
+        .ticket-card.gl{border-color:rgba(255,170,51,0.4);box-shadow:0 0 24px rgba(255,170,51,0.08);}
+        .gl-badge{position:absolute;top:0;right:0;z-index:2;background:linear-gradient(135deg,#ffaa33,#ff6600);color:#000;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;padding:3px 10px;border-radius:0 12px 0 12px;box-shadow:0 2px 10px rgba(255,170,51,0.4);}
         .ticket-card:hover{border-color:rgba(255,170,51,0.25);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.5);}
         .ticket-left{width:4px;background:linear-gradient(180deg,#ffaa33,#ff6600);flex-shrink:0;}
         .ticket-body{padding:20px 24px;flex:1;display:flex;align-items:center;gap:20px;}
@@ -539,16 +541,17 @@ export default function AccountPage() {
               : 'Date TBD'
             const price = Number(ticket.tier?.price)
             return (
-              <div key={ticket.id} className="ticket-card" onClick={() => setSelectedTicket(ticket)}>
+              <div key={ticket.id} className={`ticket-card ${ticket.is_guestlist ? 'gl' : ''}`} onClick={() => setSelectedTicket(ticket)}>
+                {ticket.is_guestlist && <span className="gl-badge">GL</span>}
                 <div className="ticket-left"/>
                 <div className="ticket-body">
                   <div className="ticket-info">
                     <div className="ticket-event">{ticket.event?.title ?? 'Event'}</div>
-                    <div className="ticket-tier">{ticket.tier?.name ?? 'Ticket'}</div>
+                    <div className="ticket-tier">{ticket.is_guestlist ? 'Guest List' : (ticket.tier?.name ?? 'Ticket')}</div>
                     <div className="ticket-date">{date} · {ticket.event?.venue_name ?? ''}</div>
                   </div>
                   <QRTicket code={ticket.qr_code}/>
-                  <div className="ticket-price">{isNaN(price) || price === 0 ? 'Free' : `$${price}`}</div>
+                  <div className="ticket-price">{ticket.is_guestlist ? 'GL' : (isNaN(price) || price === 0 ? 'Free' : `$${price}`)}</div>
                 </div>
               </div>
             )
