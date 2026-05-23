@@ -185,7 +185,9 @@ export default function ConnectPage() {
         @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
         .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
-        .nav-logo{font-family:'Nunito',sans-serif;font-size:24px;font-weight:900;color:${COLORS.primary};cursor:pointer;text-transform:lowercase;filter:drop-shadow(0 0 8px rgba(255,170,51,0.4));background:none;border:none;padding:0;}
+        .nav-logo{cursor:pointer;background:none;border:none;padding:0;line-height:0;display:inline-flex;}
+        .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
+        @media(max-width:680px){.logo-img{height:20px;}}
 
         .wrap{max-width:600px;margin:0 auto;padding:0 20px 100px;}
         .page-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:42px;letter-spacing:1px;color:#fff;padding:36px 0 6px;text-transform:uppercase;}
@@ -238,7 +240,9 @@ export default function ConnectPage() {
           <i className="ti ti-arrow-left" style={{fontSize:'15px'}} aria-hidden="true"/>
           Account
         </button>
-        <button className="nav-logo" onClick={() => router.push('/')}>pulse</button>
+        <button className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
+          <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
+        </button>
       </nav>
 
       <div className="wrap">

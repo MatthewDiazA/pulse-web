@@ -413,7 +413,9 @@ export default function AccountPage() {
         nav{padding:14px 40px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;}
         nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#ff6600,#ffaa33,#ffc850,#ff6600,transparent);background-size:300% 100%;animation:navPulse 5s ease-in-out infinite;}
         @keyframes navPulse{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:1}100%{background-position:0% 50%;opacity:0.2}}
-        .logo{font-family:'Nunito',sans-serif;font-size:28px;font-weight:900;letter-spacing:-0.5px;color:#ffaa33;cursor:pointer;line-height:1;text-transform:lowercase;filter:drop-shadow(0 0 10px rgba(255,170,51,0.5));background:none;border:none;padding:0;}
+        .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;}
+        .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
+        @media(max-width:680px){.logo-img{height:20px;}}
         .nav-right{display:flex;gap:10px;align-items:center;}
         .nav-btn{font-size:13px;color:#665;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:none;transition:color 0.15s;padding:7px 12px;border-radius:6px;}
         .nav-btn:hover{color:#f0f0f0;}
@@ -421,18 +423,9 @@ export default function AccountPage() {
         .create-btn{background:#ffaa33;color:#000;font-size:18px;font-weight:900;width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 0 14px rgba(255,170,51,0.3);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;}
         .create-btn:hover{box-shadow:0 0 22px rgba(255,170,51,0.5);transform:scale(1.05);}
         .create-btn:active{transform:scale(0.95);}
-        .hero-section{padding:52px 0 40px;border-bottom:0.5px solid rgba(255,255,255,0.05);margin-bottom:40px;}
+        .hero-section{padding:40px 0 20px;border-bottom:0.5px solid rgba(255,255,255,0.05);margin-bottom:24px;}
         .greeting{font-family:'Barlow Condensed',sans-serif;font-size:72px;line-height:0.95;font-weight:900;text-transform:uppercase;margin-bottom:8px;}
         .greeting span{color:#ffaa33;text-shadow:0 0 8px rgba(255,170,51,0.5),0 0 16px rgba(255,170,51,0.25);}
-        .greeting-sub{font-size:15px;color:#554;font-weight:300;}
-        .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:40px;}
-        .action-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px 24px;cursor:pointer;transition:all 0.2s;text-decoration:none;display:block;}
-        .action-card:hover{border-color:rgba(255,255,255,0.14);background:#160e00;transform:translateY(-2px);}
-        .action-card.accent{border-color:rgba(255,170,51,0.25);background:rgba(255,170,51,0.04);}
-        .action-card.accent:hover{background:rgba(255,170,51,0.08);}
-        .action-title{font-size:15px;font-weight:500;color:#f0f0f0;margin-bottom:4px;}
-        .action-sub{font-size:13px;color:#554;}
-        .action-card.accent .action-title{color:#ffaa33;}
         .user-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:center;gap:16px;}
         .user-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,170,51,0.12);border:1.5px solid rgba(255,170,51,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#ffaa33;flex-shrink:0;font-family:'DM Sans',sans-serif;}
         .user-name{font-size:16px;font-weight:500;color:#f0f0f0;}
@@ -459,13 +452,13 @@ export default function AccountPage() {
         @keyframes bannerIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
         .success-text{font-size:14px;color:#ffaa33;font-weight:500;}
         .success-sub{font-size:12px;color:#554;margin-top:2px;}
-        @media(max-width:680px){.wrap{padding:0 20px 60px;} .greeting{font-size:48px;} .quick-actions{grid-template-columns:1fr;} nav{padding:14px 16px;} .nav-btn{padding:6px 10px;font-size:12px;} .create-btn{width:32px;height:32px;font-size:16px;}}
+        @media(max-width:680px){.wrap{padding:0 20px 60px;} .greeting{font-size:48px;} nav{padding:14px 16px;} .nav-btn{padding:6px 10px;font-size:12px;} .create-btn{width:32px;height:32px;font-size:16px;}}
       `}</style>
 
       {selectedTicket && <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)}/>}
 
       <nav>
-        <button className="logo" onClick={() => router.push('/')}><img src="/pulse-word.png" alt="pulse" style={{height:'28px',width:'auto',display:'block'}}/></button>
+        <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home"><img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/></button>
         <div className="nav-right">
           <a href="/" onClick={e => { e.preventDefault(); router.push('/') }} className="nav-btn">Discover</a>
           <a href="/connect" onClick={e => { e.preventDefault(); router.push('/connect') }} className="nav-btn">Connect</a>
@@ -490,18 +483,6 @@ export default function AccountPage() {
 
         <div className="hero-section">
           <h1 className="greeting">Hey, <span>{firstName}</span></h1>
-          <p className="greeting-sub">Welcome to your PULSE account — your tickets and events live here</p>
-        </div>
-
-        <div className="quick-actions">
-          <a href="/" onClick={e => { e.preventDefault(); router.push('/') }} className="action-card">
-            <div className="action-title">Find events</div>
-            <div className="action-sub">Browse parties & concerts near you</div>
-          </a>
-          <a href="/host/create" onClick={e => { e.preventDefault(); router.push('/host/create') }} className="action-card accent">
-            <div className="action-title">Host an event</div>
-            <div className="action-sub">Create and sell tickets in minutes</div>
-          </a>
         </div>
 
         {user && (

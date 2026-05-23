@@ -36,7 +36,6 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      // Check admin status — admins can edit any event
       const { data: adminRow } = await supabase
         .from('admins')
         .select('user_id')
@@ -44,7 +43,6 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         .maybeSingle()
       const userIsAdmin = !!adminRow
 
-      // Admins load any event; everyone else is restricted to their own
       let query = supabase
         .from('events')
         .select('*, ticket_tiers(*)')
@@ -59,7 +57,6 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
       const startsAt = event.starts_at ? new Date(event.starts_at) : null
       const doorsAt = event.doors_at ? new Date(event.doors_at) : null
 
-      // Parse saved lineup (stored as JSON text). Fall back to one blank row.
       let parsedLineup: LineupAct[] = [{ name: '', role: '', time: '' }]
       if (event.lineup) {
         try {
@@ -69,12 +66,9 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
               name: a.name ?? '', role: a.role ?? '', time: a.time ?? '',
             }))
           }
-        } catch {
-          // leave default blank row
-        }
+        } catch {}
       }
 
-      // Strip stored https:// prefix off IG handle for display (we re-add @ visually)
       const igDisplay = (event.instagram_handle ?? '')
         .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
         .replace(/^@/, '')
@@ -127,9 +121,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
 
   const removeTier = (i: number) => {
     const tier = form.tiers[i]
-    if (tier.id) {
-      setDeletedTierIds(prev => [...prev, tier.id])
-    }
+    if (tier.id) setDeletedTierIds(prev => [...prev, tier.id])
     setForm(f => ({ ...f, tiers: f.tiers.filter((_, j) => j !== i) }))
   }
 
@@ -184,12 +176,10 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
 
     if (error) { alert('Error: ' + error.message); setSaving(false); return }
 
-    // Delete removed tiers from database
     for (const tierId of deletedTierIds) {
       await supabase.from('ticket_tiers').delete().eq('id', tierId)
     }
 
-    // Update or insert tiers
     for (const tier of form.tiers) {
       if (!tier.name || !tier.price || !tier.quantity) continue
       if (tier.id) {
@@ -229,7 +219,9 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
         nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},#ffc850,transparent); background-size:300% 100%; animation:navPulse 5s ease-in-out infinite; }
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:0.8} 100%{background-position:0% 50%;opacity:0.2} }
-        .logo { font-family:'Nunito',sans-serif; font-size:26px; font-weight:900; letter-spacing:-0.5px; color:${COLORS.primary}; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 10px rgba(255,170,51,0.3)); background:none; border:none; padding:0; }
+        .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
+        .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        @media(max-width:680px){ .logo-img { height:20px; } }
         .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .back:hover { color:#f0f0f0; }
         .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:clamp(36px,8vw,56px); letter-spacing:1px; color:#fff; padding:36px 0 6px; text-transform:uppercase; }
@@ -289,7 +281,9 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
           <i className="ti ti-arrow-left" style={{fontSize:'14px'}} aria-hidden="true"/>
           Dashboard
         </button>
-        <button className="logo" onClick={() => router.push('/')}><img src="/pulse-word.png" alt="pulse" style={{height:'26px',width:'auto',display:'block'}}/></button>
+        <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
+          <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
+        </button>
         <div style={{width: '80px'}} />
       </nav>
 
@@ -398,11 +392,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
                 </div>
                 <div className="field">
                   <label className="label">Tier name</label>
-                  <select
-                    className="select"
-                    value={tier.name}
-                    onChange={e => updateTier(i, 'name', e.target.value)}
-                  >
+                  <select className="select" value={tier.name} onChange={e => updateTier(i, 'name', e.target.value)}>
                     <option value="">Select tier type...</option>
                     <option value="GA">GA</option>
                     <option value="GA 2">GA 2</option>
@@ -426,10 +416,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
                 </div>
               </div>
             ))}
-            <button
-              className="add-btn"
-              onClick={() => setForm(f => ({ ...f, tiers: [...f.tiers, { id: '', name: '', price: '', quantity: '' }] }))}
-            >
+            <button className="add-btn" onClick={() => setForm(f => ({ ...f, tiers: [...f.tiers, { id: '', name: '', price: '', quantity: '' }] }))}>
               <i className="ti ti-plus" style={{fontSize: '14px'}} aria-hidden="true"/>
               Add another tier
             </button>
@@ -444,10 +431,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
                 <div className="tier-header">
                   <span className="tier-num">Performer {i + 1}</span>
                   {form.lineup.length > 1 && (
-                    <button
-                      className="remove-btn"
-                      onClick={() => setForm(f => ({ ...f, lineup: f.lineup.filter((_, j) => j !== i) }))}
-                    >
+                    <button className="remove-btn" onClick={() => setForm(f => ({ ...f, lineup: f.lineup.filter((_, j) => j !== i) }))}>
                       <i className="ti ti-x" style={{fontSize: '12px'}} aria-hidden="true"/>
                       Remove
                     </button>
@@ -469,10 +453,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
                 </div>
               </div>
             ))}
-            <button
-              className="add-btn"
-              onClick={() => setForm(f => ({ ...f, lineup: [...f.lineup, { name: '', role: '', time: '' }] }))}
-            >
+            <button className="add-btn" onClick={() => setForm(f => ({ ...f, lineup: [...f.lineup, { name: '', role: '', time: '' }] }))}>
               <i className="ti ti-plus" style={{fontSize: '14px'}} aria-hidden="true"/>
               Add performer
             </button>
@@ -493,12 +474,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
               <label className="label">Instagram handle</label>
               <div className="input-prefix-wrap">
                 <span className="input-prefix">@</span>
-                <input
-                  className="input has-prefix"
-                  placeholder="yourhandle"
-                  value={form.instagramHandle}
-                  onChange={e => update('instagramHandle', e.target.value)}
-                />
+                <input className="input has-prefix" placeholder="yourhandle" value={form.instagramHandle} onChange={e => update('instagramHandle', e.target.value)}/>
               </div>
               <div className="powers">Powers the Instagram preview on your page</div>
             </div>
@@ -506,36 +482,21 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
             <div className="section-title" style={{marginTop: '24px'}}>The Energy · TikTok</div>
             <div className="field">
               <label className="label">TikTok profile or video URL</label>
-              <input
-                className="input"
-                placeholder="tiktok.com/@yourhandle"
-                value={form.tiktokUrl}
-                onChange={e => update('tiktokUrl', e.target.value)}
-              />
+              <input className="input" placeholder="tiktok.com/@yourhandle" value={form.tiktokUrl} onChange={e => update('tiktokUrl', e.target.value)}/>
               <div className="powers">Powers the TikTok energy section</div>
             </div>
 
             <div className="section-title" style={{marginTop: '24px'}}>The Sound · Spotify</div>
             <div className="field">
               <label className="label">Spotify playlist, artist, or track URL</label>
-              <input
-                className="input"
-                placeholder="open.spotify.com/playlist/..."
-                value={form.spotifyUrl}
-                onChange={e => update('spotifyUrl', e.target.value)}
-              />
+              <input className="input" placeholder="open.spotify.com/playlist/..." value={form.spotifyUrl} onChange={e => update('spotifyUrl', e.target.value)}/>
               <div className="powers">Plays 30-second previews right on your page</div>
             </div>
 
             <div className="section-title" style={{marginTop: '24px'}}>Feed video (optional)</div>
             <div className="field">
               <label className="label">Looping video URL for the Discover feed</label>
-              <input
-                className="input"
-                placeholder="Link to a short looping clip (plays muted)"
-                value={form.feedVideoUrl}
-                onChange={e => update('feedVideoUrl', e.target.value)}
-              />
+              <input className="input" placeholder="Link to a short looping clip (plays muted)" value={form.feedVideoUrl} onChange={e => update('feedVideoUrl', e.target.value)}/>
               <div className="powers">If empty, your cover image is used instead</div>
             </div>
           </div>

@@ -252,7 +252,9 @@ export default function CreateEvent() {
         .bg-pattern { position:fixed; inset:0; background:radial-gradient(circle at 50% 0%, rgba(255,170,51,0.03) 0%, transparent 60%); pointer-events:none; z-index:0; }
         .wrap { max-width:680px; margin:0 auto; padding:0 20px 100px; position:relative; z-index:1; }
         nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,170,51,0.1); }
-        .logo { font-family:'Nunito',sans-serif; font-size:26px; font-weight:900; letter-spacing:-0.5px; color:${COLORS.primary}; cursor:pointer; line-height:1; text-transform:lowercase; filter:drop-shadow(0 0 10px rgba(255,170,51,0.3)); background:none; border:none; padding:0; }
+        .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
+        .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        @media(max-width:680px){ .logo-img { height:20px; } }
         .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .back:hover { color:#f0f0f0; }
         .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:clamp(36px,8vw,56px); letter-spacing:1px; color:#ffffff; padding:36px 0 6px; text-transform:uppercase; }
@@ -324,8 +326,8 @@ export default function CreateEvent() {
           <i className="ti ti-arrow-left" style={{fontSize: '14px'}} aria-hidden="true"/>
           Dashboard
         </button>
-        <button className="logo" onClick={() => router.push('/')}>
-          <img src="/pulse-word.png" alt="pulse" style={{height:'26px',width:'auto',display:'block'}}/>
+        <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
+          <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         <div style={{width: '80px'}} />
       </nav>

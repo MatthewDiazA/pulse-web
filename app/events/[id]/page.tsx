@@ -464,7 +464,8 @@ export default function EventDetail() {
         .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
         .nav-logo{cursor:pointer;background:none;border:none;padding:0;flex:1;display:flex;justify-content:center;line-height:0;}
-        .nav-logo img{height:22px;width:auto;filter:drop-shadow(0 0 8px rgba(255,170,51,0.4));}
+        .nav-logo .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
+        @media(max-width:680px){.nav-logo .logo-img{height:20px;}}
         .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
         .edit-event-btn:hover{background:rgba(255,170,51,0.16);border-color:rgba(255,170,51,0.5);}
         .edit-event-btn:active{transform:scale(0.96);}
@@ -577,7 +578,7 @@ export default function EventDetail() {
           Back
         </button>
         <button className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
-          <img src="/pulse-word.png" alt="pulse"/>
+          <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         {(isAdmin || currentUser?.id === event.host_id) ? (
           <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>

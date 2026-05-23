@@ -173,7 +173,8 @@ export default function Discover() {
 
         .feed-nav{position:fixed;top:0;left:0;right:0;z-index:50;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,0.65),transparent);pointer-events:none;}
         .feed-nav button,.feed-nav img{pointer-events:auto;}
-        .feed-logo{height:26px;width:auto;cursor:pointer;filter:drop-shadow(0 0 10px rgba(255,170,51,0.35));}
+        .feed-logo{height:22px;width:auto;cursor:pointer;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
+        @media(max-width:680px){.feed-logo{height:20px;}}
         .feed-right{display:flex;align-items:center;gap:10px;}
         .icon-btn{background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:0.5px solid rgba(255,255,255,0.15);color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
         .icon-btn:active{transform:scale(0.92);}
@@ -228,7 +229,7 @@ export default function Discover() {
       `}</style>
 
       <div className="feed-nav">
-        <img src="/pulse-word.png" alt="pulse" className="feed-logo" onClick={() => router.push('/')}/>
+        <img src="/pulse-word-tight.png" alt="pulse" className="feed-logo" onClick={() => router.push('/')}/>
         <div className="feed-right">
           {audioReady && (
             <button className="icon-btn" onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
