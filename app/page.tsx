@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from './lib/supabase/client'
+import TouchBlot from './components/TouchBlot'
 
 type Tier = { id: string; price: number; quantity: number; name: string }
 type Event = {
@@ -370,6 +371,7 @@ export default function Home() {
       `}</style>
 
       <div className="acid" aria-hidden="true"><div className="blob3"/></div>
+      <TouchBlot />
 
       <div className="page">
         <nav>
