@@ -201,12 +201,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
   const [userCity, setUserCity] = useState<string | null>(null)
-  const [heroVisible, setHeroVisible] = useState(false)
-
   const gridRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const id = setTimeout(() => setHeroVisible(true), 100)
     const supabase = createClient()
     let alive = true
     supabase
@@ -221,7 +218,6 @@ export default function Home() {
       })
     return () => {
       alive = false
-      clearTimeout(id)
     }
   }, [])
 
@@ -298,14 +294,10 @@ export default function Home() {
         @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.2} }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
-        .logo-img { height:28px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
-        @media(max-width:680px){ .logo-img { height:24px; } }
+        .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        @media(max-width:680px){ .logo-img { height:20px; } }
 
-        .hero-wrap { position:relative; overflow:hidden; min-height:min(34vh,280px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px 20px; }
-        .hero-logo-wrap { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; width:100%; }
-        .hero-logo { width:min(56vw,440px); height:auto; opacity:0; transform:scale(0.92) translateY(8px); transition:opacity 1s ease, transform 1s cubic-bezier(0.16,1,0.3,1); filter:drop-shadow(0 0 30px rgba(255,170,51,0.25)); }
-        .hero-logo.show { opacity:1; transform:scale(1) translateY(0); animation:logoBreathe 7s ease-in-out infinite 1s; }
-        @keyframes logoBreathe { 0%,100%{ filter:drop-shadow(0 0 24px rgba(255,170,51,0.2)); } 50%{ filter:drop-shadow(0 0 44px rgba(255,170,51,0.4)); } }
+
 
         /* ACID — morphing amber/red/magenta liquid filling the WHOLE background */
         .acid { position:fixed; inset:0; z-index:0; background:${COLORS.bg}; overflow:hidden; pointer-events:none; }
@@ -316,8 +308,7 @@ export default function Home() {
         @keyframes acidA { 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(40vw,40vh) scale(1.3); } 66%{ transform:translate(18vw,75vh) scale(0.85); } }
         @keyframes acidB { 0%,100%{ transform:translate(0,0) scale(1.1); } 33%{ transform:translate(-40vw,30vh) scale(0.8); } 66%{ transform:translate(-22vw,-30vh) scale(1.25); } }
         @keyframes acidC { 0%,100%{ transform:translate(0,0) scale(1); } 25%{ transform:translate(-30vw,-40vh) scale(1.2); } 50%{ transform:translate(30vw,-60vh) scale(0.9); } 75%{ transform:translate(-20vw,-20vh) scale(1.15); } }
-        /* keep the hero readable: a soft dark vignette only behind the logo */
-        .hero-wrap::after { content:''; position:absolute; inset:0; z-index:1; background:radial-gradient(ellipse 60% 50% at 50% 45%, rgba(0,0,0,0.55), transparent 75%); pointer-events:none; }
+
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }
@@ -372,7 +363,7 @@ export default function Home() {
         @media(min-width:680px){ .nav-desktop { display:flex; } .nav-mobile { display:none !important; } }
 
         @media (prefers-reduced-motion: reduce) {
-          .hero-logo, .card { transition:none !important; animation:none !important; }
+          .card { transition:none !important; animation:none !important; }
           .acid::before, .acid::after, .acid .blob3 { animation:none !important; }
           .ticker-track, nav::after, .skel { animation:none !important; }
         }
@@ -395,7 +386,7 @@ export default function Home() {
           </div>
         </nav>
 
-        <header className="hero-wrap" aria-hidden="true" />
+
 
         <div className="ticker-wrap" aria-hidden="true">
           <div className="ticker-track">
