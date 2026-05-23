@@ -51,23 +51,23 @@ export default function TouchBlot() {
     for (const [id, blot] of blots.current) {
       const age = now - blot.born
       const EXPAND = 600   // ms to reach full size
-      const FADE   = 3000  // ms to fade out once fading starts — longer for drawing
+      const FADE   = 1200  // ms to fade out once fading starts
 
       let size = 0
       let alpha = 1
 
       if (blot.phase === 'expanding') {
         const t = Math.min(age / EXPAND, 1)
-        size = (1 - Math.pow(2, -10 * t)) * 280
-        alpha = 0.38
+        size = (1 - Math.pow(2, -10 * t)) * 224
+        alpha = 0.65
       } else if (blot.phase === 'holding') {
-        size = 280
-        alpha = 0.32 + 0.06 * Math.sin(now * 0.004)
+        size = 224
+        alpha = 0.55 + 0.1 * Math.sin(now * 0.004)
       } else {
         // fading
         const fadeAge = age - (blot as any)._fadeStart
         const t = Math.min(fadeAge / FADE, 1)
-        size = 280 + t * 60
+        size = 224 + t * 48
         alpha = 1 - t
         if (alpha <= 0) {
           blots.current.delete(id)
@@ -90,7 +90,7 @@ export default function TouchBlot() {
 
       // Hot core
       const core = ctx.createRadialGradient(blot.x, blot.y, 0, blot.x, blot.y, size * 0.18)
-      core.addColorStop(0, hexToRgba('#ffffff', alpha * 0.35))
+      core.addColorStop(0, hexToRgba('#ffffff', alpha * 0.6))
       core.addColorStop(1, hexToRgba(blot.color, 0))
       ctx.beginPath()
       ctx.arc(blot.x, blot.y, size * 0.18, 0, Math.PI * 2)
