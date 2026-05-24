@@ -4,33 +4,30 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 import QRCode from 'qrcode'
 import confetti from 'canvas-confetti'
+import { gsap } from 'gsap'
 import { useNavLogo, useTicketTear, GLBadgeStamp } from '../lib/animations'
 import TouchBlot from '../components/TouchBlot'
 
-function QRTicket({ code }: { code: string }) {
-  const [dataUrl, setDataUrl] = useState('')
-  useEffect(() => {
-    QRCode.toDataURL(code, { width: 200, margin: 2, color: { dark: '#000000', light: '#ffffff' } }).then(setDataUrl)
-  }, [code])
-  return (
-    <div style={{textAlign:'center'}}>
-      {dataUrl
-        ? <img src={dataUrl} alt="QR Code" style={{width:'52px',height:'52px',borderRadius:'6px'}}/>
-        : <div style={{width:'52px',height:'52px',background:'rgba(255,170,51,0.08)',border:'0.5px solid rgba(255,170,51,0.2)',borderRadius:'8px'}}/>
-      }
-      <div style={{fontSize:'10px',color:'#443',marginTop:'4px',fontFamily:'Syne,sans-serif'}}>Tap to scan</div>
-    </div>
-  )
-}
-
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function toRomanTierName(name: string): string {
   const map: Record<string, string> = {
     '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
     '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
   }
-  return name.replace(/\b(\d+)\b/g, (n) => map[n] ?? n)
+  return name.replace(/\b(\d+)\b/g, n => map[n] ?? n)
 }
 
+// ── QR Code renderer ─────────────────────────────────────────────────────────
+function QRTicket({ code }: { code: string }) {
+  const [dataUrl, setDataUrl] = useState('')
+  useEffect(() => {
+    QRCode.toDataURL(code, { width: 280, margin: 2, color: { dark: '#000000', light: '#ffffff' } }).then(setDataUrl)
+  }, [code])
+  if (!dataUrl) return <div style={{width:'140px',height:'140px',background:'rgba(255,255,255,0.06)',borderRadius:'10px'}}/>
+  return <img src={dataUrl} alt="QR Code" style={{width:'140px',height:'140px',borderRadius:'10px',display:'block'}}/>
+}
+
+// ── Ticket Modal ──────────────────────────────────────────────────────────────
 function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const [dataUrl, setDataUrl] = useState('')
   const [phase, setPhase] = useState<'entry' | 'tear' | 'open'>('entry')
@@ -46,358 +43,98 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
 
   const fireConfetti = () => {
     const colors = ['#ffaa33', '#ffc850', '#ffffff', '#ff6600']
-    confetti({
-      particleCount: 120,
-      spread: 100,
-      origin: { y: 0.45 },
-      colors,
-      startVelocity: 32,
-      gravity: 0.3,
-      ticks: 600,
-    })
+    confetti({ particleCount: 120, spread: 100, origin: { y: 0.45 }, colors, startVelocity: 32, gravity: 0.3, ticks: 600 })
     setTimeout(() => {
-      confetti({
-        particleCount: 60,
-        angle: 55,
-        spread: 80,
-        origin: { x: 0, y: 0.5 },
-        colors,
-        startVelocity: 26,
-        gravity: 0.25,
-        ticks: 600,
-      })
-      confetti({
-        particleCount: 60,
-        angle: 125,
-        spread: 80,
-        origin: { x: 1, y: 0.5 },
-        colors,
-        startVelocity: 26,
-        gravity: 0.25,
-        ticks: 600,
-      })
+      confetti({ particleCount: 60, angle: 55, spread: 80, origin: { x: 0, y: 0.5 }, colors, startVelocity: 26, gravity: 0.25, ticks: 600 })
+      confetti({ particleCount: 60, angle: 125, spread: 80, origin: { x: 1, y: 0.5 }, colors, startVelocity: 26, gravity: 0.25, ticks: 600 })
     }, 150)
   }
 
   useEffect(() => {
-    QRCode.toDataURL(ticket.qr_code, {
-      width: 400,
-      margin: 2,
-      color: { dark: '#000000', light: '#ffffff' },
-    }).then(setDataUrl)
-
-    // Step 1: set phase to tear (renders topRef/bottomRef into DOM)
+    QRCode.toDataURL(ticket.qr_code, { width: 400, margin: 2, color: { dark: '#000000', light: '#ffffff' } }).then(setDataUrl)
     const t1 = setTimeout(() => {
       setPhase('tear')
-      // Step 2: wait one frame for React to render the tear elements, then animate
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          startTear()
-        })
-      })
+      requestAnimationFrame(() => requestAnimationFrame(() => startTear()))
     }, 800)
-
-    // Hard fallback: if GSAP fails for any reason, force open after 2.5s
-    const t2 = setTimeout(() => {
-      setPhase('open')
-      setEnlarged(false)
-      fireConfetti()
-    }, 2500)
-
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-    }
+    const t2 = setTimeout(() => { setPhase('open'); setEnlarged(false); fireConfetti() }, 2600)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [ticket.qr_code])
 
   const date = ticket.event?.starts_at
-    ? new Date(ticket.event.starts_at).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })
-    : 'Date TBD'
+    ? new Date(ticket.event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : 'TBD'
 
   return (
     <>
       <style>{`
         @keyframes backdropIn{from{opacity:0}to{opacity:1}}
-        @keyframes slideUp{0%{transform:translateY(100px) scale(0.95);opacity:0}60%{transform:translateY(-8px) scale(1.01);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
-        @keyframes tearTop{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-280px) rotate(-8deg);opacity:0}}
-        @keyframes tearBottom{0%{transform:translateY(0);opacity:1}100%{transform:translateY(280px) rotate(8deg);opacity:0}}
-        @keyframes revealIn{0%{transform:scale(0.7) translateY(30px);opacity:0}50%{transform:scale(1.05) translateY(-8px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}
-        @keyframes glowRing{0%,100%{box-shadow:0 0 30px rgba(255,170,51,0.2)}50%{box-shadow:0 0 60px rgba(255,170,51,0.5),0 0 100px rgba(255,170,51,0.2)}}
-        @keyframes qrReveal{0%{transform:scale(0.8);opacity:0;filter:blur(4px)}100%{transform:scale(1);opacity:1;filter:blur(0)}}
-        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-        @keyframes badgePop{0%{transform:scale(0) rotate(-10deg);opacity:0}60%{transform:scale(1.2) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}
-        .slide-up{animation:slideUp 0.7s cubic-bezier(0.34,1.2,0.64,1) forwards;}
-        .tear-top{animation:tearTop 1.1s cubic-bezier(0.4,0,0.8,0.2) forwards;}
-        .tear-bottom{animation:tearBottom 1.1s cubic-bezier(0.4,0,0.8,0.2) forwards;}
-        .reveal-in{animation:revealIn 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards;}
+        @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes revealIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+        @keyframes glowRing{0%,100%{box-shadow:0 0 20px rgba(255,170,51,0.2),0 0 60px rgba(255,170,51,0.08)}50%{box-shadow:0 0 40px rgba(255,170,51,0.45),0 0 100px rgba(255,170,51,0.15)}}
+        @keyframes qrReveal{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+        @keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+        @keyframes tearTop{to{transform:translateY(-300px) rotate(-8deg);opacity:0}}
+        @keyframes tearBottom{to{transform:translateY(300px) rotate(7deg);opacity:0}}
+        .slide-up{animation:slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards;}
+        .reveal-in{animation:revealIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards;}
         .glow-ring{animation:glowRing 2.5s ease-in-out infinite;}
         .qr-reveal{animation:qrReveal 0.6s cubic-bezier(0.34,1.2,0.64,1) 0.2s forwards;opacity:0;}
-        .badge-pop{animation:badgePop 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.4s forwards;opacity:0;}
-        .shimmer-line{background:linear-gradient(90deg,transparent 0%,rgba(255,170,51,0.06) 50%,transparent 100%);background-size:200% 100%;animation:shimmer 3s ease-in-out infinite;}
+        .shimmer-line{background:linear-gradient(90deg,transparent,rgba(255,170,51,0.06),transparent);background-size:200% 100%;animation:shimmer 3s ease-in-out infinite;}
+        .tear-top{animation:tearTop 1.1s cubic-bezier(0.4,0,0.8,0.2) forwards;}
+        .tear-bottom{animation:tearBottom 1.1s cubic-bezier(0.4,0,0.8,0.2) 0.05s forwards;}
       `}</style>
       <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.92)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          backdropFilter: 'blur(16px)',
-          animation: 'backdropIn 0.3s ease forwards',
-        }}
+        style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.92)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(16px)',animation:'backdropIn 0.3s ease forwards' }}
         onClick={onClose}
       >
         {phase === 'entry' && (
-          <div className="slide-up" style={{width: '320px'}} onClick={e => e.stopPropagation()}>
-            <div
-              style={{
-                background: 'linear-gradient(135deg,#1a0f00 0%,#0d0800 100%)',
-                border: '0.5px solid rgba(255,255,255,0.08)',
-                borderRadius: '20px',
-                overflow: 'hidden',
-                boxShadow: '0 40px 80px rgba(0,0,0,0.8)',
-              }}
-            >
-              <div
-                style={{
-                  height: '4px',
-                  background: 'linear-gradient(90deg,#ff6600,#ffaa33,#ffc850)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 1.5s ease infinite',
-                }}
-              />
-              <div style={{padding: '28px', textAlign: 'center'}}>
-                <div
-                  style={{
-                    fontSize: '11px',
-                    letterSpacing: '3px',
-                    color: '#443',
-                    textTransform: 'uppercase',
-                    marginBottom: '12px',
-                    fontFamily: 'Syne,sans-serif',
-                  }}
-                >
-                  Your ticket
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'Barlow Condensed,sans-serif',
-                    fontSize: '32px',
-                    fontWeight: 900,
-                    color: '#f0f0f0',
-                    textTransform: 'uppercase',
-                    lineHeight: 1,
-                    marginBottom: '8px',
-                  }}
-                >
-                  {ticket.event?.title ?? 'Event'}
-                </div>
-                <div style={{fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif'}}>
-                  {ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}
-                </div>
-                <div
-                  style={{
-                    marginTop: '20px',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    background: 'rgba(255,170,51,0.1)',
-                    border: '1px solid rgba(255,170,51,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '20px auto 0',
-                  }}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffaa33" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 9a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4V9z"/>
-                    <line x1="9" y1="8" x2="9" y2="16" strokeDasharray="2 2"/>
-                  </svg>
-                </div>
-              </div>
-              <div style={{borderTop: '2px dashed rgba(255,255,255,0.08)', margin: '0 20px'}}/>
-              <div style={{padding: '20px', textAlign: 'center'}}>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#443',
-                    letterSpacing: '1px',
-                    textTransform: 'uppercase',
-                    fontFamily: 'Syne,sans-serif',
-                  }}
-                >
-                  {ticket.event?.venue_name ?? 'Venue TBD'}
-                </div>
+          <div className="slide-up" style={{width:'320px',maxWidth:'calc(100vw - 40px)'}} onClick={e => e.stopPropagation()}>
+            <div style={{ background:'linear-gradient(135deg,#1a0f00,#0d0800)',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'20px',overflow:'hidden',boxShadow:'0 40px 80px rgba(0,0,0,0.8)' }}>
+              <div style={{ height:'4px',background:'linear-gradient(90deg,#ff6600,#ffaa33,#ffc850)',backgroundSize:'200% 100%',animation:'shimmer 1.5s ease infinite' }}/>
+              <div style={{padding:'28px',textAlign:'center'}}>
+                <div style={{fontSize:'11px',letterSpacing:'3px',color:'#443',textTransform:'uppercase',marginBottom:'12px',fontFamily:'Syne,sans-serif'}}>Your ticket</div>
+                <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'32px',fontWeight:900,color:'#fff',textTransform:'uppercase',marginBottom:'4px'}}>{ticket.event?.title ?? 'Event'}</div>
+                <div style={{fontSize:'13px',color:'#665',fontFamily:'Syne,sans-serif'}}>{ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}</div>
               </div>
             </div>
           </div>
         )}
 
         {phase === 'tear' && (
-          <div style={{width: '320px', position: 'relative'}} onClick={e => e.stopPropagation()}>
-            <div
-              ref={topRef}
-              className="tear-top"
-              style={{
-                background: 'linear-gradient(135deg,#1a0f00 0%,#0d0800 100%)',
-                border: '0.5px solid rgba(255,255,255,0.08)',
-                borderRadius: '20px 20px 0 0',
-                borderBottom: '2px dashed rgba(255,255,255,0.1)',
-                padding: '28px 28px 20px',
-                textAlign: 'center',
-              }}
-            >
-              <div
-                style={{
-                  height: '3px',
-                  background: 'linear-gradient(90deg,#ff6600,#ffaa33)',
-                  borderRadius: '2px',
-                  marginBottom: '20px',
-                }}
-              />
-              <div
-                style={{
-                  fontSize: '11px',
-                  letterSpacing: '3px',
-                  color: '#443',
-                  textTransform: 'uppercase',
-                  marginBottom: '8px',
-                  fontFamily: 'Syne,sans-serif',
-                }}
-              >
-                Your ticket
-              </div>
-              <div
-                style={{
-                  fontFamily: 'Barlow Condensed,sans-serif',
-                  fontSize: '32px',
-                  fontWeight: 900,
-                  color: '#f0f0f0',
-                  textTransform: 'uppercase',
-                  lineHeight: 1,
-                }}
-              >
-                {ticket.event?.title ?? 'Event'}
-              </div>
+          <div style={{width:'320px',maxWidth:'calc(100vw - 40px)',position:'relative'}} onClick={e => e.stopPropagation()}>
+            <div ref={topRef} className="tear-top" style={{ background:'linear-gradient(135deg,#1a0f00,#0d0800)',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'20px 20px 0 0',borderBottom:'2px dashed rgba(255,255,255,0.1)',padding:'28px 28px 20px',textAlign:'center' }}>
+              <div style={{fontSize:'11px',letterSpacing:'3px',color:'#443',textTransform:'uppercase',marginBottom:'8px',fontFamily:'Syne,sans-serif'}}>Your ticket</div>
+              <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'28px',fontWeight:900,color:'#fff',textTransform:'uppercase'}}>{ticket.event?.title ?? 'Event'}</div>
             </div>
-            <div
-              ref={bottomRef}
-              className="tear-bottom"
-              style={{
-                background: 'linear-gradient(135deg,#0d0800 0%,#1a0f00 100%)',
-                border: '0.5px solid rgba(255,255,255,0.08)',
-                borderRadius: '0 0 20px 20px',
-                borderTop: '2px dashed rgba(255,255,255,0.1)',
-                padding: '20px 28px 28px',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif', marginBottom: '12px'}}>
-                {ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}
-              </div>
+            <div ref={bottomRef} className="tear-bottom" style={{ background:'linear-gradient(135deg,#0d0800,#1a0f00)',border:'0.5px solid rgba(255,255,255,0.08)',borderRadius:'0 0 20px 20px',borderTop:'2px dashed rgba(255,255,255,0.1)',padding:'20px 28px 28px',textAlign:'center' }}>
+              <div style={{fontSize:'13px',color:'#665',fontFamily:'Syne,sans-serif'}}>{ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}</div>
             </div>
           </div>
         )}
 
         {phase === 'open' && (
-          <div
-            className="reveal-in glow-ring"
-            style={{
-              background: 'linear-gradient(135deg,#1a0f00 0%,#0d0800 100%)',
-              border: '1px solid rgba(255,170,51,0.35)',
-              borderRadius: '24px',
-              padding: '32px',
-              width: '320px',
-              maxWidth: 'calc(100vw - 40px)',
-              textAlign: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div
-              className="shimmer-line"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '100%',
-                pointerEvents: 'none',
-                borderRadius: '24px',
-              }}
-            />
-            <button
-              onClick={onClose}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '0.5px solid rgba(255,255,255,0.08)',
-                color: '#443',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              ×
-            </button>
-            <GLBadgeStamp delay={0.4}><div className="badge-pop" style={{display: 'inline-block', background: ticket.is_guestlist ? 'linear-gradient(135deg,rgba(255,170,51,0.2),rgba(255,102,0,0.15))' : 'rgba(255,170,51,0.1)', border: '1px solid rgba(255,170,51,0.3)', borderRadius: '100px', padding: '6px 16px', marginBottom: '16px'}}>
-              <span style={{fontSize: '12px', color: '#ffaa33', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'Syne,sans-serif', fontWeight: 500}}>{ticket.is_guestlist ? 'Guest List · On the list' : "You're on the list"}</span>
-            </div></GLBadgeStamp>
-            <div style={{fontFamily: 'Barlow Condensed,sans-serif', fontSize: '34px', fontWeight: 900, color: '#f0f0f0', textTransform: 'uppercase', lineHeight: 1, marginBottom: '6px'}}>
-              {ticket.event?.title ?? 'Event'}
-            </div>
-            <div style={{fontSize: '13px', color: '#665', marginBottom: '4px', fontFamily: 'Syne,sans-serif'}}>
-              {ticket.is_guestlist ? 'Guest List' : (ticket.tier?.name ? toRomanTierName(ticket.tier.name) : '')} · {date}
-            </div>
-            <div style={{fontSize: '12px', color: '#443', marginBottom: '24px', fontFamily: 'Syne,sans-serif'}}>
-              {ticket.event?.venue_name ?? ''}
-            </div>
-            <div
-              className="qr-reveal"
-              style={{
-                background: '#ffffff',
-                borderRadius: '16px',
-                padding: '16px',
-                display: 'inline-block',
-                cursor: 'pointer',
-                transition: 'transform 0.3s cubic-bezier(0.34,1.2,0.64,1), box-shadow 0.3s',
-                transform: `scale(${enlarged ? 1.25 : scale})`,
-                boxShadow: enlarged
-                  ? '0 0 60px rgba(255,170,51,0.5), 0 0 120px rgba(255,170,51,0.2)'
-                  : '0 0 40px rgba(255,170,51,0.15)',
-                position: 'relative',
-              }}
-              onClick={() => setEnlarged(e => !e)}
-              onTouchStart={() => { if (!enlarged) setScale(1.05) }}
-              onTouchEnd={() => setScale(1)}
-              onMouseDown={() => { if (!enlarged) setScale(1.05) }}
-              onMouseUp={() => setScale(1)}
-            >
-              {dataUrl ? (
-                <img src={dataUrl} alt="QR Code" style={{width: '200px', height: '200px', display: 'block'}}/>
-              ) : (
-                <div style={{width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '13px'}}>
-                  Generating...
+          <div className="reveal-in glow-ring" style={{ background:'linear-gradient(135deg,#1a0f00,#0d0800)',border:'1px solid rgba(255,170,51,0.35)',borderRadius:'24px',padding:'32px',width:'320px',maxWidth:'calc(100vw - 40px)',textAlign:'center',position:'relative',overflow:'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className="shimmer-line" style={{position:'absolute',top:0,left:0,right:0,height:'100%',pointerEvents:'none',zIndex:0}}/>
+            <div style={{position:'relative',zIndex:1}}>
+              <GLBadgeStamp delay={0.4}>
+                <div style={{ display:'inline-block',background:ticket.is_guestlist ? 'linear-gradient(135deg,rgba(255,170,51,0.2),rgba(255,102,0,0.15))' : 'rgba(255,170,51,0.1)',border:'1px solid rgba(255,170,51,0.3)',borderRadius:'100px',padding:'6px 16px',marginBottom:'16px' }}>
+                  <span style={{fontSize:'12px',color:'#ffaa33',letterSpacing:'1.5px',textTransform:'uppercase',fontFamily:'Syne,sans-serif',fontWeight:500}}>{ticket.is_guestlist ? 'Guest List · On the list' : "You're on the list"}</span>
                 </div>
-              )}
-            </div>
-            <div style={{marginTop: '20px', fontSize: '11px', color: '#443', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'Syne,sans-serif'}}>
-              {enlarged ? 'Tap to shrink' : 'Show at the door · Tap to enlarge'}
+              </GLBadgeStamp>
+              <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'28px',fontWeight:900,color:'#fff',textTransform:'uppercase',marginBottom:'4px'}}>{ticket.event?.title ?? 'Event'}</div>
+              <div style={{fontSize:'13px',color:'#665',fontFamily:'Syne,sans-serif',marginBottom:'4px'}}>{ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}</div>
+              <div style={{fontSize:'12px',color:'#554',fontFamily:'Syne,sans-serif',marginBottom:'24px'}}>{ticket.event?.venue_name ?? ''}</div>
+              <div className="qr-reveal" style={{ background:'#fff',borderRadius:'16px',padding:'16px',display:'inline-block',cursor:'pointer',transition:'transform 0.3s cubic-bezier(0.34,1.2,0.64,1),box-shadow 0.3s',transform:`scale(${enlarged ? 1.25 : scale})`,boxShadow:enlarged ? '0 0 60px rgba(255,170,51,0.5)' : '0 0 40px rgba(255,170,51,0.15)'}}
+                onClick={() => setEnlarged(e => !e)}
+                onTouchStart={() => { if (!enlarged) setScale(1.05) }}
+                onTouchEnd={() => setScale(1)}
+                onMouseDown={() => { if (!enlarged) setScale(1.05) }}
+                onMouseUp={() => setScale(1)}
+              >
+                {dataUrl ? <img src={dataUrl} alt="QR" style={{width:'200px',height:'200px',display:'block'}}/> : <div style={{width:'200px',height:'200px',display:'flex',alignItems:'center',justifyContent:'center',color:'#888',fontSize:'13px'}}>Generating...</div>}
+              </div>
+              <div style={{marginTop:'16px',fontSize:'11px',color:'#443',letterSpacing:'1.5px',textTransform:'uppercase',fontFamily:'Syne,sans-serif'}}>{enlarged ? 'Tap to shrink' : 'Show at the door · Tap to enlarge'}</div>
+              <button onClick={onClose} style={{marginTop:'20px',background:'none',border:'0.5px solid rgba(255,255,255,0.1)',color:'#554',borderRadius:'100px',padding:'8px 24px',fontSize:'13px',cursor:'pointer',fontFamily:'Syne,sans-serif',display:'block',width:'100%',transition:'all 0.15s'}}>Close</button>
             </div>
           </div>
         )}
@@ -406,25 +143,114 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
   )
 }
 
+// ── Wallet Card ───────────────────────────────────────────────────────────────
+// Each ticket is a physical-style card with front (poster + info) and back (QR)
+function WalletCard({ ticket, index, onClick }: { ticket: any; index: number; onClick: () => void }) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [flipped, setFlipped] = useState(false)
+
+  const date = ticket.event?.starts_at
+    ? new Date(ticket.event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : 'TBD'
+  const price = Number(ticket.tier?.price)
+  const tierName = ticket.tier?.name ? toRomanTierName(ticket.tier.name) : 'Ticket'
+  const cover = ticket.event?.cover_image_url
+
+  const handleFlip = () => {
+    const card = cardRef.current
+    if (!card) return
+    const next = !flipped
+    setFlipped(next)
+    gsap.to(card, { rotateY: next ? 180 : 0, duration: 0.6, ease: 'power3.inOut' })
+  }
+
+  return (
+    <div
+      className="wallet-card-wrap"
+      style={{ perspective: '1200px', cursor: 'pointer' }}
+      onClick={handleFlip}
+    >
+      <div
+        ref={cardRef}
+        style={{
+          position: 'relative',
+          transformStyle: 'preserve-3d',
+          borderRadius: '20px',
+          height: '240px',
+        }}
+      >
+        {/* FRONT */}
+        <div style={{
+          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', borderRadius: '20px', overflow: 'hidden',
+          background: cover ? 'transparent' : 'linear-gradient(135deg,#1a0f00,#0d0800)',
+          border: ticket.is_guestlist ? '1px solid rgba(255,170,51,0.4)' : '0.5px solid rgba(255,255,255,0.08)',
+          boxShadow: ticket.is_guestlist ? '0 0 30px rgba(255,170,51,0.15)' : '0 8px 40px rgba(0,0,0,0.6)',
+        }}>
+          {cover && (
+            <>
+              <img src={cover} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',zIndex:0}}/>
+              <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.3) 55%,rgba(0,0,0,0.1) 100%)',zIndex:1}}/>
+            </>
+          )}
+          <div style={{position:'relative',zIndex:2,height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'20px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+              {ticket.is_guestlist && (
+                <span style={{background:'linear-gradient(135deg,#ffaa33,#ff6600)',color:'#000',fontSize:'9px',fontWeight:900,letterSpacing:'1.5px',textTransform:'uppercase',padding:'4px 10px',borderRadius:'6px',fontFamily:'Barlow Condensed,sans-serif'}}>GL</span>
+              )}
+              <span style={{marginLeft:'auto',fontSize:'11px',color:'rgba(255,255,255,0.5)',fontFamily:'Syne,sans-serif'}}>Tap to flip</span>
+            </div>
+            <div>
+              <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'clamp(28px,5vw,40px)',fontWeight:900,color:'#fff',textTransform:'uppercase',lineHeight:0.9,marginBottom:'8px',textShadow:'0 2px 20px rgba(0,0,0,0.8)'}}>{ticket.event?.title ?? 'Event'}</div>
+              <div style={{display:'flex',gap:'12px',alignItems:'center',flexWrap:'wrap'}}>
+                <span style={{fontSize:'12px',color:'rgba(255,255,255,0.6)',fontFamily:'Syne,sans-serif'}}>{date}</span>
+                <span style={{fontSize:'12px',color:'rgba(255,255,255,0.4)',fontFamily:'Syne,sans-serif'}}>·</span>
+                <span style={{fontSize:'12px',color:'rgba(255,255,255,0.6)',fontFamily:'Syne,sans-serif'}}>{tierName}</span>
+                {price > 0 && <>
+                  <span style={{fontSize:'12px',color:'rgba(255,255,255,0.4)',fontFamily:'Syne,sans-serif'}}>·</span>
+                  <span style={{fontSize:'13px',color:'#ffaa33',fontFamily:'Barlow Condensed,sans-serif',fontWeight:700}}>${price}</span>
+                </>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* BACK — QR code */}
+        <div style={{
+          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', borderRadius: '20px',
+          transform: 'rotateY(180deg)', overflow: 'hidden',
+          background: 'linear-gradient(135deg,#0d0800,#1a0f00)',
+          border: '0.5px solid rgba(255,170,51,0.2)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
+        }}>
+          <QRTicket code={ticket.qr_code}/>
+          <div style={{fontSize:'10px',letterSpacing:'2px',color:'#554',textTransform:'uppercase',fontFamily:'Syne,sans-serif'}}>Show at the door</div>
+          <button
+            style={{position:'absolute',top:'14px',right:'14px',background:'none',border:'none',color:'#443',fontSize:'11px',cursor:'pointer',fontFamily:'Syne,sans-serif',letterSpacing:'0.5px'}}
+            onClick={e => { e.stopPropagation(); onClick() }}
+          >
+            Full view
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AccountPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const logoRef = useNavLogo<HTMLButtonElement>()
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [orderSuccess, setOrderSuccess] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
+  const logoRef = useNavLogo<HTMLButtonElement>()
+  const gridRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('order') === 'success') setOrderSuccess(true)
-    const fetchData = async () => {
+    const load = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      if (!user) { router.push('/login'); return }
       setUser(user)
       const { data } = await supabase
         .from('tickets')
@@ -434,11 +260,27 @@ export default function AccountPage() {
       setTickets(data ?? [])
       setLoading(false)
     }
-    fetchData()
-  }, [router])
+    load()
+  }, [])
 
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there'
-  const initials = (user?.user_metadata?.full_name ?? user?.email ?? 'U').slice(0, 2).toUpperCase()
+  // Stagger cards in after load
+  useEffect(() => {
+    if (loading || !gridRef.current) return
+    const cards = gridRef.current.querySelectorAll('.wallet-card-wrap')
+    if (!cards.length) return
+    gsap.set(cards, { opacity: 0, y: 32 })
+    gsap.to(cards, { opacity: 1, y: 0, duration: 0.55, stagger: 0.08, ease: 'power3.out', delay: 0.1 })
+  }, [loading])
+
+  const signOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] ?? user?.email?.split('@')[0] ?? ''
+  const initials = (user?.user_metadata?.full_name ?? user?.email ?? 'U')
+    .split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
 
   return (
     <>
@@ -446,136 +288,106 @@ export default function AccountPage() {
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{background:#000;font-family:'Syne',sans-serif;color:#f0f0f0;}
-        .wrap{max-width:800px;margin:0 auto;padding:0 40px 80px;}
-        nav{padding:14px 40px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;}
-        nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#ff6600,#ffaa33,#ffc850,#ff6600,transparent);background-size:300% 100%;animation:navPulse 5s ease-in-out infinite;}
-        @keyframes navPulse{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:1}100%{background-position:0% 50%;opacity:0.2}}
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        body{background:#000;font-family:'Syne',sans-serif;color:#f0f0f0;min-height:100vh;}
+
+        /* Acid background — same as homepage */
+        .acid{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+        .acid::before{content:'';position:absolute;width:70vmax;height:70vmax;border-radius:50%;background:radial-gradient(circle,rgba(255,102,0,0.18) 0%,rgba(232,0,29,0.08) 45%,transparent 70%);top:-20vmax;left:-20vmax;animation:orb1 18s ease-in-out infinite alternate;mix-blend-mode:screen;filter:blur(40px);}
+        .acid::after{content:'';position:absolute;width:60vmax;height:60vmax;border-radius:50%;background:radial-gradient(circle,rgba(192,26,111,0.16) 0%,rgba(255,170,51,0.06) 50%,transparent 70%);bottom:-15vmax;right:-10vmax;animation:orb2 22s ease-in-out infinite alternate;mix-blend-mode:screen;filter:blur(50px);}
+        .blob3{position:absolute;width:50vmax;height:50vmax;border-radius:50%;background:radial-gradient(circle,rgba(255,170,51,0.12) 0%,transparent 65%);bottom:10vmax;left:30%;animation:orb3 16s ease-in-out infinite alternate;mix-blend-mode:screen;filter:blur(45px);}
+        @keyframes orb1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(15vw,12vh) scale(1.15)}}
+        @keyframes orb2{0%{transform:translate(0,0) scale(1.1)}100%{transform:translate(-12vw,-10vh) scale(0.9)}}
+        @keyframes orb3{0%{transform:translate(0,0) scale(0.95)}100%{transform:translate(8vw,-8vh) scale(1.1)}}
+
+        nav{padding:14px 32px;background:rgba(0,0,0,0.7);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:0.5px solid rgba(255,255,255,0.05);}
         .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;}
         .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
         @media(max-width:680px){.logo-img{height:20px;}}
-        .nav-right{display:flex;gap:10px;align-items:center;}
-        .nav-btn{font-size:13px;color:#665;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;text-decoration:none;transition:color 0.15s;padding:7px 12px;border-radius:6px;}
+
+        .nav-right{display:flex;align-items:center;gap:10px;}
+        .nav-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);borderRadius:100px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;}
+        .nav-pill:hover{border-color:rgba(255,255,255,0.2);}
+        .nav-av{width:26px;height:26px;border-radius:50%;background:rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#ffaa33;letter-spacing:0.5px;flex-shrink:0;}
+        .nav-name{font-size:12px;color:#ccc;font-family:'Syne',sans-serif;font-weight:500;}
+        .nav-btn{font-size:13px;color:#665;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.15s;padding:6px 10px;}
         .nav-btn:hover{color:#f0f0f0;}
-        .nav-btn.highlight{background:rgba(255,170,51,0.08);color:#ffaa33;border:0.5px solid rgba(255,170,51,0.25);}
-        .create-btn{background:#ffaa33;color:#000;font-size:18px;font-weight:900;width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-family:'Syne',sans-serif;box-shadow:0 0 14px rgba(255,170,51,0.3);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;}
-        .create-btn:hover{box-shadow:0 0 22px rgba(255,170,51,0.5);transform:scale(1.05);}
-        .create-btn:active{transform:scale(0.95);}
-        .hero-section{padding:40px 0 20px;border-bottom:0.5px solid rgba(255,255,255,0.05);margin-bottom:24px;}
-        .greeting{font-family:'Barlow Condensed',sans-serif;font-size:72px;line-height:0.95;font-weight:900;text-transform:uppercase;margin-bottom:8px;}
-        .greeting span{color:#ffaa33;text-shadow:0 0 8px rgba(255,170,51,0.5),0 0 16px rgba(255,170,51,0.25);}
-        .user-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:center;gap:16px;}
-        .user-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,170,51,0.12);border:1.5px solid rgba(255,170,51,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#ffaa33;flex-shrink:0;font-family:'Syne',sans-serif;}
-        .user-name{font-size:16px;font-weight:500;color:#f0f0f0;}
-        .user-email{font-size:13px;color:#554;margin-top:2px;}
-        .signout-btn{margin-left:auto;font-size:12px;color:#554;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
-        .signout-btn:hover{color:#e24b4a;border-color:rgba(226,75,74,0.3);}
-        .section-title{font-size:11px;color:#443;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:0.5px solid rgba(255,255,255,0.05);}
-        .ticket-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;margin-bottom:12px;display:flex;transition:all 0.2s;cursor:pointer;position:relative;}
-        .ticket-card.gl{border-color:rgba(255,170,51,0.4);box-shadow:0 0 24px rgba(255,170,51,0.08);}
-        .gl-badge{position:absolute;top:0;right:0;z-index:2;background:linear-gradient(135deg,#ffaa33,#ff6600);color:#000;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:13px;letter-spacing:1px;padding:3px 10px;border-radius:0 12px 0 12px;box-shadow:0 2px 10px rgba(255,170,51,0.4);}
-        .ticket-card:hover{border-color:rgba(255,170,51,0.25);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.5);}
-        .ticket-left{width:4px;background:linear-gradient(180deg,#ffaa33,#ff6600);flex-shrink:0;}
-        .ticket-body{padding:20px 24px;flex:1;display:flex;align-items:center;gap:20px;}
-        .ticket-info{flex:1;}
-        .ticket-event{font-size:16px;font-weight:500;color:#f0f0f0;margin-bottom:4px;}
-        .ticket-tier{font-size:13px;color:#443;margin-bottom:4px;}
-        .ticket-date{font-size:12px;color:#332;}
-        .ticket-price{font-family:'Barlow Condensed',sans-serif;font-size:24px;color:#ffaa33;font-weight:900;text-align:right;min-width:60px;}
-        .empty-state{text-align:center;padding:60px 20px;}
-        .empty-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#f0f0f0;margin-bottom:8px;}
-        .empty-sub{font-size:14px;color:#443;margin-bottom:24px;}
-        .empty-btn{background:#ffaa33;color:#000;font-size:14px;font-weight:700;padding:12px 28px;border-radius:100px;text-decoration:none;display:inline-block;font-family:'Syne',sans-serif;box-shadow:0 0 16px rgba(255,170,51,0.3);}
-        .success-banner{background:rgba(255,170,51,0.07);border:0.5px solid rgba(255,170,51,0.25);border-radius:10px;padding:16px 20px;margin-bottom:32px;display:flex;align-items:center;gap:12px;animation:bannerIn 0.5s cubic-bezier(0.34,1.2,0.64,1) forwards;}
-        @keyframes bannerIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-        .success-text{font-size:14px;color:#ffaa33;font-weight:500;}
-        .success-sub{font-size:12px;color:#554;margin-top:2px;}
-        @media(max-width:680px){.wrap{padding:0 20px 60px;} .greeting{font-size:48px;} nav{padding:14px 16px;} .nav-btn{padding:6px 10px;font-size:12px;} .create-btn{width:32px;height:32px;font-size:16px;}}
+        .nav-btn.highlight{color:#ffaa33;background:rgba(255,170,51,0.1);border-radius:8px;}
+        .signout-btn{font-size:12px;color:#443;background:none;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:6px 14px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
+        .signout-btn:hover{color:#f0f0f0;border-color:rgba(255,255,255,0.2);}
+
+        .wrap{max-width:900px;margin:0 auto;padding:60px 32px 100px;position:relative;z-index:1;}
+        @media(max-width:680px){.wrap{padding:40px 20px 80px;}}
+
+        .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;}
+        .section-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(36px,7vw,56px);font-weight:900;text-transform:uppercase;color:#fff;letter-spacing:1px;line-height:1;}
+        .ticket-count{font-size:13px;color:#443;font-family:'Syne',sans-serif;}
+
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+        @media(max-width:420px){.grid{grid-template-columns:1fr;}}
+
+        .empty{text-align:center;padding:80px 20px;}
+        .empty-icon{font-size:48px;opacity:0.12;margin-bottom:16px;}
+        .empty-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;text-transform:uppercase;color:#f0f0f0;margin-bottom:8px;}
+        .empty-sub{font-size:14px;color:#443;margin-bottom:28px;}
+        .empty-btn{background:#ffaa33;color:#000;border:none;border-radius:100px;padding:13px 28px;font-size:14px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;box-shadow:0 0 20px rgba(255,170,51,0.3);}
+
+        .spinner{width:28px;height:28px;border:2px solid rgba(255,170,51,0.2);border-top-color:#ffaa33;border-radius:50%;animation:spin 0.8s linear infinite;margin:80px auto;}
+        @keyframes spin{to{transform:rotate(360deg)}}
       `}</style>
+
+      {/* Acid background */}
+      <div className="acid" aria-hidden="true"><div className="blob3"/></div>
 
       {selectedTicket && <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)}/>}
 
       <nav>
-        <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home"><img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/></button>
+        <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
+          <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
+        </button>
         <div className="nav-right">
-          <a href="/discover" onClick={e => { e.preventDefault(); router.push('/discover') }} className="nav-btn">Discover</a>
-          <a href="/connect" onClick={e => { e.preventDefault(); router.push('/connect') }} className="nav-btn">Connect</a>
-          <a href="/host" onClick={e => { e.preventDefault(); router.push('/host') }} className="nav-btn highlight">Dashboard</a>
-          <button className="create-btn" onClick={() => router.push('/host/create')} aria-label="Create event">+</button>
+          <button className="nav-btn" onClick={() => router.push('/discover')}>Discover</button>
+          <button className="nav-btn" onClick={() => router.push('/connect')}>Connect</button>
+          <button className="nav-btn highlight" onClick={() => router.push('/host')}>Dashboard</button>
+          {user && (
+            <div className="nav-pill" onClick={signOut} title="Sign out">
+              <div className="nav-av">{initials}</div>
+              <span className="nav-name">{firstName}</span>
+            </div>
+          )}
         </div>
       </nav>
 
       <div className="wrap">
-        {orderSuccess && (
-          <div className="success-banner" style={{marginTop: '32px'}}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffaa33" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 9a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v2a2 2 0 0 0 0 4v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2a2 2 0 0 0 0-4V9z"/>
-              <line x1="9" y1="8" x2="9" y2="16" strokeDasharray="2 2"/>
-            </svg>
-            <div>
-              <div className="success-text">Payment successful — you're on the list</div>
-              <div className="success-sub">Your tickets have been sent to your email</div>
-            </div>
-          </div>
-        )}
-
-        <div className="hero-section">
-          <h1 className="greeting">Hey, <span>{firstName}</span></h1>
-        </div>
-
-        {user && (
-          <div className="user-card">
-            <div className="user-avatar">{initials}</div>
-            <div>
-              <div className="user-name">{user.user_metadata?.full_name ?? 'No name set'}</div>
-              <div className="user-email">{user.email}</div>
-            </div>
-            <button
-              className="signout-btn"
-              onClick={async () => {
-                const s = createClient()
-                await s.auth.signOut()
-                router.push('/')
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-
-        <div className="section-title">My tickets</div>
-
         {loading ? (
-          <div style={{textAlign: 'center', padding: '40px', color: '#443', fontSize: '14px'}}>Loading your tickets...</div>
-        ) : tickets.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-title">No tickets yet</div>
-            <div className="empty-sub">When you buy tickets they'll show up here</div>
-            <a href="/" onClick={e => { e.preventDefault(); router.push('/') }} className="empty-btn">Browse events</a>
-          </div>
+          <div className="spinner"/>
         ) : (
-          tickets.map(ticket => {
-            const date = ticket.event?.starts_at
-              ? new Date(ticket.event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-              : 'Date TBD'
-            const price = Number(ticket.tier?.price)
-            return (
-              <div key={ticket.id} className={`ticket-card ${ticket.is_guestlist ? 'gl' : ''}`} onClick={() => setSelectedTicket(ticket)}>
-                {ticket.is_guestlist && <GLBadgeStamp delay={0.1}><span className="gl-badge">GL</span></GLBadgeStamp>}
-                <div className="ticket-left"/>
-                <div className="ticket-body">
-                  <div className="ticket-info">
-                    <div className="ticket-event">{ticket.event?.title ?? 'Event'}</div>
-                    <div className="ticket-tier">{ticket.is_guestlist ? 'Guest List' : (ticket.tier?.name ? toRomanTierName(ticket.tier.name) : 'Ticket')}</div>
-                    <div className="ticket-date">{date} · {ticket.event?.venue_name ?? ''}</div>
-                  </div>
-                  <QRTicket code={ticket.qr_code}/>
-                  <div className="ticket-price">{ticket.is_guestlist ? 'GL' : (isNaN(price) || price === 0 ? 'Free' : `$${price}`)}</div>
-                </div>
+          <>
+            <div className="section-header">
+              <div className="section-title">My Tickets</div>
+              {tickets.length > 0 && <div className="ticket-count">{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</div>}
+            </div>
+
+            {tickets.length === 0 ? (
+              <div className="empty">
+                <div className="empty-icon">🎟</div>
+                <div className="empty-title">No tickets yet</div>
+                <div className="empty-sub">Find an event and grab your spot</div>
+                <button className="empty-btn" onClick={() => router.push('/')}>Browse events</button>
               </div>
-            )
-          })
+            ) : (
+              <div className="grid" ref={gridRef}>
+                {tickets.map((ticket, i) => (
+                  <WalletCard
+                    key={ticket.id}
+                    ticket={ticket}
+                    index={i}
+                    onClick={() => setSelectedTicket(ticket)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
