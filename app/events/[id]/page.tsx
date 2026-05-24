@@ -93,13 +93,10 @@ export default function EventDetail() {
   const BuyButton = ({ tier, isBuying, onClick }: { tier: Tier; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
     const price = safePrice(tier.price)
-    const qty = selectedQty[tier.id] || 1
     const label = isBuying ? 'Processing...' : price === 0 ? 'RSVP — Free' : 'Get tickets'
-    const priceLabel = isBuying ? '' : price === 0 ? '' : displayPrice(price, qty)
     return (
       <button ref={ref} className="buy-btn" disabled={isBuying} onClick={onClick}>
-        <span className="buy-btn-label">{label}</span>
-        {priceLabel && <span className="buy-btn-price">{priceLabel}</span>}
+        {label}
       </button>
     )
   }
@@ -320,19 +317,17 @@ export default function EventDetail() {
         .ticket-card{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:12px;transition:border-color 0.2s;}
         .ticket-card:hover{border-color:rgba(255,170,51,0.15);}
         .tier-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
-        .tier-name{font-size:16px;font-weight:600;color:#fff;}
-        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:${COLORS.primary};line-height:1;}
+        .tier-name{font-size:15px;font-weight:600;color:#fff;}
+        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;color:#fff;line-height:1;}
         .tier-price.free{color:${COLORS.highlight};}
-        .qty-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
-        .qty-label{font-size:12px;color:#776;}
+        .qty-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+        .qty-label{font-size:12px;color:rgba(255,255,255,0.35);}
         .qty-select{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;color:#f0f0f0;font-size:14px;font-family:'Syne',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
-        .buy-btn{width:100%;background:${COLORS.primary};color:#000;border:none;border-radius:10px;padding:16px 20px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.3px;transition:background 0.15s,box-shadow 0.15s;display:flex;align-items:center;justify-content:space-between;}
-        .buy-btn:hover{background:#ffc040;box-shadow:0 0 0 1px rgba(255,170,51,0.4);}
+        .buy-btn{width:100%;background:#ffaa33;color:#000;border:none;border-radius:8px;padding:15px 20px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.2px;transition:background 0.15s;text-align:center;display:block;}
+        .buy-btn:hover{background:#ffc040;}
         .buy-btn:active{transform:scale(0.99);}
-        .buy-btn:disabled{opacity:0.3;cursor:not-allowed;box-shadow:none;}
-        .buy-btn-label{font-size:15px;font-weight:700;letter-spacing:0.2px;}
-        .buy-btn-price{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;letter-spacing:0.5px;}
-        .soldout-btn{width:100%;background:rgba(255,255,255,0.05);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:14px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:not-allowed;text-align:center;}
+        .buy-btn:disabled{opacity:0.3;cursor:not-allowed;}
+        .soldout-btn{width:100%;background:rgba(255,255,255,0.04);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:15px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:not-allowed;text-align:center;}
         @media(max-width:700px){.hero{height:62vh;min-height:380px;}.content{padding:24px 18px 90px;}.two-col{gap:24px;}.ev-meta{gap:10px 14px;}}
         @media(prefers-reduced-motion:reduce){nav::after,.sound-eq span,.acid-content::before,.acid-content::after{animation:none!important;}}
       `}</style>
@@ -432,7 +427,7 @@ export default function EventDetail() {
           </div>
 
           <div className="tickets-panel">
-            <h2 className="sec-title">Tickets</h2>
+            <h2 className="sec-title" style={{fontFamily:"'Syne',sans-serif",fontSize:'13px',fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'3px',textTransform:'uppercase',marginBottom:'16px'}}>Tickets</h2>
             {event.ticket_tiers && event.ticket_tiers.length > 0 ? (
               [...event.ticket_tiers].sort((a, b) => safePrice(a.price) - safePrice(b.price)).map(tier => {
                 const price = safePrice(tier.price)
@@ -442,18 +437,19 @@ export default function EventDetail() {
                 const isBuying = buyingTier === tier.id
                 return (
                   <div key={tier.id} className="ticket-card">
-                    <div className="tier-row">
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
                       <div className="tier-name">{toRomanTierName(tier.name)}</div>
-                      <div className={`tier-price ${price === 0 ? 'free' : ''}`}>{displayPrice(price, 1)}</div>
                     </div>
-                    {soldOut && <div style={{fontSize:'12px',color:'#665',margin:'6px 0 12px'}}>Sold out</div>}
+                    <div className={`tier-price ${price === 0 ? 'free' : ''}`}>{displayPrice(price, qty > 1 ? qty : 1)}</div>
+                    <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',margin:'4px 0 14px',fontFamily:"'Syne',sans-serif"}}>
+                      {soldOut ? 'Sold out' : price === 0 ? 'Free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
+                    </div>
                     {!soldOut && (
                       <div className="qty-row">
                         <span className="qty-label">Qty</span>
                         <select className="qty-select" value={qty} onChange={e => setSelectedQty(prev => ({...prev, [tier.id]: parseInt(e.target.value)}))}>
                           {Array.from({length: Math.min(available, 10)}).map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
                         </select>
-                        {price > 0 && qty > 1 && <span className="qty-label">Total: {displayPrice(price, qty)}</span>}
                       </div>
                     )}
                     {soldOut ? (
