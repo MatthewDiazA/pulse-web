@@ -202,7 +202,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
   const [userCity, setUserCity] = useState<string | null>(null)
-  const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.05, trigger: 'mount' })
+  const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.05, trigger: 'mount', deps: [loading, filter] })
   const logoRef = useNavLogo<HTMLButtonElement>()
 
   useEffect(() => {
@@ -316,7 +316,7 @@ export default function Home() {
         @media(min-width:600px){ .grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
         @media(min-width:900px){ .grid { grid-template-columns:repeat(4, 1fr); gap:16px; } }
 
-        .card { border-radius:14px; cursor:pointer; position:relative; overflow:hidden; opacity:0; transform:translateY(20px); aspect-ratio:2/3; background:${COLORS.cardBg}; }
+        .card { border-radius:14px; cursor:pointer; position:relative; overflow:hidden; aspect-ratio:2/3; background:${COLORS.cardBg}; }
         .card:focus-visible { outline:2px solid ${COLORS.primary}; outline-offset:2px; }
         .card:active { transform:scale(0.96) !important; }
         @media(hover:hover){ .card:hover { transform:translateY(-4px) !important; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(255,170,51,0.08); } }

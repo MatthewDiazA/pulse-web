@@ -6,12 +6,13 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 gsap.registerPlugin(ScrollTrigger)
 
 interface StaggerOptions {
-  selector?: string       // child selector to stagger (default '.card')
-  stagger?: number        // delay between each item in seconds (default 0.06)
-  duration?: number       // animation duration per item (default 0.5)
-  y?: number              // starting y offset (default 28)
-  trigger?: 'scroll' | 'mount'  // when to fire (default 'scroll')
-  once?: boolean          // only animate once (default true)
+  selector?: string
+  stagger?: number
+  duration?: number
+  y?: number
+  trigger?: 'scroll' | 'mount'
+  once?: boolean
+  deps?: any[]
 }
 
 export function useStaggerReveal<T extends HTMLElement>(
@@ -24,6 +25,7 @@ export function useStaggerReveal<T extends HTMLElement>(
     y = 28,
     trigger = 'scroll',
     once = true,
+    deps = [],
   } = options
 
   const ref = useRef<T>(null)
@@ -33,35 +35,37 @@ export function useStaggerReveal<T extends HTMLElement>(
     if (!container) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
-    const items = container.querySelectorAll(selector)
-    if (!items.length) return
+    const timeout = setTimeout(() => {
+      const items = container.querySelectorAll(selector)
+      if (!items.length) return
 
-    // Set initial state
-    gsap.set(items, { opacity: 0, y, willChange: 'transform, opacity' })
+      gsap.set(items, { opacity: 0, y, willChange: 'transform, opacity' })
 
-    const anim = gsap.to(items, {
-      opacity: 1,
-      y: 0,
-      duration,
-      stagger,
-      ease: 'power3.out',
-      clearProps: 'willChange',
-      ...(trigger === 'scroll'
-        ? {
-            scrollTrigger: {
-              trigger: container,
-              start: 'top 88%',
-              toggleActions: once ? 'play none none none' : 'play none none reverse',
-            },
-          }
-        : {}),
-    })
+      gsap.to(items, {
+        opacity: 1,
+        y: 0,
+        duration,
+        stagger,
+        ease: 'power3.out',
+        clearProps: 'willChange,transform,opacity',
+        ...(trigger === 'scroll'
+          ? {
+              scrollTrigger: {
+                trigger: container,
+                start: 'top 88%',
+                toggleActions: once ? 'play none none none' : 'play none none reverse',
+              },
+            }
+          : {}),
+      })
+    }, 50)
 
     return () => {
-      anim.kill()
+      clearTimeout(timeout)
       ScrollTrigger.getAll().forEach(st => st.kill())
     }
-  }, [selector, stagger, duration, y, trigger, once])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selector, stagger, duration, y, trigger, once, ...deps])
 
   return ref
 }
