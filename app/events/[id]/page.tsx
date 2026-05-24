@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { useMagneticButton, usePageReveal, useNavLogo } from '../lib/animations'
+import { useMagneticButton, usePageReveal, useNavLogo } from '../../lib/animations'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
