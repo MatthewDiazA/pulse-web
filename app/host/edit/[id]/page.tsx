@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useMagneticButton, useNavLogo } from '../../../lib/animations'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../../lib/supabase/client'
@@ -11,6 +11,218 @@ const COLORS = {
 } as const
 
 type LineupAct = { name: string; role: string; time: string }
+
+// ── Video Upload Component ───────────────────────────────────────────────────
+function VideoUpload({
+  eventId,
+  currentUrl,
+  onUpload,
+}: {
+  eventId: string
+  currentUrl: string
+  onUpload: (url: string) => void
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState('')
+  const [showUrlField, setShowUrlField] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const hasVideo = !!currentUrl
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('video/')) {
+      setError('Please select a video file (MP4, MOV, WebM)')
+      return
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      setError('Video must be under 100MB')
+      return
+    }
+
+    setError('')
+    setUploading(true)
+    setProgress(0)
+
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const path = `events/${eventId}/feed-${Date.now()}.${ext}`
+
+      // Simulate progress since Supabase client doesn't expose upload progress
+      const progressInterval = setInterval(() => {
+        setProgress(p => Math.min(p + 8, 85))
+      }, 200)
+
+      const { error: upErr } = await supabase.storage
+        .from('videos')
+        .upload(path, file, { upsert: true, contentType: file.type })
+
+      clearInterval(progressInterval)
+
+      if (upErr) {
+        setError(upErr.message)
+        setUploading(false)
+        return
+      }
+
+      const { data } = supabase.storage.from('videos').getPublicUrl(path)
+      setProgress(100)
+      setTimeout(() => {
+        setUploading(false)
+        setProgress(0)
+        onUpload(data.publicUrl)
+      }, 400)
+    } catch (e: any) {
+      setError(e.message ?? 'Upload failed')
+      setUploading(false)
+    }
+  }
+
+  const handleRemove = () => onUpload('')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+      />
+
+      {hasVideo ? (
+        // Preview + replace/remove controls
+        <div style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '0.5px solid rgba(255,255,255,0.1)',
+          borderRadius: '12px',
+          overflow: 'hidden',
+        }}>
+          <video
+            src={currentUrl}
+            muted
+            loop
+            playsInline
+            autoPlay
+            style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }}
+          />
+          <div style={{ display: 'flex', gap: '8px', padding: '10px 12px' }}>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              style={{
+                flex: 1, background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)',
+                color: '#ccc', borderRadius: '8px', padding: '9px', fontSize: '13px',
+                cursor: 'pointer', fontFamily: 'Syne,sans-serif', fontWeight: 500,
+              }}
+            >
+              {uploading ? `Uploading ${progress}%` : 'Replace video'}
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              style={{
+                background: 'rgba(255,80,80,0.08)', border: '0.5px solid rgba(255,80,80,0.2)',
+                color: '#ff8888', borderRadius: '8px', padding: '9px 14px', fontSize: '13px',
+                cursor: 'pointer', fontFamily: 'Syne,sans-serif',
+              }}
+            >
+              Remove
+            </button>
+          </div>
+          {uploading && (
+            <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', margin: '0 12px 10px' }}>
+              <div style={{
+                height: '100%', width: `${progress}%`,
+                background: 'linear-gradient(90deg,#ffaa33,#ff6600)',
+                borderRadius: '2px', transition: 'width 0.2s',
+              }}/>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Upload button
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          style={{
+            width: '100%', background: 'transparent',
+            border: `0.5px dashed ${uploading ? 'rgba(255,170,51,0.4)' : 'rgba(255,255,255,0.2)'}`,
+            borderRadius: '10px', padding: '18px', cursor: uploading ? 'not-allowed' : 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { if (!uploading) (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,170,51,0.4)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.2)' }}
+        >
+          {uploading ? (
+            <>
+              <div style={{
+                width: '120px', height: '3px', background: 'rgba(255,255,255,0.1)',
+                borderRadius: '2px', overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%', width: `${progress}%`,
+                  background: 'linear-gradient(90deg,#ffaa33,#ff6600)',
+                  borderRadius: '2px', transition: 'width 0.2s',
+                }}/>
+              </div>
+              <span style={{ fontSize: '13px', color: '#ffaa33', fontFamily: 'Syne,sans-serif' }}>
+                Uploading {progress}%
+              </span>
+            </>
+          ) : (
+            <>
+              <i className="ti ti-video-plus" style={{ fontSize: '22px', color: '#665' }} aria-hidden="true"/>
+              <span style={{ fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif', fontWeight: 500 }}>
+                Upload video
+              </span>
+              <span style={{ fontSize: '11px', color: '#443', fontFamily: 'Syne,sans-serif' }}>
+                MP4, MOV or WebM · max 100MB
+              </span>
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Paste URL fallback — collapsed by default */}
+      <button
+        type="button"
+        onClick={() => setShowUrlField(s => !s)}
+        style={{
+          background: 'none', border: 'none', color: '#443', fontSize: '11px',
+          cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne,sans-serif',
+          padding: '0', letterSpacing: '0.3px',
+        }}
+      >
+        {showUrlField ? '↑ Hide URL field' : 'Or paste a direct video URL'}
+      </button>
+
+      {showUrlField && (
+        <input
+          className="input"
+          placeholder="https://... (direct .mp4 link)"
+          value={currentUrl}
+          onChange={e => onUpload(e.target.value)}
+          style={{
+            width: '100%', background: 'rgba(255,255,255,0.06)',
+            border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '10px',
+            padding: '12px 14px', color: '#fff', fontSize: '15px',
+            fontFamily: 'Syne,sans-serif', outline: 'none',
+          }}
+        />
+      )}
+
+      {error && (
+        <div style={{ fontSize: '12px', color: '#ff8888', fontFamily: 'Syne,sans-serif' }}>{error}</div>
+      )}
+    </div>
+  )
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 export default function EditEvent({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -498,9 +710,13 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
 
             <div className="section-title" style={{marginTop: '24px'}}>Feed video (optional)</div>
             <div className="field">
-              <label className="label">Looping video URL for the Discover feed</label>
-              <input className="input" placeholder="Link to a short looping clip (plays muted)" value={form.feedVideoUrl} onChange={e => update('feedVideoUrl', e.target.value)}/>
-              <div className="powers">If empty, your cover image is used instead</div>
+              <label className="label">Looping video for the Discover feed</label>
+              <VideoUpload
+                eventId={id}
+                currentUrl={form.feedVideoUrl}
+                onUpload={(url) => update('feedVideoUrl', url)}
+              />
+              <div className="powers">Plays muted and looping on your event page and in Discover. If empty, your cover image is used instead.</div>
             </div>
           </div>
         )}

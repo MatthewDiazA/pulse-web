@@ -50,8 +50,10 @@ export default function Discover() {
   const [audioReady, setAudioReady] = useState(false)
   const [nowPlaying, setNowPlaying] = useState<{ title: string; artist: string } | null>(null)
   const [muted, setMuted] = useState(false)
+  const [audioError, setAudioError] = useState(false)
 
   const scrollerRef = useRef<HTMLDivElement>(null)
+  // Audio element created on first user tap — required for iOS autoplay policy
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const cardRefs = useRef<(HTMLElement | null)[]>([])
   const previewCache = useRef<Record<string, string | null>>({})
@@ -71,14 +73,6 @@ export default function Discover() {
     load()
   }, [])
 
-  useEffect(() => {
-    const a = new Audio()
-    a.loop = true
-    a.preload = 'auto'
-    audioRef.current = a
-    return () => { a.pause(); a.src = '' }
-  }, [])
-
   const getPreview = useCallback(async (ev: FeedEvent): Promise<string | null> => {
     if (!ev.spotify_playlist_url) return null
     if (ev.id in previewCache.current) return previewCache.current[ev.id]
@@ -94,28 +88,43 @@ export default function Discover() {
     }
   }, [])
 
+  // Play audio for a given event index — only works after audio element is created
   const playFor = useCallback(async (index: number) => {
     const a = audioRef.current
     const ev = events[index]
     if (!a || !ev) return
+
     const preview = await getPreview(ev)
     if (!preview) {
       a.pause()
       setNowPlaying(null)
       return
     }
-    if (a.src !== preview) a.src = preview
-    a.muted = muted
+
+    if (a.src !== preview) {
+      a.src = preview
+      a.load()
+    }
+    a.muted = false
     try {
       await a.play()
-      setAudioReady(true)
-      const meta = metaCache.current[ev.id]
-      if (meta) setNowPlaying(meta)
-    } catch {
-      setAudioReady(false)
+      setNowPlaying(metaCache.current[ev.id] ?? null)
+      setAudioError(false)
+    } catch (e) {
+      console.warn('Audio play failed:', e)
+      setAudioError(true)
     }
-  }, [events, getPreview, muted])
+  }, [events, getPreview])
 
+  // Watch active card changes — only play if audio already unlocked
+  useEffect(() => {
+    if (loading || events.length === 0) return
+    if (audioRef.current) playFor(activeIndex)
+    const next = events[activeIndex + 1]
+    if (next) getPreview(next)
+  }, [activeIndex, loading, events, playFor, getPreview])
+
+  // Scroll snap observer
   useEffect(() => {
     if (loading || events.length === 0) return
     const scroller = scrollerRef.current
@@ -135,19 +144,32 @@ export default function Discover() {
     return () => obs.disconnect()
   }, [loading, events])
 
-  useEffect(() => {
-    if (loading || events.length === 0) return
-    playFor(activeIndex)
-    const next = events[activeIndex + 1]
-    if (next) getPreview(next)
-  }, [activeIndex, loading, events, playFor, getPreview])
+  // KEY FIX: Create the Audio element inside the user gesture handler
+  // iOS Safari blocks audio created before a user interaction
+  const unlockAudio = useCallback(async () => {
+    setAudioError(false)
 
-  const unlockAudio = useCallback(() => {
+    // Create audio element NOW, inside the tap handler — iOS requires this
+    if (!audioRef.current) {
+      const a = new Audio()
+      a.loop = true
+      a.preload = 'auto'
+      a.volume = 1
+      audioRef.current = a
+    }
+
     const a = audioRef.current
-    if (!a) return
-    a.muted = false
+
+    // iOS requires a silent play first to unlock the audio context
+    try {
+      a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
+      await a.play()
+      a.pause()
+    } catch {}
+
+    setAudioReady(true)
     setMuted(false)
-    playFor(activeIndex)
+    await playFor(activeIndex)
   }, [activeIndex, playFor])
 
   const openExternal = useCallback((url: string) => {
@@ -160,14 +182,14 @@ export default function Discover() {
     const m = !muted
     a.muted = m
     setMuted(m)
-    if (!m) { a.play().catch(() => {}); setAudioReady(true) }
+    if (!m) a.play().catch(() => {})
   }, [muted])
 
   return (
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Syne:wght@400;500;600&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         html,body{background:${COLORS.bg};overflow:hidden;height:100%;}
 
@@ -189,10 +211,10 @@ export default function Discover() {
 
         .card-body{position:relative;z-index:2;padding:0 20px 44px;max-width:920px;margin:0 auto;width:100%;display:flex;align-items:flex-end;justify-content:space-between;gap:18px;}
         .card-text{flex:1;min-width:0;}
-        .kicker{font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:${COLORS.primary};margin-bottom:10px;opacity:0.85;}
+        .kicker{font-family:'Syne',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:${COLORS.primary};margin-bottom:10px;opacity:0.85;}
         .card-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(46px,13vw,86px);font-weight:900;line-height:0.86;color:#fff;text-transform:uppercase;text-shadow:0 4px 40px rgba(0,0,0,0.85);margin-bottom:10px;letter-spacing:-0.5px;}
-        .card-tagline{font-family:'DM Sans',sans-serif;font-size:14px;color:rgba(255,255,255,0.82);line-height:1.4;margin-bottom:16px;max-width:88%;}
-        .card-meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;color:rgba(255,255,255,0.72);}
+        .card-tagline{font-family:'Syne',sans-serif;font-size:14px;color:rgba(255,255,255,0.82);line-height:1.4;margin-bottom:16px;max-width:88%;}
+        .card-meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-family:'Syne',sans-serif;font-size:13px;color:rgba(255,255,255,0.72);}
         .card-meta-item{display:inline-flex;align-items:center;gap:5px;}
         .card-meta-item i{color:${COLORS.primary};font-size:15px;}
         .card-price{font-family:'Barlow Condensed',sans-serif;font-weight:900;color:${COLORS.primary};font-size:16px;}
@@ -211,17 +233,19 @@ export default function Discover() {
         .np-eq span:nth-child(3){animation-delay:0.3s}
         .np-eq span:nth-child(4){animation-delay:0.45s}
         @keyframes eq{0%,100%{height:4px}50%{height:15px}}
-        .np-text{font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(255,255,255,0.75);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .np-text{font-family:'Syne',sans-serif;font-size:11px;color:rgba(255,255,255,0.75);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-        .unlock{position:fixed;left:50%;bottom:calc(40px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:45;background:rgba(255,170,51,0.92);color:#000;border:none;border-radius:100px;padding:11px 20px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 4px 24px rgba(255,170,51,0.4);animation:rise 0.4s cubic-bezier(0.16,1,0.3,1);}
+        .unlock{position:fixed;left:50%;bottom:calc(40px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:45;background:rgba(255,170,51,0.92);color:#000;border:none;border-radius:100px;padding:11px 20px;font-family:'Syne',sans-serif;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 4px 24px rgba(255,170,51,0.4);animation:rise 0.4s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;}
         @keyframes rise{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+
+        .audio-error{position:fixed;left:50%;bottom:calc(40px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:45;background:rgba(0,0,0,0.7);color:#888;border:0.5px solid rgba(255,255,255,0.1);border-radius:100px;padding:9px 18px;font-family:'Syne',sans-serif;font-size:12px;pointer-events:none;white-space:nowrap;}
 
         .scroll-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:3;color:rgba(255,255,255,0.4);font-size:22px;animation:bob 1.8s ease-in-out infinite;pointer-events:none;}
         @keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,7px)}}
 
-        .empty,.loading{height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#665;font-family:'DM Sans',sans-serif;padding:20px;text-align:center;}
+        .empty,.loading{height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#665;font-family:'Syne',sans-serif;padding:20px;text-align:center;}
         .empty-logo{height:46px;width:auto;opacity:0.9;margin-bottom:6px;}
-        .empty-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:12px 26px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer;}
+        .empty-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:12px 26px;font-family:'Syne',sans-serif;font-weight:600;font-size:14px;cursor:pointer;}
         .spinner{width:30px;height:30px;border:2px solid ${COLORS.primary};border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;}
         @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -327,6 +351,10 @@ export default function Discover() {
               <i className="ti ti-volume" style={{fontSize:'16px'}} aria-hidden="true"/>
               Tap for sound
             </button>
+          )}
+
+          {audioReady && audioError && (
+            <div className="audio-error">No preview for this event</div>
           )}
         </>
       )}

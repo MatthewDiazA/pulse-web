@@ -1,24 +1,31 @@
 'use client'
 import { useEffect, useRef, useCallback } from 'react'
+import { gsap } from 'gsap'
 
-// Color stops cycling through the acid palette based on hold duration
 const HOLD_COLORS = [
-  { ms: 0,    color: '#ffaa33', glow: 'rgba(255,170,51,0.8)'  }, // amber   — instant
-  { ms: 300,  color: '#ff6600', glow: 'rgba(255,102,0,0.8)'   }, // orange  — 300ms
-  { ms: 700,  color: '#e8001d', glow: 'rgba(232,0,29,0.8)'    }, // red     — 700ms
-  { ms: 1200, color: '#c01a6f', glow: 'rgba(192,26,111,0.8)'  }, // magenta — 1.2s
-  { ms: 2000, color: '#7b2fff', glow: 'rgba(123,47,255,0.8)'  }, // violet  — 2s
+  { ms: 0,    color: '#ffaa33', glow: 'rgba(255,170,51,0.8)'  },
+  { ms: 400,  color: '#ff6600', glow: 'rgba(255,102,0,0.8)'   },
+  { ms: 900,  color: '#e8001d', glow: 'rgba(232,0,29,0.8)'    },
+  { ms: 1500, color: '#c01a6f', glow: 'rgba(192,26,111,0.8)'  },
+  { ms: 2500, color: '#7b2fff', glow: 'rgba(123,47,255,0.8)'  },
 ]
+
+// Mobile: smaller blot so it doesn't dominate the screen
+// Desktop: full size
+function getMaxSize() {
+  if (typeof window === 'undefined') return 160
+  return window.innerWidth <= 768 ? 110 : 224
+}
 
 type Blot = {
   id: number
   x: number
   y: number
   color: string
-  glow: string
   born: number
   colorIdx: number
   phase: 'expanding' | 'holding' | 'fading'
+  _fadeStart?: number
 }
 
 function haptic(pattern: number | number[]) {
@@ -32,12 +39,20 @@ function haptic(pattern: number | number[]) {
 export default function TouchBlot() {
   const blots = useRef<Map<number, Blot>>(new Map())
   const holdTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map())
-  const fadeTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+  const pointerToBlot = useRef<Map<number, number>>(new Map())
+  const expandTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const counter = useRef(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
 
-  // ── Draw loop ──────────────────────────────────────────────────────────────
+  function hexToRgba(hex: string, alpha: number): string {
+    const h = hex.replace('#', '')
+    const r = parseInt(h.slice(0, 2), 16)
+    const g = parseInt(h.slice(2, 4), 16)
+    const b = parseInt(h.slice(4, 6), 16)
+    return `rgba(${r},${g},${b},${alpha.toFixed(3)})`
+  }
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -45,37 +60,31 @@ export default function TouchBlot() {
     if (!ctx) return
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-
     const now = Date.now()
+    const MAX = getMaxSize()
+    const EXPAND = 500
+    const FADE = 1200
 
     for (const [id, blot] of blots.current) {
       const age = now - blot.born
-      const EXPAND = 600   // ms to reach full size
-      const FADE   = 1200  // ms to fade out once fading starts
-
       let size = 0
       let alpha = 1
 
       if (blot.phase === 'expanding') {
         const t = Math.min(age / EXPAND, 1)
-        size = (1 - Math.pow(2, -10 * t)) * 224
+        size = (1 - Math.pow(2, -10 * t)) * MAX
         alpha = 0.65
       } else if (blot.phase === 'holding') {
-        size = 224
-        alpha = 0.55 + 0.1 * Math.sin(now * 0.004)
+        size = MAX
+        alpha = 0.55 + 0.08 * Math.sin(now * 0.004)
       } else {
-        // fading
-        const fadeAge = age - (blot as any)._fadeStart
+        const fadeAge = age - (blot._fadeStart ?? 0)
         const t = Math.min(fadeAge / FADE, 1)
-        size = 224 + t * 48
+        size = MAX + t * (MAX * 0.2)
         alpha = 1 - t
-        if (alpha <= 0) {
-          blots.current.delete(id)
-          continue
-        }
+        if (alpha <= 0) { blots.current.delete(id); continue }
       }
 
-      // Outer glow
       const grad = ctx.createRadialGradient(blot.x, blot.y, 0, blot.x, blot.y, size)
       grad.addColorStop(0,   hexToRgba(blot.color, alpha * 0.9))
       grad.addColorStop(0.3, hexToRgba(blot.color, alpha * 0.55))
@@ -88,12 +97,13 @@ export default function TouchBlot() {
       ctx.fillStyle = grad
       ctx.fill()
 
-      // Hot core
-      const core = ctx.createRadialGradient(blot.x, blot.y, 0, blot.x, blot.y, size * 0.18)
-      core.addColorStop(0, hexToRgba('#ffffff', alpha * 0.6))
+      // Hot white core — smaller on mobile
+      const coreSize = size * (window.innerWidth <= 768 ? 0.12 : 0.18)
+      const core = ctx.createRadialGradient(blot.x, blot.y, 0, blot.x, blot.y, coreSize)
+      core.addColorStop(0, hexToRgba('#ffffff', alpha * 0.55))
       core.addColorStop(1, hexToRgba(blot.color, 0))
       ctx.beginPath()
-      ctx.arc(blot.x, blot.y, size * 0.18, 0, Math.PI * 2)
+      ctx.arc(blot.x, blot.y, coreSize, 0, Math.PI * 2)
       ctx.fillStyle = core
       ctx.fill()
     }
@@ -101,11 +111,9 @@ export default function TouchBlot() {
     rafRef.current = requestAnimationFrame(draw)
   }, [])
 
-  // ── Resize ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-
     const resize = () => {
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
@@ -113,92 +121,74 @@ export default function TouchBlot() {
     resize()
     window.addEventListener('resize', resize)
     rafRef.current = requestAnimationFrame(draw)
-
     return () => {
       window.removeEventListener('resize', resize)
       cancelAnimationFrame(rafRef.current)
     }
   }, [draw])
 
-  // ── Touch / pointer handlers ───────────────────────────────────────────────
   const startBlot = useCallback((pointerId: number, x: number, y: number) => {
     const id = ++counter.current
-    ;(startBlot as any)._pointerToBlot = (startBlot as any)._pointerToBlot ?? new Map()
-    ;(startBlot as any)._pointerToBlot.set(pointerId, id)
+    pointerToBlot.current.set(pointerId, id)
 
     const blot: Blot = {
-      id,
-      x,
-      y,
+      id, x, y,
       color: HOLD_COLORS[0].color,
-      glow: HOLD_COLORS[0].glow,
       born: Date.now(),
       colorIdx: 0,
       phase: 'expanding',
     }
     blots.current.set(id, blot)
+    haptic(8)
 
-    haptic(10) // short tap
-
-    // After expand phase, move to holding
     const expandTimer = setTimeout(() => {
       const b = blots.current.get(id)
       if (b && b.phase === 'expanding') b.phase = 'holding'
-    }, 600)
+    }, 500)
+    expandTimers.current.set(id, expandTimer)
 
-    // Color progression on hold
     let colorIdx = 0
     const colorTimer = setInterval(() => {
       const b = blots.current.get(id)
       if (!b || b.phase === 'fading') return
       const next = colorIdx + 1
       if (next >= HOLD_COLORS.length) return
-      const nextStop = HOLD_COLORS[next]
       const holdAge = Date.now() - b.born
-      if (holdAge >= nextStop.ms) {
+      if (holdAge >= HOLD_COLORS[next].ms) {
         colorIdx = next
-        b.color = nextStop.color
-        b.glow = nextStop.glow
-        haptic([15, 10, 15]) // color-change pulse
+        b.color = HOLD_COLORS[next].color
+        haptic([12, 8, 12])
       }
-    }, 100)
-
+    }, 80)
     holdTimers.current.set(id, colorTimer)
-    ;(startBlot as any)._expandTimers = (startBlot as any)._expandTimers ?? new Map()
-    ;(startBlot as any)._expandTimers.set(id, expandTimer)
-    ;(startBlot as any)._pointerToBlot.set(pointerId, id)
   }, [])
 
   const endBlot = useCallback((pointerId: number) => {
-    const map: Map<number, number> = (startBlot as any)._pointerToBlot
-    if (!map) return
-    const id = map.get(pointerId)
+    const id = pointerToBlot.current.get(pointerId)
     if (id == null) return
-    map.delete(pointerId)
+    pointerToBlot.current.delete(pointerId)
 
     const colorTimer = holdTimers.current.get(id)
     if (colorTimer) { clearInterval(colorTimer); holdTimers.current.delete(id) }
+    const expandTimer = expandTimers.current.get(id)
+    if (expandTimer) { clearTimeout(expandTimer); expandTimers.current.delete(id) }
 
     const b = blots.current.get(id)
     if (b && b.phase !== 'fading') {
       b.phase = 'fading'
-      ;(b as any)._fadeStart = Date.now() - b.born
-      haptic(5) // release pulse
+      b._fadeStart = Date.now() - b.born
+      haptic(5)
     }
-  }, [startBlot])
+  }, [])
 
   useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      e.preventDefault()
-      startBlot(e.pointerId, e.clientX, e.clientY)
-    }
+    const onDown = (e: PointerEvent) => { e.preventDefault(); startBlot(e.pointerId, e.clientX, e.clientY) }
     const onUp = (e: PointerEvent) => endBlot(e.pointerId)
     const onCancel = (e: PointerEvent) => endBlot(e.pointerId)
 
     window.addEventListener('pointerdown', onDown, { passive: false })
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
-
     return () => {
       window.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointerup', onUp)
@@ -221,13 +211,4 @@ export default function TouchBlot() {
       }}
     />
   )
-}
-
-// ── Util ───────────────────────────────────────────────────────────────────
-function hexToRgba(hex: string, alpha: number): string {
-  const h = hex.replace('#', '')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha.toFixed(3)})`
 }

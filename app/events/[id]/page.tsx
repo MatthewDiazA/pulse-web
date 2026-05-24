@@ -30,6 +30,7 @@ type EventData = {
   is_21_plus: boolean
   dress_code: string | null
   cover_image_url: string | null
+  feed_video_url: string | null
   tagline: string | null
   instagram_handle: string | null
   tiktok_url: string | null
@@ -488,6 +489,7 @@ export default function EventDetail() {
         .hero{position:relative;height:480px;overflow:hidden;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
         .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+        .hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
         .hero-overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,0.15) 0%,rgba(0,0,0,0.55) 55%,${COLORS.bg} 100%);}
         .hero-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 20px 36px;max-width:900px;margin:0 auto;}
         .cat-badge{display:inline-flex;padding:4px 12px;background:rgba(255,170,51,0.14);border:0.5px solid rgba(255,170,51,0.28);border-radius:100px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${COLORS.primary};margin-bottom:12px;font-weight:600;width:fit-content;}
@@ -608,9 +610,19 @@ export default function EventDetail() {
 
       <div className="hero">
         <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
-        {event.cover_image_url && (
+        {event.feed_video_url ? (
+          <video
+            className="hero-video"
+            src={event.feed_video_url}
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster={event.cover_image_url ?? undefined}
+          />
+        ) : event.cover_image_url ? (
           <img src={event.cover_image_url} className="hero-img" alt={event.title}/>
-        )}
+        ) : null}
         <div className="hero-overlay"/>
         <div className="hero-content">
           <div className="cat-badge">{event.category}</div>
