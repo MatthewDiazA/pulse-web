@@ -17,16 +17,6 @@ function toRomanTierName(name: string): string {
   return name.replace(/\b(\d+)\b/g, n => map[n] ?? n)
 }
 
-// ── QR Code renderer ─────────────────────────────────────────────────────────
-function QRTicket({ code }: { code: string }) {
-  const [dataUrl, setDataUrl] = useState('')
-  useEffect(() => {
-    QRCode.toDataURL(code, { width: 280, margin: 2, color: { dark: '#000000', light: '#ffffff' } }).then(setDataUrl)
-  }, [code])
-  if (!dataUrl) return <div style={{width:'140px',height:'140px',background:'rgba(255,255,255,0.06)',borderRadius:'10px'}}/>
-  return <img src={dataUrl} alt="QR Code" style={{width:'140px',height:'140px',borderRadius:'10px',display:'block'}}/>
-}
-
 // ── Ticket Modal ──────────────────────────────────────────────────────────────
 function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const [dataUrl, setDataUrl] = useState('')
@@ -144,11 +134,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
 }
 
 // ── Wallet Card ───────────────────────────────────────────────────────────────
-// Each ticket is a physical-style card with front (poster + info) and back (QR)
-function WalletCard({ ticket, index, onClick }: { ticket: any; index: number; onClick: () => void }) {
-  const cardRef = useRef<HTMLDivElement>(null)
-  const [flipped, setFlipped] = useState(false)
-
+function WalletCard({ ticket, onClick }: { ticket: any; onClick: () => void }) {
   const date = ticket.event?.starts_at
     ? new Date(ticket.event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     : 'TBD'
@@ -156,80 +142,49 @@ function WalletCard({ ticket, index, onClick }: { ticket: any; index: number; on
   const tierName = ticket.tier?.name ? toRomanTierName(ticket.tier.name) : 'Ticket'
   const cover = ticket.event?.cover_image_url
 
-  const handleFlip = () => {
-    const card = cardRef.current
-    if (!card) return
-    const next = !flipped
-    setFlipped(next)
-    gsap.to(card, { rotateY: next ? 180 : 0, duration: 0.6, ease: 'power3.inOut' })
-  }
-
   return (
     <div
       className="wallet-card-wrap"
-      style={{ perspective: '1200px', cursor: 'pointer' }}
-      onClick={handleFlip}
+      style={{ cursor: 'pointer', borderRadius: '20px', overflow: 'hidden', height: '240px', position: 'relative' }}
+      onClick={onClick}
     >
-      <div
-        ref={cardRef}
-        style={{
-          position: 'relative',
-          transformStyle: 'preserve-3d',
-          borderRadius: '20px',
-          height: '240px',
-        }}
-      >
-        {/* FRONT */}
-        <div style={{
-          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', borderRadius: '20px', overflow: 'hidden',
-          background: cover ? 'transparent' : 'linear-gradient(135deg,#1a0f00,#0d0800)',
-          border: ticket.is_guestlist ? '1px solid rgba(255,170,51,0.4)' : '0.5px solid rgba(255,255,255,0.08)',
-          boxShadow: ticket.is_guestlist ? '0 0 30px rgba(255,170,51,0.15)' : '0 8px 40px rgba(0,0,0,0.6)',
-        }}>
-          {cover && (
-            <>
-              <img src={cover} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',zIndex:0}}/>
-              <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.3) 55%,rgba(0,0,0,0.1) 100%)',zIndex:1}}/>
-            </>
-          )}
-          <div style={{position:'relative',zIndex:2,height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'20px'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-              {ticket.is_guestlist && (
-                <span style={{background:'linear-gradient(135deg,#ffaa33,#ff6600)',color:'#000',fontSize:'9px',fontWeight:900,letterSpacing:'1.5px',textTransform:'uppercase',padding:'4px 10px',borderRadius:'6px',fontFamily:'Barlow Condensed,sans-serif'}}>GL</span>
-              )}
-              <span style={{marginLeft:'auto',fontSize:'11px',color:'rgba(255,255,255,0.5)',fontFamily:'Syne,sans-serif'}}>Tap to flip</span>
-            </div>
-            <div>
-              <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'clamp(28px,5vw,40px)',fontWeight:900,color:'#fff',textTransform:'uppercase',lineHeight:0.9,marginBottom:'8px',textShadow:'0 2px 20px rgba(0,0,0,0.8)'}}>{ticket.event?.title ?? 'Event'}</div>
-              <div style={{display:'flex',gap:'12px',alignItems:'center',flexWrap:'wrap'}}>
-                <span style={{fontSize:'12px',color:'rgba(255,255,255,0.6)',fontFamily:'Syne,sans-serif'}}>{date}</span>
-                <span style={{fontSize:'12px',color:'rgba(255,255,255,0.4)',fontFamily:'Syne,sans-serif'}}>·</span>
-                <span style={{fontSize:'12px',color:'rgba(255,255,255,0.6)',fontFamily:'Syne,sans-serif'}}>{tierName}</span>
-                {price > 0 && <>
-                  <span style={{fontSize:'12px',color:'rgba(255,255,255,0.4)',fontFamily:'Syne,sans-serif'}}>·</span>
-                  <span style={{fontSize:'13px',color:'#ffaa33',fontFamily:'Barlow Condensed,sans-serif',fontWeight:700}}>${price}</span>
-                </>}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Background — cover image or dark gradient */}
+      {cover ? (
+        <>
+          <img src={cover} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',zIndex:0}}/>
+          <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.93) 0%,rgba(0,0,0,0.3) 55%,rgba(0,0,0,0.1) 100%)',zIndex:1}}/>
+        </>
+      ) : (
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#1a0f00,#0d0800)',zIndex:0}}/>
+      )}
 
-        {/* BACK — QR code */}
-        <div style={{
-          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', borderRadius: '20px',
-          transform: 'rotateY(180deg)', overflow: 'hidden',
-          background: 'linear-gradient(135deg,#0d0800,#1a0f00)',
-          border: '0.5px solid rgba(255,170,51,0.2)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px',
-        }}>
-          <QRTicket code={ticket.qr_code}/>
-          <div style={{fontSize:'10px',letterSpacing:'2px',color:'#554',textTransform:'uppercase',fontFamily:'Syne,sans-serif'}}>Show at the door</div>
-          <button
-            style={{position:'absolute',top:'14px',right:'14px',background:'none',border:'none',color:'#443',fontSize:'11px',cursor:'pointer',fontFamily:'Syne,sans-serif',letterSpacing:'0.5px'}}
-            onClick={e => { e.stopPropagation(); onClick() }}
-          >
-            Full view
-          </button>
+      {/* Border */}
+      <div style={{
+        position:'absolute',inset:0,borderRadius:'20px',zIndex:3,
+        border: ticket.is_guestlist ? '1px solid rgba(255,170,51,0.45)' : '0.5px solid rgba(255,255,255,0.08)',
+        boxShadow: ticket.is_guestlist ? '0 0 30px rgba(255,170,51,0.15), inset 0 0 30px rgba(255,170,51,0.04)' : '0 8px 40px rgba(0,0,0,0.6)',
+        pointerEvents:'none',
+      }}/>
+
+      {/* Content */}
+      <div style={{position:'relative',zIndex:2,height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'18px 20px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          {ticket.is_guestlist ? (
+            <span style={{background:'linear-gradient(135deg,#ffaa33,#ff6600)',color:'#000',fontSize:'9px',fontWeight:900,letterSpacing:'1.5px',textTransform:'uppercase',padding:'4px 10px',borderRadius:'6px',fontFamily:'Barlow Condensed,sans-serif'}}>GL</span>
+          ) : <span/>}
+          <span style={{fontSize:'10px',color:'rgba(255,255,255,0.3)',fontFamily:'Syne,sans-serif',letterSpacing:'0.5px'}}>Tap to scan</span>
+        </div>
+        <div>
+          <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'clamp(32px,5vw,44px)',fontWeight:900,color:'#fff',textTransform:'uppercase',lineHeight:0.9,marginBottom:'10px',textShadow:'0 2px 20px rgba(0,0,0,0.8)'}}>{ticket.event?.title ?? 'Event'}</div>
+          <div style={{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}}>
+            <span style={{fontSize:'12px',color:'rgba(255,255,255,0.55)',fontFamily:'Syne,sans-serif'}}>{date}</span>
+            <span style={{color:'rgba(255,255,255,0.25)',fontSize:'10px'}}>·</span>
+            <span style={{fontSize:'12px',color:'rgba(255,255,255,0.55)',fontFamily:'Syne,sans-serif'}}>{tierName}</span>
+            {price > 0 && <>
+              <span style={{color:'rgba(255,255,255,0.25)',fontSize:'10px'}}>·</span>
+              <span style={{fontSize:'13px',color:'#ffaa33',fontFamily:'Barlow Condensed,sans-serif',fontWeight:700}}>${price}</span>
+            </>}
+          </div>
         </div>
       </div>
     </div>
@@ -320,7 +275,7 @@ export default function AccountPage() {
         @media(max-width:680px){.wrap{padding:40px 20px 80px;}}
 
         .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;}
-        .section-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(36px,7vw,56px);font-weight:900;text-transform:uppercase;color:#fff;letter-spacing:1px;line-height:1;}
+        .section-title{font-family:'Syne',sans-serif;font-size:clamp(32px,6vw,48px);font-weight:800;color:#fff;letter-spacing:-1px;line-height:1;}
         .ticket-count{font-size:13px;color:#443;font-family:'Syne',sans-serif;}
 
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
@@ -381,7 +336,6 @@ export default function AccountPage() {
                   <WalletCard
                     key={ticket.id}
                     ticket={ticket}
-                    index={i}
                     onClick={() => setSelectedTicket(ticket)}
                   />
                 ))}
