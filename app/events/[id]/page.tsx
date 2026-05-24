@@ -7,14 +7,6 @@ import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
 
 type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
-type Comment = {
-  id: string
-  user_id: string
-  user_name: string
-  user_avatar: string
-  content: string
-  created_at: string
-}
 type EventData = {
   id: string
   host_id: string
@@ -63,21 +55,6 @@ const COLORS = {
   bg: '#000',
 } as const
 
-const AVATARS = [
-  { id: 'flame', emoji: '🔥', bg: 'rgba(255,100,0,0.15)' },
-  { id: 'skull', emoji: '💀', bg: 'rgba(255,255,255,0.08)' },
-  { id: 'alien', emoji: '👽', bg: 'rgba(100,255,100,0.1)' },
-  { id: 'ghost', emoji: '👻', bg: 'rgba(255,255,255,0.1)' },
-  { id: 'devil', emoji: '😈', bg: 'rgba(150,50,255,0.12)' },
-  { id: 'star', emoji: '⭐', bg: 'rgba(255,200,50,0.12)' },
-  { id: 'bolt', emoji: '⚡', bg: 'rgba(255,220,0,0.12)' },
-  { id: 'moon', emoji: '🌙', bg: 'rgba(100,150,255,0.1)' },
-  { id: 'heart', emoji: '🖤', bg: 'rgba(255,255,255,0.06)' },
-  { id: 'crown', emoji: '👑', bg: 'rgba(255,180,0,0.12)' },
-  { id: 'eye', emoji: '👁️', bg: 'rgba(100,200,255,0.1)' },
-  { id: 'diamond', emoji: '💎', bg: 'rgba(100,200,255,0.12)' },
-]
-
 const FEE_RATE = 0.10 // internal only — not shown to customer
 
 function safePrice(p: unknown): number {
@@ -111,18 +88,11 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true)
   const [buyingTier, setBuyingTier] = useState<string | null>(null)
   const [selectedQty, setSelectedQty] = useState<Record<string, number>>({})
-  const [comments, setComments] = useState<Comment[]>([])
-  const [newComment, setNewComment] = useState('')
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0])
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
-  const [posting, setPosting] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
   // Spotify autoplay state
   const [soundOpen, setSoundOpen] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined) // undefined=loading, null=none
+  const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined)
   const [soundMeta, setSoundMeta] = useState<{ title: string; artist: string } | null>(null)
   const [playing, setPlaying] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -194,71 +164,6 @@ export default function EventDetail() {
       }
     })
   }, [])
-
-  // Fetch comments
-  useEffect(() => {
-    if (!params.id) return
-    const supabase = createClient()
-    supabase
-      .from('comments')
-      .select('*')
-      .eq('event_id', params.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setComments(data as Comment[])
-      })
-  }, [params.id])
-
-  const handlePostComment = async () => {
-    if (!newComment.trim() || !currentUser) return
-    setPosting(true)
-    const supabase = createClient()
-    const userName = currentUser.user_metadata?.full_name ?? currentUser.email?.split('@')[0] ?? 'Anonymous'
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
-        event_id: params.id,
-        user_id: currentUser.id,
-        user_name: userName,
-        user_avatar: selectedAvatar.emoji,
-        content: newComment.trim(),
-      })
-      .select()
-      .single()
-    if (!error && data) {
-      setComments(prev => [data as Comment, ...prev])
-      setNewComment('')
-    }
-    setPosting(false)
-  }
-
-  const handleEditComment = async (commentId: string) => {
-    if (!editText.trim()) return
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('comments')
-      .update({ content: editText.trim() })
-      .eq('id', commentId)
-      .eq('user_id', currentUser?.id)
-    if (!error) {
-      setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editText.trim() } : c))
-      setEditingId(null)
-      setEditText('')
-    }
-  }
-
-  const handleDeleteComment = async (commentId: string) => {
-    const supabase = createClient()
-    const isHost = currentUser?.id === event?.host_id
-    let query = supabase.from('comments').delete().eq('id', commentId)
-    if (!isHost && !isAdmin) {
-      query = query.eq('user_id', currentUser?.id)
-    }
-    const { error } = await query
-    if (!error) {
-      setComments(prev => prev.filter(c => c.id !== commentId))
-    }
-  }
 
   // Saint Pablo animation
   useEffect(() => {
@@ -541,8 +446,6 @@ export default function EventDetail() {
         .buy-btn:active{transform:scale(0.96);}
         .buy-btn:disabled{opacity:0.35;cursor:not-allowed;box-shadow:none;}
         .soldout-btn{width:100%;background:rgba(255,255,255,0.05);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:14px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:not-allowed;text-align:center;}
-        .comments-section{margin-top:48px;max-width:900px;margin-left:auto;margin-right:auto;padding:0 20px 60px;}
-        .comments-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:20px;}
         .comment-form{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:24px;}
         .comment-top-row{display:flex;gap:10px;margin-bottom:12px;align-items:center;}
         .avatar-btn{width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(255,170,51,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:all 0.15s;flex-shrink:0;position:relative;}
@@ -580,7 +483,6 @@ export default function EventDetail() {
         .login-prompt-text{font-size:14px;color:#665;margin-bottom:10px;}
         .login-prompt-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:all 0.15s;}
         .login-prompt-btn:hover{box-shadow:0 0 16px rgba(255,170,51,0.3);}
-        .no-comments{text-align:center;padding:32px;color:#443;font-size:14px;}
         @media(max-width:700px){
           .hero{height:62vh;min-height:380px;}
           .content{padding:24px 18px 90px;}
@@ -823,120 +725,6 @@ export default function EventDetail() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      <div className="comments-section">
-        <h2 className="comments-title">Comments</h2>
-        {currentUser ? (
-          <div className="comment-form">
-            <div className="comment-top-row">
-              <div
-                className="avatar-btn"
-                style={{background: selectedAvatar.bg}}
-                onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-              >
-                {selectedAvatar.emoji}
-                {showAvatarPicker && (
-                  <div className="avatar-picker" onClick={e => e.stopPropagation()}>
-                    {AVATARS.map(av => (
-                      <div
-                        key={av.id}
-                        className={`avatar-option ${selectedAvatar.id === av.id ? 'selected' : ''}`}
-                        style={{background: av.bg}}
-                        onClick={() => { setSelectedAvatar(av); setShowAvatarPicker(false) }}
-                      >
-                        {av.emoji}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <span style={{fontSize:'14px',color:'#f0f0f0',fontWeight:500}}>
-                {currentUser.user_metadata?.full_name ?? currentUser.email?.split('@')[0]}
-              </span>
-            </div>
-            <textarea
-              className="comment-input"
-              placeholder="Say something about this event..."
-              value={newComment}
-              onChange={e => setNewComment(e.target.value)}
-              maxLength={500}
-            />
-            <button
-              className="post-btn"
-              disabled={posting || !newComment.trim()}
-              onClick={handlePostComment}
-            >
-              {posting ? 'Posting...' : 'Post'}
-            </button>
-            <div style={{clear:'both'}}/>
-          </div>
-        ) : (
-          <div className="login-prompt">
-            <div className="login-prompt-text">Sign in to leave a comment</div>
-            <button className="login-prompt-btn" onClick={() => router.push('/login')}>Sign in</button>
-          </div>
-        )}
-        <div className="comment-list">
-          {comments.length === 0 ? (
-            <div className="no-comments">No comments yet — be the first</div>
-          ) : (
-            comments.map(c => {
-              const timeAgo = (() => {
-                const diff = Date.now() - new Date(c.created_at).getTime()
-                const mins = Math.floor(diff / 60000)
-                if (mins < 1) return 'just now'
-                if (mins < 60) return `${mins}m ago`
-                const hrs = Math.floor(mins / 60)
-                if (hrs < 24) return `${hrs}h ago`
-                const days = Math.floor(hrs / 24)
-                return `${days}d ago`
-              })()
-              const isOwner = currentUser?.id === c.user_id
-              const isHost = currentUser?.id === event?.host_id
-              const canDelete = isOwner || isHost || isAdmin
-              const canEdit = isOwner
-              return (
-                <div key={c.id} className="comment-card">
-                  <div className="comment-avatar" style={{background: AVATARS.find(a => a.emoji === c.user_avatar)?.bg ?? 'rgba(255,255,255,0.06)'}}>
-                    {c.user_avatar}
-                  </div>
-                  <div className="comment-body">
-                    <div className="comment-header">
-                      <span className="comment-name" onClick={() => router.push(`/profile/${c.user_id}`)}>{c.user_name}</span>
-                      <span className="comment-time">{timeAgo}</span>
-                      {isHost && !isOwner && <span style={{fontSize:'9px',color:'#554',background:'rgba(255,170,51,0.08)',padding:'2px 6px',borderRadius:'4px',marginLeft:'4px'}}>HOST</span>}
-                    </div>
-                    {editingId === c.id ? (
-                      <>
-                        <textarea
-                          className="edit-input"
-                          value={editText}
-                          onChange={e => setEditText(e.target.value)}
-                          maxLength={500}
-                        />
-                        <div className="edit-actions">
-                          <button className="edit-save" onClick={() => handleEditComment(c.id)}>Save</button>
-                          <button className="edit-cancel" onClick={() => { setEditingId(null); setEditText('') }}>Cancel</button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="comment-text">{c.content}</div>
-                        {(canEdit || canDelete) && (
-                          <div className="comment-actions">
-                            {canEdit && <button className="comment-action" onClick={() => { setEditingId(c.id); setEditText(c.content) }}>Edit</button>}
-                            {canDelete && <button className="comment-action delete" onClick={() => handleDeleteComment(c.id)}>Delete</button>}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )
-            })
-          )}
         </div>
       </div>
 

@@ -86,10 +86,27 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
       color: { dark: '#000000', light: '#ffffff' },
     }).then(setDataUrl)
 
-    const t1 = setTimeout(() => { setPhase('tear'); startTear() }, 800)
+    // Step 1: set phase to tear (renders topRef/bottomRef into DOM)
+    const t1 = setTimeout(() => {
+      setPhase('tear')
+      // Step 2: wait one frame for React to render the tear elements, then animate
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          startTear()
+        })
+      })
+    }, 800)
+
+    // Hard fallback: if GSAP fails for any reason, force open after 2.5s
+    const t2 = setTimeout(() => {
+      setPhase('open')
+      setEnlarged(false)
+      fireConfetti()
+    }, 2500)
 
     return () => {
       clearTimeout(t1)
+      clearTimeout(t2)
     }
   }, [ticket.qr_code])
 
