@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useNavLogo } from '../lib/animations'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 
@@ -33,6 +34,7 @@ const COLORS = {
 
 export default function ConnectPage() {
   const router = useRouter()
+  const logoRef = useNavLogo<HTMLButtonElement>()
   const [user, setUser] = useState<any>(null)
   const [tab, setTab] = useState<'crews' | 'whispers'>('crews')
   const [crews, setCrews] = useState<Crew[]>([])
@@ -176,14 +178,14 @@ export default function ConnectPage() {
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-        body{background:${COLORS.bg};color:#f0f0f0;font-family:'DM Sans',sans-serif;}
+        body{background:${COLORS.bg};color:#f0f0f0;font-family:'Syne',sans-serif;}
 
         nav{padding:14px 20px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},transparent);background-size:300% 100%;animation:navGlow 5s ease-in-out infinite;}
         @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
-        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
+        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
         .nav-logo{cursor:pointer;background:none;border:none;padding:0;line-height:0;display:inline-flex;}
         .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
@@ -194,11 +196,11 @@ export default function ConnectPage() {
         .page-sub{font-size:14px;color:#665;margin-bottom:28px;}
 
         .tabs{display:flex;gap:0;margin-bottom:28px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
-        .tab{flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:600;color:#554;cursor:pointer;transition:all 0.2s;border-bottom:2px solid transparent;font-family:'DM Sans',sans-serif;}
+        .tab{flex:1;padding:14px 0;text-align:center;font-size:14px;font-weight:600;color:#554;cursor:pointer;transition:all 0.2s;border-bottom:2px solid transparent;font-family:'Syne',sans-serif;}
         .tab:hover{color:#aaa;}
         .tab.active{color:${COLORS.primary};border-bottom-color:${COLORS.primary};}
 
-        .create-btn{width:100%;background:transparent;border:0.5px dashed rgba(255,170,51,0.25);border-radius:14px;padding:18px;font-size:14px;color:${COLORS.primary};cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;margin-bottom:16px;}
+        .create-btn{width:100%;background:transparent;border:0.5px dashed rgba(255,170,51,0.25);border-radius:14px;padding:18px;font-size:14px;color:${COLORS.primary};cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;margin-bottom:16px;}
         .create-btn:hover{background:rgba(255,170,51,0.04);border-color:rgba(255,170,51,0.4);}
 
         .create-form{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:20px;}
@@ -209,12 +211,12 @@ export default function ConnectPage() {
         .crew-av-opt{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:1px solid transparent;transition:all 0.1s;}
         .crew-av-opt:hover{background:rgba(255,255,255,0.05);}
         .crew-av-opt.sel{border-color:${COLORS.primary};background:rgba(255,170,51,0.1);}
-        .crew-name-input{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;}
+        .crew-name-input{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;font-family:'Syne',sans-serif;outline:none;}
         .crew-name-input:focus{border-color:rgba(255,170,51,0.4);}
         .crew-name-input::placeholder{color:#444;}
         .create-actions{display:flex;gap:8px;justify-content:flex-end;}
-        .create-cancel{background:none;border:0.5px solid rgba(255,255,255,0.1);color:#888;padding:10px 20px;border-radius:100px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
-        .create-submit{background:${COLORS.primary};color:#000;border:none;padding:10px 24px;border-radius:100px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;}
+        .create-cancel{background:none;border:0.5px solid rgba(255,255,255,0.1);color:#888;padding:10px 20px;border-radius:100px;font-size:13px;cursor:pointer;font-family:'Syne',sans-serif;}
+        .create-submit{background:${COLORS.primary};color:#000;border:none;padding:10px 24px;border-radius:100px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;}
         .create-submit:disabled{opacity:0.3;cursor:not-allowed;}
 
         .thread-card{display:flex;align-items:center;gap:14px;padding:16px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:14px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;}
@@ -240,7 +242,7 @@ export default function ConnectPage() {
           <i className="ti ti-arrow-left" style={{fontSize:'15px'}} aria-hidden="true"/>
           Account
         </button>
-        <button className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
+        <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
       </nav>

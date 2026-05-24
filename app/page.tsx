@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from './lib/supabase/client'
-import TouchBlot from './components/TouchBlot'
+import { useMagneticButton, useStaggerReveal, useNavLogo } from './lib/animations'
 
 type Tier = { id: string; price: number; quantity: number; name: string }
 type Event = {
@@ -76,7 +76,7 @@ function NavActions({ compact = false }: { compact?: boolean }) {
             padding: pad,
             borderRadius: '100px',
             textDecoration: 'none',
-            fontFamily: 'Nunito,sans-serif',
+            fontFamily: 'Syne,sans-serif',
             letterSpacing: '0.3px',
             boxShadow: `0 0 ${compact ? 14 : 18}px rgba(255,170,51,0.32)`,
             display: 'inline-flex',
@@ -100,7 +100,7 @@ function NavActions({ compact = false }: { compact?: boolean }) {
             borderRadius: '6px',
             border: `0.5px solid rgba(255,170,51,0.3)`,
             textDecoration: 'none',
-            fontFamily: 'Nunito,sans-serif',
+            fontFamily: 'Syne,sans-serif',
             display: 'inline-flex',
             alignItems: 'center',
             gap: `${gap}px`,
@@ -123,7 +123,7 @@ function NavActions({ compact = false }: { compact?: boolean }) {
         padding: pad,
         borderRadius: '100px',
         textDecoration: 'none',
-        fontFamily: 'Nunito,sans-serif',
+        fontFamily: 'Syne,sans-serif',
         display: 'inline-flex',
         alignItems: 'center',
         gap: `${gap}px`,
@@ -202,7 +202,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
   const [userCity, setUserCity] = useState<string | null>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
+  const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.05, trigger: 'mount' })
+  const logoRef = useNavLogo<HTMLButtonElement>()
 
   useEffect(() => {
     const supabase = createClient()
@@ -221,19 +222,6 @@ export default function Home() {
       alive = false
     }
   }, [])
-
-  useEffect(() => {
-    if (!gridRef.current) return
-    const cards = gridRef.current.querySelectorAll('.card')
-    const timers: number[] = []
-    cards.forEach((card, index) => {
-      const id = window.setTimeout(() => (card as HTMLElement).classList.add('visible'), index * 80)
-      timers.push(id)
-    })
-    return () => {
-      timers.forEach(clearTimeout)
-    }
-  }, [loading, filter])
 
   const handleNearMe = useCallback(() => {
     if (!('geolocation' in navigator)) {
@@ -283,7 +271,7 @@ export default function Home() {
         href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"
       />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         html, body { background:${COLORS.bg}; min-height:100vh; overflow-x:hidden; }
 
@@ -318,18 +306,17 @@ export default function Home() {
 
         .filters { padding:16px 16px 10px; display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; }
         .filters::-webkit-scrollbar { display:none; }
-        .pill { background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.07); border-radius:100px; padding:8px 16px; font-size:13px; color:#665; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; gap:6px; }
+        .pill { background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.07); border-radius:100px; padding:8px 16px; font-size:13px; color:#665; cursor:pointer; font-family:'Syne',sans-serif; transition:all 0.2s; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; gap:6px; }
         .pill:active { transform:scale(0.94); }
         .pill.active { background:rgba(255,170,51,0.1); color:${COLORS.primary}; border-color:rgba(255,170,51,0.3); font-weight:500; }
 
-        .section-label { font-size:11px; color:#3a2a1a; letter-spacing:1.5px; text-transform:uppercase; font-family:'DM Sans',sans-serif; padding:0 16px 10px; max-width:1100px; margin:0 auto; }
+        .section-label { font-size:11px; color:#3a2a1a; letter-spacing:1.5px; text-transform:uppercase; font-family:'Syne',sans-serif; padding:0 16px 10px; max-width:1100px; margin:0 auto; }
         .cards-wrap { padding:4px 12px 100px; max-width:1100px; margin:0 auto; }
         .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
         @media(min-width:600px){ .grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
         @media(min-width:900px){ .grid { grid-template-columns:repeat(4, 1fr); gap:16px; } }
 
-        .card { border-radius:14px; cursor:pointer; position:relative; overflow:hidden; opacity:0; transform:translateY(20px); transition:transform 0.25s ease, box-shadow 0.25s ease, opacity 0.4s ease; aspect-ratio:2/3; background:${COLORS.cardBg}; }
-        .card.visible { opacity:1; transform:translateY(0); }
+        .card { border-radius:14px; cursor:pointer; position:relative; overflow:hidden; opacity:0; transform:translateY(20px); aspect-ratio:2/3; background:${COLORS.cardBg}; }
         .card:focus-visible { outline:2px solid ${COLORS.primary}; outline-offset:2px; }
         .card:active { transform:scale(0.96) !important; }
         @media(hover:hover){ .card:hover { transform:translateY(-4px) !important; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(255,170,51,0.08); } }
@@ -337,12 +324,12 @@ export default function Home() {
         .card-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.2) 55%, transparent 100%); }
         .card-content { position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:space-between; }
         .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:4px; }
-        .card-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'DM Sans',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+        .card-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'Syne',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
         .card-price-badge { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:900; color:#fff; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:3px 7px; border-radius:100px; border:0.5px solid rgba(255,255,255,0.1); white-space:nowrap; }
         .card-price-badge.free { color:${COLORS.primary}; border-color:rgba(255,170,51,0.35); }
-        .card-date { font-size:9px; color:rgba(255,255,255,0.45); letter-spacing:0.6px; text-transform:uppercase; margin-bottom:3px; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:3px; }
+        .card-date { font-size:9px; color:rgba(255,255,255,0.45); letter-spacing:0.6px; text-transform:uppercase; margin-bottom:3px; font-family:'Syne',sans-serif; display:flex; align-items:center; gap:3px; }
         .card-title { font-family:'Barlow Condensed',sans-serif; font-size:clamp(16px,4vw,22px); font-weight:900; color:#fff; text-transform:uppercase; line-height:1; margin-bottom:4px; }
-        .card-venue { font-size:10px; color:rgba(255,255,255,0.4); font-family:'DM Sans',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:3px; }
+        .card-venue { font-size:10px; color:rgba(255,255,255,0.4); font-family:'Syne',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:3px; }
 
         .tag-nightlife { background:rgba(255,170,51,0.12); color:${COLORS.primary}; border:0.5px solid rgba(255,170,51,0.25); }
         .tag-concert { background:rgba(255,102,0,0.12); color:${COLORS.accent}; border:0.5px solid rgba(255,102,0,0.25); }
@@ -355,10 +342,10 @@ export default function Home() {
         .skel { aspect-ratio:2/3; border-radius:14px; background:linear-gradient(110deg, #0c0700 0%, #1a1000 50%, #0c0700 100%); background-size:200% 100%; animation:shimmer 1.6s linear infinite; }
         @keyframes shimmer { from{background-position:0% 0%} to{background-position:-200% 0%} }
 
-        .empty { text-align:center; padding:60px 20px; color:#554; font-size:15px; font-family:'DM Sans',sans-serif; line-height:1.6; }
+        .empty { text-align:center; padding:60px 20px; color:#554; font-size:15px; font-family:'Syne',sans-serif; line-height:1.6; }
         .empty a { color:${COLORS.primary}; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
         .bottom { padding:12px 12px 20px; }
-        .showing { font-size:11px; color:#332; letter-spacing:0.5px; font-family:'DM Sans',sans-serif; }
+        .showing { font-size:11px; color:#332; letter-spacing:0.5px; font-family:'Syne',sans-serif; }
         .nav-desktop { display:none; }
         .nav-mobile { display:flex; }
         @media(min-width:680px){ .nav-desktop { display:flex; } .nav-mobile { display:none !important; } }
@@ -371,12 +358,11 @@ export default function Home() {
       `}</style>
 
       <div className="acid" aria-hidden="true"><div className="blob3"/></div>
-      <TouchBlot />
 
       <div className="page">
         <nav>
           <div className="nav-inner">
-            <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
+            <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
               <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
             </button>
             <div className="nav-desktop">

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useMagneticButton, usePageReveal, useNavLogo } from '../lib/animations'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
@@ -91,6 +92,9 @@ function displayPrice(price: number, qty: number): string {
 export default function EventDetail() {
   const router = useRouter()
   const params = useParams()
+  const logoRef = useNavLogo<HTMLButtonElement>()
+  const buyBtnRef = useMagneticButton<HTMLButtonElement>()
+  usePageReveal({ selectors: ['.cat-badge', '.ev-title', '.ev-meta', '.section', '.tickets-panel'], delay: 0.2 })
   const [event, setEvent] = useState<EventData | null>(null)
   const [loading, setLoading] = useState(true)
   const [buyingTier, setBuyingTier] = useState<string | null>(null)
@@ -430,10 +434,10 @@ export default function EventDetail() {
     return (
       <>
         <style>{`body{background:#000;margin:0;}`}</style>
-        <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'16px',fontFamily:'DM Sans,sans-serif',color:'#665'}}>
+        <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'16px',fontFamily:'Syne,sans-serif',color:'#665'}}>
           <div style={{fontSize:'48px',opacity:0.3}}>404</div>
           <div>Event not found</div>
-          <button onClick={() => router.push('/')} style={{padding:'12px 24px',background:COLORS.primary,color:'#000',border:'none',borderRadius:'100px',cursor:'pointer',fontSize:'14px',fontWeight:700,fontFamily:'Nunito,sans-serif'}}>Go home</button>
+          <button onClick={() => router.push('/')} style={{padding:'12px 24px',background:COLORS.primary,color:'#000',border:'none',borderRadius:'100px',cursor:'pointer',fontSize:'14px',fontWeight:700,fontFamily:'Syne,sans-serif'}}>Go home</button>
         </div>
       </>
     )
@@ -455,18 +459,18 @@ export default function EventDetail() {
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-        body{background:${COLORS.bg};color:#f0f0f0;font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+        body{background:${COLORS.bg};color:#f0f0f0;font-family:'Syne',sans-serif;overflow-x:hidden;}
         nav{padding:14px 20px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},transparent);background-size:300% 100%;animation:navGlow 5s ease-in-out infinite;}
         @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
-        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
+        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
         .nav-logo{cursor:pointer;background:none;border:none;padding:0;flex:1;display:flex;justify-content:center;line-height:0;}
         .nav-logo .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
         @media(max-width:680px){.nav-logo .logo-img{height:20px;}}
-        .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
+        .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'Syne',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
         .edit-event-btn:hover{background:rgba(255,170,51,0.16);border-color:rgba(255,170,51,0.5);}
         .edit-event-btn:active{transform:scale(0.96);}
         .hero{position:relative;height:480px;overflow:hidden;}
@@ -498,8 +502,8 @@ export default function EventDetail() {
         .sound-bar:hover{border-color:rgba(255,170,51,0.3);}
         .sound-play{width:40px;height:40px;border-radius:50%;background:${COLORS.primary};color:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
         .sound-info{flex:1;min-width:0;}
-        .sound-label{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        .sound-sub{font-family:'DM Sans',sans-serif;font-size:11px;color:#776;margin-top:1px;}
+        .sound-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .sound-sub{font-family:'Syne',sans-serif;font-size:11px;color:#776;margin-top:1px;}
         .sound-eq{display:flex;align-items:flex-end;gap:2px;height:16px;flex-shrink:0;}
         .sound-eq span{width:3px;background:${COLORS.primary};border-radius:2px;animation:eq 0.9s ease-in-out infinite;}
         .sound-eq span:nth-child(2){animation-delay:0.15s}
@@ -517,12 +521,12 @@ export default function EventDetail() {
         .tier-avail{font-size:12px;color:#665;margin:6px 0 12px;}
         .qty-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
         .qty-label{font-size:12px;color:#776;}
-        .qty-select{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;color:#f0f0f0;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
-        .buy-btn{width:100%;background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:14px;font-size:15px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;box-shadow:0 0 20px rgba(255,170,51,0.3);transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
+        .qty-select{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;color:#f0f0f0;font-size:14px;font-family:'Syne',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
+        .buy-btn{width:100%;background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:14px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;box-shadow:0 0 20px rgba(255,170,51,0.3);transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
         .buy-btn:hover{box-shadow:0 0 30px rgba(255,170,51,0.45);}
         .buy-btn:active{transform:scale(0.96);}
         .buy-btn:disabled{opacity:0.35;cursor:not-allowed;box-shadow:none;}
-        .soldout-btn{width:100%;background:rgba(255,255,255,0.05);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:14px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:not-allowed;text-align:center;}
+        .soldout-btn{width:100%;background:rgba(255,255,255,0.05);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:14px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:not-allowed;text-align:center;}
         .comments-section{margin-top:48px;max-width:900px;margin-left:auto;margin-right:auto;padding:0 20px 60px;}
         .comments-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:20px;}
         .comment-form{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:24px;}
@@ -533,10 +537,10 @@ export default function EventDetail() {
         .avatar-option{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:1.5px solid transparent;transition:all 0.15s;}
         .avatar-option:hover{transform:scale(1.15);}
         .avatar-option.selected{border-color:${COLORS.primary};background:rgba(255,170,51,0.1);}
-        .comment-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:70px;}
+        .comment-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#fff;font-size:14px;font-family:'Syne',sans-serif;outline:none;resize:none;min-height:70px;}
         .comment-input:focus{border-color:rgba(255,170,51,0.3);}
         .comment-input::placeholder{color:#444;}
-        .post-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;margin-top:10px;transition:all 0.15s;float:right;}
+        .post-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;margin-top:10px;transition:all 0.15s;float:right;}
         .post-btn:hover{box-shadow:0 0 16px rgba(255,170,51,0.3);}
         .post-btn:active{transform:scale(0.96);}
         .post-btn:disabled{opacity:0.3;cursor:not-allowed;}
@@ -551,16 +555,16 @@ export default function EventDetail() {
         .comment-time{font-size:11px;color:#443;}
         .comment-text{font-size:14px;color:#bbb;line-height:1.6;}
         .comment-actions{display:flex;gap:12px;margin-top:6px;}
-        .comment-action{font-size:11px;color:#554;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:color 0.15s;padding:0;}
+        .comment-action{font-size:11px;color:#554;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.15s;padding:0;}
         .comment-action:hover{color:#f0f0f0;}
         .comment-action.delete:hover{color:#ff6666;}
-        .edit-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,170,51,0.3);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;resize:none;min-height:50px;margin-top:6px;}
+        .edit-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,170,51,0.3);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;font-family:'Syne',sans-serif;outline:none;resize:none;min-height:50px;margin-top:6px;}
         .edit-actions{display:flex;gap:8px;margin-top:6px;}
-        .edit-save{font-size:12px;color:#000;background:${COLORS.primary};border:none;border-radius:6px;padding:5px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;}
-        .edit-cancel{font-size:12px;color:#888;background:none;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+        .edit-save{font-size:12px;color:#000;background:${COLORS.primary};border:none;border-radius:6px;padding:5px 14px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;}
+        .edit-cancel{font-size:12px;color:#888;background:none;border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 14px;cursor:pointer;font-family:'Syne',sans-serif;}
         .login-prompt{text-align:center;padding:20px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;margin-bottom:24px;}
         .login-prompt-text{font-size:14px;color:#665;margin-bottom:10px;}
-        .login-prompt-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;transition:all 0.15s;}
+        .login-prompt-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 24px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:all 0.15s;}
         .login-prompt-btn:hover{box-shadow:0 0 16px rgba(255,170,51,0.3);}
         .no-comments{text-align:center;padding:32px;color:#443;font-size:14px;}
         @media(max-width:700px){
@@ -577,7 +581,7 @@ export default function EventDetail() {
           <i className="ti ti-arrow-left" style={{fontSize:'15px'}} aria-hidden="true"/>
           Back
         </button>
-        <button className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
+        <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         {(isAdmin || currentUser?.id === event.host_id) ? (
@@ -772,6 +776,7 @@ export default function EventDetail() {
                       <div className="soldout-btn">Sold out</div>
                     ) : (
                       <button
+                        ref={buyBtnRef}
                         className="buy-btn"
                         disabled={isBuying}
                         onClick={() => handleBuyTicket(tier)}

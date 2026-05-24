@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 import QRCode from 'qrcode'
 import confetti from 'canvas-confetti'
+import { useNavLogo, useTicketTear, GLBadgeStamp } from '../lib/animations'
 
 function QRTicket({ code }: { code: string }) {
   const [dataUrl, setDataUrl] = useState('')
@@ -16,7 +17,7 @@ function QRTicket({ code }: { code: string }) {
         ? <img src={dataUrl} alt="QR Code" style={{width:'52px',height:'52px',borderRadius:'6px'}}/>
         : <div style={{width:'52px',height:'52px',background:'rgba(255,170,51,0.08)',border:'0.5px solid rgba(255,170,51,0.2)',borderRadius:'8px'}}/>
       }
-      <div style={{fontSize:'10px',color:'#443',marginTop:'4px',fontFamily:'DM Sans,sans-serif'}}>Tap to scan</div>
+      <div style={{fontSize:'10px',color:'#443',marginTop:'4px',fontFamily:'Syne,sans-serif'}}>Tap to scan</div>
     </div>
   )
 }
@@ -25,6 +26,13 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
   const [dataUrl, setDataUrl] = useState('')
   const [phase, setPhase] = useState<'entry' | 'tear' | 'open'>('entry')
   const [scale, setScale] = useState(1)
+  const topRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const { startTear } = useTicketTear({
+    topRef,
+    bottomRef,
+    onComplete: () => { setPhase('open'); fireConfetti() },
+  })
 
   const fireConfetti = () => {
     const colors = ['#ffaa33', '#ffc850', '#ffffff', '#ff6600']
@@ -68,14 +76,10 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
       color: { dark: '#000000', light: '#ffffff' },
     }).then(setDataUrl)
 
-    const t1 = setTimeout(() => setPhase('tear'), 800)
-    const t2 = setTimeout(() => setPhase('open'), 2200)
-    const t3 = setTimeout(() => fireConfetti(), 2300)
+    const t1 = setTimeout(() => { setPhase('tear'); startTear() }, 800)
 
     return () => {
       clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
     }
   }, [ticket.qr_code])
 
@@ -150,7 +154,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                     color: '#443',
                     textTransform: 'uppercase',
                     marginBottom: '12px',
-                    fontFamily: 'DM Sans,sans-serif',
+                    fontFamily: 'Syne,sans-serif',
                   }}
                 >
                   Your ticket
@@ -168,7 +172,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                 >
                   {ticket.event?.title ?? 'Event'}
                 </div>
-                <div style={{fontSize: '13px', color: '#665', fontFamily: 'DM Sans,sans-serif'}}>
+                <div style={{fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif'}}>
                   {ticket.tier?.name} · {date}
                 </div>
                 <div
@@ -199,7 +203,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                     color: '#443',
                     letterSpacing: '1px',
                     textTransform: 'uppercase',
-                    fontFamily: 'DM Sans,sans-serif',
+                    fontFamily: 'Syne,sans-serif',
                   }}
                 >
                   {ticket.event?.venue_name ?? 'Venue TBD'}
@@ -212,6 +216,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
         {phase === 'tear' && (
           <div style={{width: '320px', position: 'relative'}} onClick={e => e.stopPropagation()}>
             <div
+              ref={topRef}
               className="tear-top"
               style={{
                 background: 'linear-gradient(135deg,#1a0f00 0%,#0d0800 100%)',
@@ -237,7 +242,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                   color: '#443',
                   textTransform: 'uppercase',
                   marginBottom: '8px',
-                  fontFamily: 'DM Sans,sans-serif',
+                  fontFamily: 'Syne,sans-serif',
                 }}
               >
                 Your ticket
@@ -256,6 +261,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               </div>
             </div>
             <div
+              ref={bottomRef}
               className="tear-bottom"
               style={{
                 background: 'linear-gradient(135deg,#0d0800 0%,#1a0f00 100%)',
@@ -266,7 +272,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                 textAlign: 'center',
               }}
             >
-              <div style={{fontSize: '13px', color: '#665', fontFamily: 'DM Sans,sans-serif', marginBottom: '12px'}}>
+              <div style={{fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif', marginBottom: '12px'}}>
                 {ticket.tier?.name} · {date}
               </div>
             </div>
@@ -322,16 +328,16 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
             >
               ×
             </button>
-            <div className="badge-pop" style={{display: 'inline-block', background: ticket.is_guestlist ? 'linear-gradient(135deg,rgba(255,170,51,0.2),rgba(255,102,0,0.15))' : 'rgba(255,170,51,0.1)', border: '1px solid rgba(255,170,51,0.3)', borderRadius: '100px', padding: '6px 16px', marginBottom: '16px'}}>
-              <span style={{fontSize: '12px', color: '#ffaa33', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'DM Sans,sans-serif', fontWeight: 500}}>{ticket.is_guestlist ? 'Guest List · On the list' : "You're on the list"}</span>
-            </div>
+            <GLBadgeStamp delay={0.4}><div className="badge-pop" style={{display: 'inline-block', background: ticket.is_guestlist ? 'linear-gradient(135deg,rgba(255,170,51,0.2),rgba(255,102,0,0.15))' : 'rgba(255,170,51,0.1)', border: '1px solid rgba(255,170,51,0.3)', borderRadius: '100px', padding: '6px 16px', marginBottom: '16px'}}>
+              <span style={{fontSize: '12px', color: '#ffaa33', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'Syne,sans-serif', fontWeight: 500}}>{ticket.is_guestlist ? 'Guest List · On the list' : "You're on the list"}</span>
+            </div></GLBadgeStamp>
             <div style={{fontFamily: 'Barlow Condensed,sans-serif', fontSize: '34px', fontWeight: 900, color: '#f0f0f0', textTransform: 'uppercase', lineHeight: 1, marginBottom: '6px'}}>
               {ticket.event?.title ?? 'Event'}
             </div>
-            <div style={{fontSize: '13px', color: '#665', marginBottom: '4px', fontFamily: 'DM Sans,sans-serif'}}>
+            <div style={{fontSize: '13px', color: '#665', marginBottom: '4px', fontFamily: 'Syne,sans-serif'}}>
               {ticket.is_guestlist ? 'Guest List' : ticket.tier?.name} · {date}
             </div>
-            <div style={{fontSize: '12px', color: '#443', marginBottom: '24px', fontFamily: 'DM Sans,sans-serif'}}>
+            <div style={{fontSize: '12px', color: '#443', marginBottom: '24px', fontFamily: 'Syne,sans-serif'}}>
               {ticket.event?.venue_name ?? ''}
             </div>
             <div
@@ -359,7 +365,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                 </div>
               )}
             </div>
-            <div style={{marginTop: '20px', fontSize: '11px', color: '#443', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'DM Sans,sans-serif'}}>
+            <div style={{marginTop: '20px', fontSize: '11px', color: '#443', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'Syne,sans-serif'}}>
               Show at the door · Tap to enlarge
             </div>
           </div>
@@ -372,6 +378,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
 export default function AccountPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const logoRef = useNavLogo<HTMLButtonElement>()
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [orderSuccess, setOrderSuccess] = useState(false)
@@ -406,9 +413,9 @@ export default function AccountPage() {
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;}
-        body{background:#000;font-family:'DM Sans',sans-serif;color:#f0f0f0;}
+        body{background:#000;font-family:'Syne',sans-serif;color:#f0f0f0;}
         .wrap{max-width:800px;margin:0 auto;padding:0 40px 80px;}
         nav{padding:14px 40px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;}
         nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#ff6600,#ffaa33,#ffc850,#ff6600,transparent);background-size:300% 100%;animation:navPulse 5s ease-in-out infinite;}
@@ -417,20 +424,20 @@ export default function AccountPage() {
         .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
         @media(max-width:680px){.logo-img{height:20px;}}
         .nav-right{display:flex;gap:10px;align-items:center;}
-        .nav-btn{font-size:13px;color:#665;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:none;transition:color 0.15s;padding:7px 12px;border-radius:6px;}
+        .nav-btn{font-size:13px;color:#665;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;text-decoration:none;transition:color 0.15s;padding:7px 12px;border-radius:6px;}
         .nav-btn:hover{color:#f0f0f0;}
         .nav-btn.highlight{background:rgba(255,170,51,0.08);color:#ffaa33;border:0.5px solid rgba(255,170,51,0.25);}
-        .create-btn{background:#ffaa33;color:#000;font-size:18px;font-weight:900;width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-family:'Nunito',sans-serif;box-shadow:0 0 14px rgba(255,170,51,0.3);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;}
+        .create-btn{background:#ffaa33;color:#000;font-size:18px;font-weight:900;width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-family:'Syne',sans-serif;box-shadow:0 0 14px rgba(255,170,51,0.3);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;}
         .create-btn:hover{box-shadow:0 0 22px rgba(255,170,51,0.5);transform:scale(1.05);}
         .create-btn:active{transform:scale(0.95);}
         .hero-section{padding:40px 0 20px;border-bottom:0.5px solid rgba(255,255,255,0.05);margin-bottom:24px;}
         .greeting{font-family:'Barlow Condensed',sans-serif;font-size:72px;line-height:0.95;font-weight:900;text-transform:uppercase;margin-bottom:8px;}
         .greeting span{color:#ffaa33;text-shadow:0 0 8px rgba(255,170,51,0.5),0 0 16px rgba(255,170,51,0.25);}
         .user-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:center;gap:16px;}
-        .user-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,170,51,0.12);border:1.5px solid rgba(255,170,51,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#ffaa33;flex-shrink:0;font-family:'DM Sans',sans-serif;}
+        .user-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,170,51,0.12);border:1.5px solid rgba(255,170,51,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#ffaa33;flex-shrink:0;font-family:'Syne',sans-serif;}
         .user-name{font-size:16px;font-weight:500;color:#f0f0f0;}
         .user-email{font-size:13px;color:#554;margin-top:2px;}
-        .signout-btn{margin-left:auto;font-size:12px;color:#554;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+        .signout-btn{margin-left:auto;font-size:12px;color:#554;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:7px 14px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
         .signout-btn:hover{color:#e24b4a;border-color:rgba(226,75,74,0.3);}
         .section-title{font-size:11px;color:#443;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:0.5px solid rgba(255,255,255,0.05);}
         .ticket-card{background:#0d0800;border:0.5px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;margin-bottom:12px;display:flex;transition:all 0.2s;cursor:pointer;position:relative;}
@@ -447,7 +454,7 @@ export default function AccountPage() {
         .empty-state{text-align:center;padding:60px 20px;}
         .empty-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#f0f0f0;margin-bottom:8px;}
         .empty-sub{font-size:14px;color:#443;margin-bottom:24px;}
-        .empty-btn{background:#ffaa33;color:#000;font-size:14px;font-weight:700;padding:12px 28px;border-radius:100px;text-decoration:none;display:inline-block;font-family:'Nunito',sans-serif;box-shadow:0 0 16px rgba(255,170,51,0.3);}
+        .empty-btn{background:#ffaa33;color:#000;font-size:14px;font-weight:700;padding:12px 28px;border-radius:100px;text-decoration:none;display:inline-block;font-family:'Syne',sans-serif;box-shadow:0 0 16px rgba(255,170,51,0.3);}
         .success-banner{background:rgba(255,170,51,0.07);border:0.5px solid rgba(255,170,51,0.25);border-radius:10px;padding:16px 20px;margin-bottom:32px;display:flex;align-items:center;gap:12px;animation:bannerIn 0.5s cubic-bezier(0.34,1.2,0.64,1) forwards;}
         @keyframes bannerIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
         .success-text{font-size:14px;color:#ffaa33;font-weight:500;}
@@ -458,7 +465,7 @@ export default function AccountPage() {
       {selectedTicket && <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)}/>}
 
       <nav>
-        <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home"><img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/></button>
+        <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home"><img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/></button>
         <div className="nav-right">
           <a href="/discover" onClick={e => { e.preventDefault(); router.push('/discover') }} className="nav-btn">Discover</a>
           <a href="/connect" onClick={e => { e.preventDefault(); router.push('/connect') }} className="nav-btn">Connect</a>
@@ -523,7 +530,7 @@ export default function AccountPage() {
             const price = Number(ticket.tier?.price)
             return (
               <div key={ticket.id} className={`ticket-card ${ticket.is_guestlist ? 'gl' : ''}`} onClick={() => setSelectedTicket(ticket)}>
-                {ticket.is_guestlist && <span className="gl-badge">GL</span>}
+                {ticket.is_guestlist && <GLBadgeStamp delay={0.1}><span className="gl-badge">GL</span></GLBadgeStamp>}
                 <div className="ticket-left"/>
                 <div className="ticket-body">
                   <div className="ticket-info">

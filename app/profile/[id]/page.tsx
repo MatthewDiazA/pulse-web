@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useNavLogo } from '../../lib/animations'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -23,6 +24,7 @@ type TicketEvent = {
 export default function PublicProfile() {
   const router = useRouter()
   const params = useParams()
+  const logoRef = useNavLogo<HTMLButtonElement>()
   const [profile, setProfile] = useState<{ name: string; email: string } | null>(null)
   const [events, setEvents] = useState<TicketEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,13 +83,13 @@ export default function PublicProfile() {
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-        body{background:${COLORS.bg};color:#f0f0f0;font-family:'DM Sans',sans-serif;}
+        body{background:${COLORS.bg};color:#f0f0f0;font-family:'Syne',sans-serif;}
         nav{padding:14px 20px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},transparent);background-size:300% 100%;animation:navGlow 5s ease-in-out infinite;}
         @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
-        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
+        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
         .back-btn:hover{color:#f0f0f0;}
         .nav-logo{cursor:pointer;background:none;border:none;padding:0;line-height:0;display:inline-flex;}
         .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
@@ -119,7 +121,7 @@ export default function PublicProfile() {
           <i className="ti ti-arrow-left" style={{fontSize:'15px'}} aria-hidden="true"/>
           Back
         </button>
-        <button className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
+        <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
       </nav>

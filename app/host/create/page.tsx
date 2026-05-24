@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback } from 'react'
+import { useMagneticButton, useNavLogo } from '../../lib/animations'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -36,6 +37,8 @@ const COLORS = {
 
 export default function CreateEvent() {
   const router = useRouter()
+  const logoRef = useNavLogo<HTMLButtonElement>()
+  const publishBtnRef = useMagneticButton<HTMLButtonElement>()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -246,16 +249,16 @@ export default function CreateEvent() {
         href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"
       />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { background:${COLORS.bg}; font-family:'DM Sans',sans-serif; color:#f0f0f0; min-height:100vh; }
+        body { background:${COLORS.bg}; font-family:'Syne',sans-serif; color:#f0f0f0; min-height:100vh; }
         .bg-pattern { position:fixed; inset:0; background:radial-gradient(circle at 50% 0%, rgba(255,170,51,0.03) 0%, transparent 60%); pointer-events:none; z-index:0; }
         .wrap { max-width:680px; margin:0 auto; padding:0 20px 100px; position:relative; z-index:1; }
         nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,170,51,0.1); }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
         .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
         @media(max-width:680px){ .logo-img { height:20px; } }
-        .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
+        .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'Syne',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .back:hover { color:#f0f0f0; }
         .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:clamp(36px,8vw,56px); letter-spacing:1px; color:#ffffff; padding:36px 0 6px; text-transform:uppercase; }
         .page-sub { font-size:14px; color:#999; margin-bottom:32px; line-height:1.5; }
@@ -264,18 +267,18 @@ export default function CreateEvent() {
         .step-dot.done { background:${COLORS.primary}; }
         .step-dot.active { background:rgba(255,170,51,0.4); animation:stepPulse 2s ease-in-out infinite; }
         @keyframes stepPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
-        .step-label { font-size:12px; color:#888; margin-bottom:28px; font-family:'DM Sans',sans-serif; letter-spacing:0.3px; }
+        .step-label { font-size:12px; color:#888; margin-bottom:28px; font-family:'Syne',sans-serif; letter-spacing:0.3px; }
         .section { margin-bottom:28px; }
-        .section-title { font-size:10px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:14px; padding-bottom:8px; border-bottom:0.5px solid rgba(255,255,255,0.1); font-family:'DM Sans',sans-serif; }
+        .section-title { font-size:10px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:14px; padding-bottom:8px; border-bottom:0.5px solid rgba(255,255,255,0.1); font-family:'Syne',sans-serif; }
         .field { margin-bottom:14px; }
-        .label { font-size:11px; color:#aaa; margin-bottom:5px; display:block; letter-spacing:0.4px; text-transform:uppercase; font-family:'DM Sans',sans-serif; font-weight:500; }
-        .input { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#ffffff; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color 0.15s; -webkit-appearance:none; }
+        .label { font-size:11px; color:#aaa; margin-bottom:5px; display:block; letter-spacing:0.4px; text-transform:uppercase; font-family:'Syne',sans-serif; font-weight:500; }
+        .input { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#ffffff; font-size:15px; font-family:'Syne',sans-serif; outline:none; transition:border-color 0.15s; -webkit-appearance:none; }
         .input:focus { border-color:rgba(255,170,51,0.5); background:rgba(255,255,255,0.08); }
         .input::placeholder { color:#555; }
         textarea.input { min-height:100px; resize:vertical; }
         .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
-        .select { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#ffffff; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; cursor:pointer; -webkit-appearance:none; }
+        .select { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#ffffff; font-size:15px; font-family:'Syne',sans-serif; outline:none; cursor:pointer; -webkit-appearance:none; }
         .toggle-row { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.1); border-radius:10px; padding:14px; margin-bottom:12px; cursor:pointer; transition:border-color 0.15s; }
         .toggle-row:active { border-color:rgba(255,170,51,0.3); }
         .toggle-label { font-size:14px; color:#ffffff; font-weight:500; }
@@ -286,9 +289,9 @@ export default function CreateEvent() {
         .tier-card { background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin-bottom:10px; }
         .tier-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
         .tier-num { font-size:11px; color:#888; letter-spacing:0.5px; text-transform:uppercase; font-weight:500; }
-        .remove-btn { font-size:12px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
+        .remove-btn { font-size:12px; color:#888; background:none; border:none; cursor:pointer; font-family:'Syne',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .remove-btn:hover { color:#ff8888; }
-        .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.2); border-radius:10px; padding:12px; font-size:13px; color:#888; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:4px; transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:500; }
+        .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.2); border-radius:10px; padding:12px; font-size:13px; color:#888; cursor:pointer; font-family:'Syne',sans-serif; margin-top:4px; transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:500; }
         .add-btn:active { border-color:rgba(255,255,255,0.4); color:#aaa; }
         .upload-area { border:0.5px dashed rgba(255,255,255,0.2); border-radius:12px; padding:28px; text-align:center; cursor:pointer; transition:all 0.15s; margin-bottom:16px; position:relative; overflow:hidden; }
         .upload-area:hover { border-color:rgba(255,170,51,0.3); }
@@ -307,11 +310,11 @@ export default function CreateEvent() {
         .input-prefix { position:absolute; left:14px; color:#666; font-size:15px; pointer-events:none; }
         .input.has-prefix { padding-left:30px; }
         .nav-btns { display:flex; gap:10px; margin-top:40px; padding-top:20px; border-top:0.5px solid rgba(255,255,255,0.08); }
-        .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.2); color:#aaa; font-size:14px; font-family:'DM Sans',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
+        .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.2); color:#aaa; font-size:14px; font-family:'Syne',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
         .prev-btn:active { color:#fff; border-color:rgba(255,255,255,0.4); }
-        .next-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        .next-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Syne',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
         .next-btn:active { transform:scale(0.98); opacity:0.9; }
-        .publish-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.35); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        .publish-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Syne',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.35); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
         .publish-btn:disabled { opacity:0.4; cursor:not-allowed; box-shadow:none; }
         .publish-btn:active:not(:disabled) { transform:scale(0.98); }
         @media (prefers-reduced-motion: reduce) {
@@ -326,7 +329,7 @@ export default function CreateEvent() {
           <i className="ti ti-arrow-left" style={{fontSize: '14px'}} aria-hidden="true"/>
           Dashboard
         </button>
-        <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
+        <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         <div style={{width: '80px'}} />
@@ -737,7 +740,7 @@ export default function CreateEvent() {
               <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
             </button>
           ) : (
-            <button className="publish-btn" disabled={loading || uploading} onClick={handlePublish}>
+            <button ref={publishBtnRef} className="publish-btn" disabled={loading || uploading} onClick={handlePublish}>
               {uploading ? (
                 'Uploading image...'
               ) : loading ? (

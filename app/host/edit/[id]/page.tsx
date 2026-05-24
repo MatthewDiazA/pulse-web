@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useMagneticButton, useNavLogo } from '../../../lib/animations'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../../lib/supabase/client'
 
@@ -13,6 +14,8 @@ type LineupAct = { name: string; role: string; time: string }
 
 export default function EditEvent({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const logoRef = useNavLogo<HTMLButtonElement>()
+  const saveBtnRef = useMagneticButton<HTMLButtonElement>()
   const [id, setId] = useState<string>('')
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -203,7 +206,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
   }
 
   if (loading) return (
-    <div style={{background: COLORS.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#665', fontFamily: 'DM Sans,sans-serif'}}>
+    <div style={{background: COLORS.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#665', fontFamily: 'Syne,sans-serif'}}>
       Loading event...
     </div>
   )
@@ -212,9 +215,9 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@900&family=DM+Sans:wght@300;400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { background:${COLORS.bg}; font-family:'DM Sans',sans-serif; color:#f0f0f0; }
+        body { background:${COLORS.bg}; font-family:'Syne',sans-serif; color:#f0f0f0; }
         .wrap { max-width:680px; margin:0 auto; padding:0 20px 100px; }
         nav { padding:14px 20px; background:rgba(0,0,0,0.95); position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
         nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},#ffc850,transparent); background-size:300% 100%; animation:navPulse 5s ease-in-out infinite; }
@@ -222,7 +225,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
         .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
         @media(max-width:680px){ .logo-img { height:20px; } }
-        .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
+        .back { font-size:13px; color:#665; background:none; border:none; cursor:pointer; font-family:'Syne',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .back:hover { color:#f0f0f0; }
         .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:clamp(36px,8vw,56px); letter-spacing:1px; color:#fff; padding:36px 0 6px; text-transform:uppercase; }
         .page-sub { font-size:14px; color:#999; margin-bottom:32px; line-height:1.5; }
@@ -236,13 +239,13 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         .section-title { font-size:10px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:14px; padding-bottom:8px; border-bottom:0.5px solid rgba(255,255,255,0.1); }
         .field { margin-bottom:14px; }
         .label { font-size:11px; color:#aaa; margin-bottom:5px; display:block; letter-spacing:0.4px; text-transform:uppercase; font-weight:500; }
-        .input { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#fff; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color 0.15s; -webkit-appearance:none; }
+        .input { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#fff; font-size:15px; font-family:'Syne',sans-serif; outline:none; transition:border-color 0.15s; -webkit-appearance:none; }
         .input:focus { border-color:rgba(255,170,51,0.5); background:rgba(255,255,255,0.08); }
         .input::placeholder { color:#555; }
         textarea.input { min-height:100px; resize:vertical; }
         .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         .row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
-        .select { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#fff; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; cursor:pointer; -webkit-appearance:none; }
+        .select { width:100%; background:rgba(255,255,255,0.06); border:0.5px solid rgba(255,255,255,0.15); border-radius:10px; padding:12px 14px; color:#fff; font-size:15px; font-family:'Syne',sans-serif; outline:none; cursor:pointer; -webkit-appearance:none; }
         .toggle-row { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.1); border-radius:10px; padding:14px; margin-bottom:12px; cursor:pointer; transition:border-color 0.15s; }
         .toggle-row:active { border-color:rgba(255,170,51,0.3); }
         .toggle-label { font-size:14px; color:#fff; font-weight:500; }
@@ -253,9 +256,9 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         .tier-card { background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin-bottom:10px; }
         .tier-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
         .tier-num { font-size:11px; color:#888; letter-spacing:0.5px; text-transform:uppercase; font-weight:500; }
-        .remove-btn { font-size:12px; color:#888; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
+        .remove-btn { font-size:12px; color:#888; background:none; border:none; cursor:pointer; font-family:'Syne',sans-serif; transition:color 0.15s; display:inline-flex; align-items:center; gap:4px; }
         .remove-btn:hover { color:#ff8888; }
-        .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.2); border-radius:10px; padding:12px; font-size:13px; color:#888; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:4px; transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:500; }
+        .add-btn { width:100%; background:transparent; border:0.5px dashed rgba(255,255,255,0.2); border-radius:10px; padding:12px; font-size:13px; color:#888; cursor:pointer; font-family:'Syne',sans-serif; margin-top:4px; transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; font-weight:500; }
         .add-btn:active { border-color:rgba(255,255,255,0.4); color:#aaa; }
         .social-intro { background:rgba(255,170,51,0.05); border:0.5px solid rgba(255,170,51,0.18); border-radius:12px; padding:16px; margin-bottom:20px; }
         .social-intro-title { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:900; color:${COLORS.primary}; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
@@ -265,14 +268,14 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
         .input-prefix { position:absolute; left:14px; color:#666; font-size:15px; pointer-events:none; }
         .input.has-prefix { padding-left:30px; }
         .nav-btns { display:flex; gap:10px; margin-top:40px; padding-top:20px; border-top:0.5px solid rgba(255,255,255,0.08); }
-        .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.2); color:#aaa; font-size:14px; font-family:'DM Sans',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
+        .prev-btn { background:transparent; border:0.5px solid rgba(255,255,255,0.2); color:#aaa; font-size:14px; font-family:'Syne',sans-serif; padding:13px 20px; border-radius:100px; cursor:pointer; transition:all 0.15s; display:inline-flex; align-items:center; gap:6px; font-weight:500; }
         .prev-btn:active { color:#fff; }
-        .save-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        .save-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Syne',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
         .save-btn:disabled { opacity:0.4; cursor:not-allowed; box-shadow:none; }
         .save-btn:active:not(:disabled) { transform:scale(0.98); }
-        .next-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Nunito',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        .next-btn { flex:1; background:${COLORS.primary}; color:#000; border:none; border-radius:100px; padding:14px; font-size:15px; font-weight:700; font-family:'Syne',sans-serif; cursor:pointer; box-shadow:0 0 20px rgba(255,170,51,0.3); transition:all 0.15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
         .next-btn:active { transform:scale(0.98); opacity:0.9; }
-        .delete-btn { width:100%; background:transparent; border:0.5px solid rgba(255,80,80,0.2); color:#ff6666; font-size:13px; font-family:'DM Sans',sans-serif; padding:12px; border-radius:10px; cursor:pointer; margin-top:20px; transition:all 0.15s; }
+        .delete-btn { width:100%; background:transparent; border:0.5px solid rgba(255,80,80,0.2); color:#ff6666; font-size:13px; font-family:'Syne',sans-serif; padding:12px; border-radius:10px; cursor:pointer; margin-top:20px; transition:all 0.15s; }
         .delete-btn:hover { background:rgba(255,80,80,0.08); border-color:rgba(255,80,80,0.4); }
       `}</style>
 
@@ -281,7 +284,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
           <i className="ti ti-arrow-left" style={{fontSize:'14px'}} aria-hidden="true"/>
           Dashboard
         </button>
-        <button className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
+        <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         <div style={{width: '80px'}} />
@@ -515,7 +518,7 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
               <i className="ti ti-arrow-right" style={{fontSize: '14px'}} aria-hidden="true"/>
             </button>
           ) : (
-            <button className="save-btn" disabled={saving} onClick={handleSave}>
+            <button ref={saveBtnRef} className="save-btn" disabled={saving} onClick={handleSave}>
               {saving ? 'Saving...' : (
                 <>
                   <i className="ti ti-check" style={{fontSize: '16px'}} aria-hidden="true"/>

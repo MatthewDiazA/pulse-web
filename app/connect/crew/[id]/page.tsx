@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useSpringMessage, useNavLogo } from '../../../lib/animations'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../../lib/supabase/client'
 
@@ -36,6 +37,8 @@ export default function CrewChat() {
   const [sending, setSending] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const messagesRef = useSpringMessage<HTMLDivElement>()
+  const logoRef = useNavLogo<HTMLButtonElement>()
 
   useEffect(() => {
     const load = async () => {
@@ -140,7 +143,7 @@ export default function CrewChat() {
   }
 
   if (!crew) return (
-    <div style={{background:'#000',minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#665',fontFamily:'DM Sans,sans-serif'}}>
+    <div style={{background:'#000',minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:'#665',fontFamily:'Syne,sans-serif'}}>
       Loading...
     </div>
   )
@@ -149,9 +152,9 @@ export default function CrewChat() {
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-        body{background:${COLORS.bg};color:#f0f0f0;font-family:'DM Sans',sans-serif;overflow:hidden;}
+        body{background:${COLORS.bg};color:#f0f0f0;font-family:'Syne',sans-serif;overflow:hidden;}
 
         .chat-layout{display:flex;flex-direction:column;height:100vh;}
         .chat-header{padding:14px 20px;background:rgba(0,0,0,0.95);display:flex;align-items:center;gap:14px;border-bottom:0.5px solid rgba(255,170,51,0.1);flex-shrink:0;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
@@ -160,7 +163,7 @@ export default function CrewChat() {
         .chat-avatar{width:36px;height:36px;border-radius:10px;background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
         .chat-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;flex:1;}
         .chat-subtitle{font-size:11px;color:#554;margin-top:1px;}
-        .members-btn{background:none;border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 12px;font-size:12px;color:#888;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+        .members-btn{background:none;border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 12px;font-size:12px;color:#888;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
         .members-btn:hover{color:#f0f0f0;border-color:rgba(255,255,255,0.2);}
 
         .messages-area{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;scrollbar-color:rgba(255,170,51,0.1) transparent;}
@@ -176,7 +179,7 @@ export default function CrewChat() {
         .msg-text{font-size:13px;color:#bbb;line-height:1.5;word-wrap:break-word;}
 
         .input-area{padding:12px 16px 24px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.6);flex-shrink:0;display:flex;gap:8px;align-items:flex-end;}
-        .msg-input{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:20px;padding:10px 16px;color:#fff;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:none;max-height:80px;min-height:38px;}
+        .msg-input{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:20px;padding:10px 16px;color:#fff;font-size:13px;font-family:'Syne',sans-serif;outline:none;resize:none;max-height:80px;min-height:38px;}
         .msg-input:focus{border-color:rgba(255,170,51,0.3);}
         .msg-input::placeholder{color:#443;}
         .send{width:36px;height:36px;border-radius:50%;background:${COLORS.primary};border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
@@ -196,8 +199,8 @@ export default function CrewChat() {
         .member-name{font-size:14px;color:#f0f0f0;flex:1;}
         .member-role{font-size:10px;color:${COLORS.primary};background:rgba(255,170,51,0.1);padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;}
         .invite-row{display:flex;gap:8px;margin-top:20px;}
-        .invite-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap;}
-        .leave-btn{width:100%;margin-top:20px;background:none;border:0.5px solid rgba(255,80,80,0.2);color:#ff6666;padding:10px;border-radius:10px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+        .invite-btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;white-space:nowrap;}
+        .leave-btn{width:100%;margin-top:20px;background:none;border:0.5px solid rgba(255,80,80,0.2);color:#ff6666;padding:10px;border-radius:10px;font-size:13px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
         .leave-btn:hover{background:rgba(255,80,80,0.06);}
 
         .empty-chat{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#443;}
@@ -220,7 +223,7 @@ export default function CrewChat() {
           </button>
         </div>
 
-        <div className="messages-area">
+        <div className="messages-area" ref={messagesRef}>
           {messages.length === 0 ? (
             <div className="empty-chat">
               <div className="empty-chat-icon">{crew.avatar}</div>

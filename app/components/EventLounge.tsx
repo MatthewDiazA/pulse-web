@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useSpringMessage, useMagneticButton } from '../lib/animations'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 
@@ -51,6 +52,8 @@ export default function EventLounge({
   const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const messagesRef = useSpringMessage<HTMLDivElement>()
+  const sendBtnRef = useMagneticButton<HTMLButtonElement>({ strength: 0.25 })
 
   // Fetch user, check ticket, check admin
   useEffect(() => {
@@ -260,7 +263,7 @@ export default function EventLounge({
           </div>
         )}
 
-        <div className="lounge-messages" ref={containerRef}>
+        <div className="lounge-messages" ref={messagesRef}>
           {messages.length === 0 ? (
             <div className="empty-lounge">
               <div className="empty-lounge-icon">🎧</div>
@@ -358,7 +361,7 @@ export default function EventLounge({
             maxLength={500}
             rows={1}
           />
-          <button className="send-btn" disabled={!newMsg.trim() || sending} onClick={handleSend}>
+          <button ref={sendBtnRef} className="send-btn" disabled={!newMsg.trim() || sending} onClick={handleSend}>
             <svg className="send-arrow" viewBox="0 0 24 24">
               <line x1="22" y1="2" x2="11" y2="13"/>
               <polygon points="22 2 15 22 11 13 2 9 22 2"/>
