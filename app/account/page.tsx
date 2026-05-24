@@ -22,6 +22,14 @@ function QRTicket({ code }: { code: string }) {
   )
 }
 
+function toRomanTierName(name: string): string {
+  const map: Record<string, string> = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+  }
+  return name.replace(/\b(\d+)\b/g, (n) => map[n] ?? n)
+}
+
 function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const [dataUrl, setDataUrl] = useState('')
   const [phase, setPhase] = useState<'entry' | 'tear' | 'open'>('entry')
@@ -173,7 +181,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                   {ticket.event?.title ?? 'Event'}
                 </div>
                 <div style={{fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif'}}>
-                  {ticket.tier?.name} · {date}
+                  {ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}
                 </div>
                 <div
                   style={{
@@ -273,7 +281,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               }}
             >
               <div style={{fontSize: '13px', color: '#665', fontFamily: 'Syne,sans-serif', marginBottom: '12px'}}>
-                {ticket.tier?.name} · {date}
+                {ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}
               </div>
             </div>
           </div>
@@ -335,7 +343,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               {ticket.event?.title ?? 'Event'}
             </div>
             <div style={{fontSize: '13px', color: '#665', marginBottom: '4px', fontFamily: 'Syne,sans-serif'}}>
-              {ticket.is_guestlist ? 'Guest List' : ticket.tier?.name} · {date}
+              {ticket.is_guestlist ? 'Guest List' : (ticket.tier?.name ? toRomanTierName(ticket.tier.name) : '')} · {date}
             </div>
             <div style={{fontSize: '12px', color: '#443', marginBottom: '24px', fontFamily: 'Syne,sans-serif'}}>
               {ticket.event?.venue_name ?? ''}
@@ -535,7 +543,7 @@ export default function AccountPage() {
                 <div className="ticket-body">
                   <div className="ticket-info">
                     <div className="ticket-event">{ticket.event?.title ?? 'Event'}</div>
-                    <div className="ticket-tier">{ticket.is_guestlist ? 'Guest List' : (ticket.tier?.name ?? 'Ticket')}</div>
+                    <div className="ticket-tier">{ticket.is_guestlist ? 'Guest List' : (ticket.tier?.name ? toRomanTierName(ticket.tier.name) : 'Ticket')}</div>
                     <div className="ticket-date">{date} · {ticket.event?.venue_name ?? ''}</div>
                   </div>
                   <QRTicket code={ticket.qr_code}/>

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { useMagneticButton, usePageReveal, useNavLogo } from '../../lib/animations'
+import { useMagneticButton, usePageReveal, useNavLogo } from '../lib/animations'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
@@ -87,6 +87,16 @@ function displayPrice(price: number, qty: number): string {
   const p = safePrice(price)
   if (p === 0) return 'Free'
   return `$${(p * qty).toFixed(2)}`
+}
+
+// Converts trailing Arabic numbers in tier names to Roman numerals
+// "GA 2" → "GA II", "GA 3" → "GA III", "GA" → "GA", "VIP 2" → "VIP II"
+function toRomanTierName(name: string): string {
+  const map: Record<string, string> = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+  }
+  return name.replace(/\b(\d+)\b/g, (n) => map[n] ?? n)
 }
 
 export default function EventDetail() {
@@ -745,7 +755,7 @@ export default function EventDetail() {
                 return (
                   <div key={tier.id} className="ticket-card">
                     <div className="tier-row">
-                      <div className="tier-name">{tier.name}</div>
+                      <div className="tier-name">{toRomanTierName(tier.name)}</div>
                       <div>
                         <div className={`tier-price ${price === 0 ? 'free' : ''}`}>
                           {displayPrice(price, 1)}
