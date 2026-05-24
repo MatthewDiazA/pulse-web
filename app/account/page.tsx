@@ -21,7 +21,6 @@ function toRomanTierName(name: string): string {
 function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const [dataUrl, setDataUrl] = useState('')
   const [phase, setPhase] = useState<'entry' | 'tear' | 'open'>('entry')
-  const [scale, setScale] = useState(1)
   const [enlarged, setEnlarged] = useState(false)
   const topRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -114,16 +113,25 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               <div style={{fontFamily:'Barlow Condensed,sans-serif',fontSize:'28px',fontWeight:900,color:'#fff',textTransform:'uppercase',marginBottom:'4px'}}>{ticket.event?.title ?? 'Event'}</div>
               <div style={{fontSize:'13px',color:'#665',fontFamily:'Syne,sans-serif',marginBottom:'4px'}}>{ticket.tier?.name ? toRomanTierName(ticket.tier.name) : ''} · {date}</div>
               <div style={{fontSize:'12px',color:'#554',fontFamily:'Syne,sans-serif',marginBottom:'24px'}}>{ticket.event?.venue_name ?? ''}</div>
-              <div className="qr-reveal" style={{ background:'#fff',borderRadius:'16px',padding:'16px',display:'inline-block',cursor:'pointer',transition:'transform 0.3s cubic-bezier(0.34,1.2,0.64,1),box-shadow 0.3s',transform:`scale(${enlarged ? 1.25 : scale})`,boxShadow:enlarged ? '0 0 60px rgba(255,170,51,0.5)' : '0 0 40px rgba(255,170,51,0.15)'}}
+              <div
+                className="qr-reveal"
+                style={{
+                  background: '#fff',
+                  borderRadius: '16px',
+                  padding: '12px',
+                  display: 'inline-block',
+                  cursor: 'pointer',
+                  transition: 'all 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+                  boxShadow: enlarged ? '0 0 60px rgba(255,170,51,0.6), 0 0 120px rgba(255,170,51,0.2)' : '0 0 30px rgba(255,170,51,0.15)',
+                }}
                 onClick={() => setEnlarged(e => !e)}
-                onTouchStart={() => { if (!enlarged) setScale(1.05) }}
-                onTouchEnd={() => setScale(1)}
-                onMouseDown={() => { if (!enlarged) setScale(1.05) }}
-                onMouseUp={() => setScale(1)}
               >
-                {dataUrl ? <img src={dataUrl} alt="QR" style={{width:'200px',height:'200px',display:'block'}}/> : <div style={{width:'200px',height:'200px',display:'flex',alignItems:'center',justifyContent:'center',color:'#888',fontSize:'13px'}}>Generating...</div>}
+                {dataUrl
+                  ? <img src={dataUrl} alt="QR" style={{width: enlarged ? '240px' : '160px', height: enlarged ? '240px' : '160px', display:'block', transition:'all 0.35s cubic-bezier(0.34,1.2,0.64,1)'}}/>
+                  : <div style={{width:'160px',height:'160px',display:'flex',alignItems:'center',justifyContent:'center',color:'#888',fontSize:'13px'}}>Generating...</div>
+                }
               </div>
-              <div style={{marginTop:'16px',fontSize:'11px',color:'#443',letterSpacing:'1.5px',textTransform:'uppercase',fontFamily:'Syne,sans-serif'}}>{enlarged ? 'Tap to shrink' : 'Show at the door · Tap to enlarge'}</div>
+              <div style={{marginTop:'14px',fontSize:'11px',color:'#443',letterSpacing:'1.5px',textTransform:'uppercase',fontFamily:'Syne,sans-serif'}}>{enlarged ? 'Tap to shrink' : 'Show at the door · Tap to enlarge'}</div>
               <button onClick={onClose} style={{marginTop:'20px',background:'none',border:'0.5px solid rgba(255,255,255,0.1)',color:'#554',borderRadius:'100px',padding:'8px 24px',fontSize:'13px',cursor:'pointer',fontFamily:'Syne,sans-serif',display:'block',width:'100%',transition:'all 0.15s'}}>Close</button>
             </div>
           </div>
@@ -275,7 +283,7 @@ export default function AccountPage() {
         @media(max-width:680px){.wrap{padding:40px 20px 80px;}}
 
         .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;}
-        .section-title{font-family:'Syne',sans-serif;font-size:clamp(32px,6vw,48px);font-weight:800;color:#fff;letter-spacing:-1px;line-height:1;}
+        .section-title{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,36px);font-weight:300;color:rgba(255,255,255,0.7);letter-spacing:4px;text-transform:lowercase;line-height:1;}
         .ticket-count{font-size:13px;color:#443;font-family:'Syne',sans-serif;}
 
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
@@ -319,7 +327,7 @@ export default function AccountPage() {
         ) : (
           <>
             <div className="section-header">
-              <div className="section-title">My Tickets</div>
+              <div className="section-title">my tickets</div>
               {tickets.length > 0 && <div className="ticket-count">{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</div>}
             </div>
 
