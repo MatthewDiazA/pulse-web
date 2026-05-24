@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { useMagneticButton, usePageReveal, useNavLogo } from '../lib/animations'
+import { useMagneticButton, usePageReveal, useNavLogo } from '../../lib/animations'
+import TouchBlot from '../../components/TouchBlot'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import EventLounge from '../../components/EventLounge'
@@ -467,6 +468,7 @@ export default function EventDetail() {
 
   return (
     <>
+      <TouchBlot />
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');

@@ -5,6 +5,7 @@ import { createClient } from '../lib/supabase/client'
 import QRCode from 'qrcode'
 import confetti from 'canvas-confetti'
 import { useNavLogo, useTicketTear, GLBadgeStamp } from '../lib/animations'
+import TouchBlot from '../components/TouchBlot'
 
 function QRTicket({ code }: { code: string }) {
   const [dataUrl, setDataUrl] = useState('')
@@ -34,6 +35,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
   const [dataUrl, setDataUrl] = useState('')
   const [phase, setPhase] = useState<'entry' | 'tear' | 'open'>('entry')
   const [scale, setScale] = useState(1)
+  const [enlarged, setEnlarged] = useState(false)
   const topRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const { startTear } = useTicketTear({
@@ -356,13 +358,18 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                 padding: '16px',
                 display: 'inline-block',
                 cursor: 'pointer',
-                transition: 'transform 0.15s',
-                transform: `scale(${scale})`,
-                boxShadow: '0 0 40px rgba(255,170,51,0.15)',
+                transition: 'transform 0.3s cubic-bezier(0.34,1.2,0.64,1)',
+                transform: `scale(${enlarged ? 1.6 : scale})`,
+                boxShadow: enlarged
+                  ? '0 0 80px rgba(255,170,51,0.5), 0 0 160px rgba(255,170,51,0.2)'
+                  : '0 0 40px rgba(255,170,51,0.15)',
+                zIndex: enlarged ? 10 : 'auto',
+                position: 'relative',
               }}
-              onTouchStart={() => setScale(1.08)}
+              onClick={() => setEnlarged(e => !e)}
+              onTouchStart={() => { if (!enlarged) setScale(1.08) }}
               onTouchEnd={() => setScale(1)}
-              onMouseDown={() => setScale(1.08)}
+              onMouseDown={() => { if (!enlarged) setScale(1.08) }}
               onMouseUp={() => setScale(1)}
             >
               {dataUrl ? (
@@ -374,7 +381,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               )}
             </div>
             <div style={{marginTop: '20px', fontSize: '11px', color: '#443', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: 'Syne,sans-serif'}}>
-              Show at the door · Tap to enlarge
+              {enlarged ? 'Tap to shrink' : 'Show at the door · Tap to enlarge'}
             </div>
           </div>
         )}
@@ -419,6 +426,7 @@ export default function AccountPage() {
 
   return (
     <>
+      <TouchBlot />
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');

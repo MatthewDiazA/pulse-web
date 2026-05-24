@@ -3,16 +3,12 @@ import { useEffect } from 'react'
 import { gsap } from 'gsap'
 
 interface RevealOptions {
-  selectors?: string[]    // elements to reveal in sequence
-  duration?: number       // per-element duration (default 0.6)
-  stagger?: number        // delay between elements (default 0.1)
-  y?: number              // starting y offset (default 20)
-  delay?: number          // initial delay before sequence starts (default 0.1)
+  selectors?: string[]
+  duration?: number
+  stagger?: number
+  y?: number
+  delay?: number
 }
-
-// Reveals a sequence of elements on page mount.
-// Pass CSS selectors in the order you want them to appear.
-// Example: usePageReveal({ selectors: ['.ev-title', '.ev-meta', '.tickets-panel'] })
 
 export function usePageReveal(options: RevealOptions = {}) {
   const {
@@ -24,29 +20,35 @@ export function usePageReveal(options: RevealOptions = {}) {
   } = options
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
-    const elements = selectors
-      .flatMap(s => Array.from(document.querySelectorAll(s)))
-      .filter(Boolean)
+      const elements = selectors
+        .flatMap(s => Array.from(document.querySelectorAll(s)))
+        .filter(Boolean)
 
-    if (!elements.length) return
+      if (!elements.length) return
 
-    gsap.set(elements, { opacity: 0, y, willChange: 'transform, opacity' })
+      // Immediately make everything visible as a safety fallback
+      elements.forEach(el => {
+        (el as HTMLElement).style.opacity = '1'
+      })
 
-    const tl = gsap.timeline({ delay })
-
-    tl.to(elements, {
-      opacity: 1,
-      y: 0,
-      duration,
-      stagger,
-      ease: 'power3.out',
-      clearProps: 'willChange',
-    })
-
-    return () => {
-      tl.kill()
+      gsap.fromTo(
+        elements,
+        { opacity: 0, y },
+        {
+          opacity: 1,
+          y: 0,
+          duration,
+          stagger,
+          delay,
+          ease: 'power3.out',
+          clearProps: 'all',
+        }
+      )
+    } catch (e) {
+      // If GSAP fails, elements are already visible from the fallback above
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 }
