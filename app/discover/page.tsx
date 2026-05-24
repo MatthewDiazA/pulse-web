@@ -98,6 +98,7 @@ export default function Discover() {
     if (!preview) {
       a.pause()
       setNowPlaying(null)
+      setAudioError(true)
       return
     }
 
@@ -106,6 +107,7 @@ export default function Discover() {
       a.load()
     }
     a.muted = false
+    a.loop = true
     try {
       await a.play()
       setNowPlaying(metaCache.current[ev.id] ?? null)
@@ -149,27 +151,33 @@ export default function Discover() {
   const unlockAudio = useCallback(async () => {
     setAudioError(false)
 
-    // Create audio element NOW, inside the tap handler — iOS requires this
-    if (!audioRef.current) {
-      const a = new Audio()
-      a.loop = true
-      a.preload = 'auto'
-      a.volume = 1
-      audioRef.current = a
-    }
-
-    const a = audioRef.current
-
-    // iOS requires a silent play first to unlock the audio context
     try {
-      a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-      await a.play()
-      a.pause()
-    } catch {}
+      // Create or reuse audio element inside the gesture handler
+      if (!audioRef.current) {
+        const a = new Audio()
+        a.loop = true
+        a.preload = 'auto'
+        a.volume = 1
+        audioRef.current = a
+      }
 
-    setAudioReady(true)
-    setMuted(false)
-    await playFor(activeIndex)
+      const a = audioRef.current
+
+      // On iOS, calling play() on any audio inside a user gesture unlocks the audio session
+      // We set src to empty string and catch the error — that's enough to unlock
+      a.src = ''
+      try { await a.play() } catch {}
+
+      setAudioReady(true)
+      setMuted(false)
+
+      // Now actually play the current event's preview
+      await playFor(activeIndex)
+    } catch (e) {
+      console.warn('Audio unlock failed:', e)
+      // Still mark ready so the button goes away
+      setAudioReady(true)
+    }
   }, [activeIndex, playFor])
 
   const openExternal = useCallback((url: string) => {

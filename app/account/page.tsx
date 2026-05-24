@@ -41,7 +41,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
   const { startTear } = useTicketTear({
     topRef,
     bottomRef,
-    onComplete: () => { setPhase('open'); fireConfetti() },
+    onComplete: () => { setPhase('open'); setEnlarged(false); fireConfetti() },
   })
 
   const fireConfetti = () => {
@@ -297,8 +297,8 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               border: '1px solid rgba(255,170,51,0.35)',
               borderRadius: '24px',
               padding: '32px',
-              maxWidth: '360px',
-              width: '100%',
+              width: '320px',
+              maxWidth: 'calc(100vw - 40px)',
               textAlign: 'center',
               position: 'relative',
               overflow: 'hidden',
@@ -358,18 +358,17 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
                 padding: '16px',
                 display: 'inline-block',
                 cursor: 'pointer',
-                transition: 'transform 0.3s cubic-bezier(0.34,1.2,0.64,1)',
-                transform: `scale(${enlarged ? 1.6 : scale})`,
+                transition: 'transform 0.3s cubic-bezier(0.34,1.2,0.64,1), box-shadow 0.3s',
+                transform: `scale(${enlarged ? 1.25 : scale})`,
                 boxShadow: enlarged
-                  ? '0 0 80px rgba(255,170,51,0.5), 0 0 160px rgba(255,170,51,0.2)'
+                  ? '0 0 60px rgba(255,170,51,0.5), 0 0 120px rgba(255,170,51,0.2)'
                   : '0 0 40px rgba(255,170,51,0.15)',
-                zIndex: enlarged ? 10 : 'auto',
                 position: 'relative',
               }}
               onClick={() => setEnlarged(e => !e)}
-              onTouchStart={() => { if (!enlarged) setScale(1.08) }}
+              onTouchStart={() => { if (!enlarged) setScale(1.05) }}
               onTouchEnd={() => setScale(1)}
-              onMouseDown={() => { if (!enlarged) setScale(1.08) }}
+              onMouseDown={() => { if (!enlarged) setScale(1.05) }}
               onMouseUp={() => setScale(1)}
             >
               {dataUrl ? (
