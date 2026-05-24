@@ -283,7 +283,7 @@ export default function AccountPage() {
         @media(max-width:680px){.wrap{padding:40px 20px 80px;}}
 
         .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;}
-        .section-title{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,36px);font-weight:300;color:rgba(255,255,255,0.7);letter-spacing:4px;text-transform:lowercase;line-height:1;}
+        .section-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:3px;text-transform:uppercase;line-height:1;}
         .ticket-count{font-size:13px;color:#443;font-family:'Syne',sans-serif;}
 
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
@@ -327,7 +327,7 @@ export default function AccountPage() {
         ) : (
           <>
             <div className="section-header">
-              <div className="section-title">my tickets</div>
+              <div className="section-title">MY TICKETS</div>
               {tickets.length > 0 && <div className="ticket-count">{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</div>}
             </div>
 

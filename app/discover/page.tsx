@@ -118,8 +118,12 @@ export default function Discover() {
     }
   }, [events, getPreview])
 
-  // Watch active card changes — only play if audio already unlocked
+  // Pre-fetch previews for first two events as soon as they load
   useEffect(() => {
+    if (loading || events.length === 0) return
+    getPreview(events[0])
+    if (events[1]) getPreview(events[1])
+  }, [loading, events, getPreview])
     if (loading || events.length === 0) return
     if (audioRef.current) playFor(activeIndex)
     const next = events[activeIndex + 1]
@@ -150,32 +154,29 @@ export default function Discover() {
   // iOS Safari blocks audio created before a user interaction
   const unlockAudio = useCallback(async () => {
     setAudioError(false)
-
     try {
-      // Create or reuse audio element inside the gesture handler
       if (!audioRef.current) {
         const a = new Audio()
         a.loop = true
-        a.preload = 'auto'
         a.volume = 1
         audioRef.current = a
       }
-
       const a = audioRef.current
 
-      // On iOS, calling play() on any audio inside a user gesture unlocks the audio session
-      // We set src to empty string and catch the error — that's enough to unlock
+      // iOS REQUIRES play() to be called synchronously within the user gesture
+      // We call it immediately with no src — it will throw but that's enough to unlock
+      // the audio session before we do any async work
       a.src = ''
-      try { await a.play() } catch {}
+      const playPromise = a.play()
+      if (playPromise) playPromise.catch(() => {})
 
       setAudioReady(true)
       setMuted(false)
 
-      // Now actually play the current event's preview
+      // Now fetch and play the real preview
       await playFor(activeIndex)
     } catch (e) {
-      console.warn('Audio unlock failed:', e)
-      // Still mark ready so the button goes away
+      console.warn('Audio unlock error:', e)
       setAudioReady(true)
     }
   }, [activeIndex, playFor])

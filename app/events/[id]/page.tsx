@@ -252,7 +252,7 @@ export default function EventDetail() {
 
   return (
     <>
-      <TouchBlot />
+      <TouchBlot intensity={0.4} />
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
