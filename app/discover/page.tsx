@@ -53,7 +53,6 @@ export default function Discover() {
   const [audioError, setAudioError] = useState(false)
 
   const scrollerRef = useRef<HTMLDivElement>(null)
-  // Audio element created on first user tap — required for iOS autoplay policy
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const cardRefs = useRef<(HTMLElement | null)[]>([])
   const previewCache = useRef<Record<string, string | null>>({})
@@ -88,7 +87,6 @@ export default function Discover() {
     }
   }, [])
 
-  // Play audio for a given event index — only works after audio element is created
   const playFor = useCallback(async (index: number) => {
     const a = audioRef.current
     const ev = events[index]
@@ -124,6 +122,9 @@ export default function Discover() {
     getPreview(events[0])
     if (events[1]) getPreview(events[1])
   }, [loading, events, getPreview])
+
+  // Play audio when active card changes
+  useEffect(() => {
     if (loading || events.length === 0) return
     if (audioRef.current) playFor(activeIndex)
     const next = events[activeIndex + 1]
@@ -150,8 +151,6 @@ export default function Discover() {
     return () => obs.disconnect()
   }, [loading, events])
 
-  // KEY FIX: Create the Audio element inside the user gesture handler
-  // iOS Safari blocks audio created before a user interaction
   const unlockAudio = useCallback(async () => {
     setAudioError(false)
     try {
@@ -163,9 +162,6 @@ export default function Discover() {
       }
       const a = audioRef.current
 
-      // iOS REQUIRES play() to be called synchronously within the user gesture
-      // We call it immediately with no src — it will throw but that's enough to unlock
-      // the audio session before we do any async work
       a.src = ''
       const playPromise = a.play()
       if (playPromise) playPromise.catch(() => {})
@@ -173,7 +169,6 @@ export default function Discover() {
       setAudioReady(true)
       setMuted(false)
 
-      // Now fetch and play the real preview
       await playFor(activeIndex)
     } catch (e) {
       console.warn('Audio unlock error:', e)
