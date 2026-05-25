@@ -58,34 +58,30 @@ function NavActions({ compact = false }: { compact?: boolean }) {
   const user = useUser()
   const router = useRouter()
   const name = displayName(user)
-  const size = compact ? 12 : 13
-  const pad = compact ? '7px 14px' : '8px 18px'
-  const icon = compact ? 13 : 14
-  const gap = compact ? 4 : 6
 
   if (user) {
+    const initials = (user.user_metadata?.full_name ?? user.email ?? 'U').slice(0, 2).toUpperCase()
     return (
-      <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+      <div style={{display:'flex', gap: compact ? '12px' : '20px', alignItems:'center'}}>
         <a
           href="/host/create"
           onClick={e => { e.preventDefault(); router.push('/host/create') }}
           style={{
-            background: COLORS.primary,
-            color: '#000',
-            fontSize: size,
+            color: '#fff',
+            fontSize: compact ? '12px' : '13px',
             fontWeight: 700,
-            padding: pad,
-            borderRadius: '100px',
             textDecoration: 'none',
             fontFamily: 'Syne,sans-serif',
             letterSpacing: '0.3px',
-            boxShadow: `0 0 ${compact ? 14 : 18}px rgba(255,170,51,0.32)`,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: `${gap}px`,
+            gap: '5px',
+            paddingBottom: '2px',
+            borderBottom: '1px solid rgba(255,255,255,0.35)',
+            transition: 'border-color 0.2s',
           }}
         >
-          <i className="ti ti-plus" style={{fontSize:`${icon}px`}} aria-hidden="true"/>
+          <span style={{fontSize: compact ? '14px' : '15px', lineHeight: 1}}>+</span>
           {compact ? 'create' : 'create event'}
         </a>
         <a
@@ -93,50 +89,51 @@ function NavActions({ compact = false }: { compact?: boolean }) {
           onClick={e => { e.preventDefault(); router.push('/account') }}
           aria-label={`Account: ${name ?? 'user'}`}
           style={{
-            background: 'transparent',
-            color: COLORS.primary,
-            fontSize: size,
-            fontWeight: 600,
-            padding: pad,
-            borderRadius: '6px',
-            border: `0.5px solid rgba(255,170,51,0.3)`,
-            textDecoration: 'none',
-            fontFamily: 'Syne,sans-serif',
+            width: compact ? '28px' : '32px',
+            height: compact ? '28px' : '32px',
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.07)',
+            border: '0.5px solid rgba(255,255,255,0.15)',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: `${gap}px`,
+            justifyContent: 'center',
+            fontFamily: 'Syne,sans-serif',
+            fontSize: '10px',
+            fontWeight: 700,
+            color: 'rgba(255,255,255,0.5)',
+            textDecoration: 'none',
+            cursor: 'pointer',
+            flexShrink: 0,
           }}
         >
-          {name}
+          {initials}
         </a>
       </div>
     )
   }
+
   return (
     <a
       href="/login"
       onClick={e => { e.preventDefault(); router.push('/login') }}
       style={{
-        background: COLORS.primary,
-        color: '#000',
-        fontSize: size,
+        color: '#fff',
+        fontSize: compact ? '12px' : '13px',
         fontWeight: 700,
-        padding: pad,
-        borderRadius: '100px',
         textDecoration: 'none',
         fontFamily: 'Syne,sans-serif',
+        letterSpacing: '0.3px',
         display: 'inline-flex',
         alignItems: 'center',
-        gap: `${gap}px`,
+        gap: '5px',
+        paddingBottom: '2px',
+        borderBottom: '1px solid rgba(255,255,255,0.35)',
       }}
     >
-      <i className="ti ti-login" style={{fontSize:`${icon}px`}} aria-hidden="true"/>
-      Sign in
+      sign in
     </a>
   )
 }
-
-
 function CardPlaceholder({ accent, index }: { accent: string; index: number }) {
   return (
     <svg
@@ -279,12 +276,10 @@ export default function Home() {
         .page { position:relative; z-index:1; }
         .events-section { position:relative; z-index:1; }
 
-        nav { padding:14px 0; background:rgba(0,0,0,0.9); position:sticky; top:0; z-index:100; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
-        nav::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},${COLORS.accent},transparent); background-size:300% 100%; animation:navPulse 5s ease-in-out infinite; }
-        @keyframes navPulse { 0%{background-position:0% 50%;opacity:0.2} 50%{background-position:100% 50%;opacity:1} 100%{background-position:0% 50%;opacity:0.2} }
-        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 20px; max-width:1100px; margin:0 auto; }
+        nav { padding:16px 0; background:transparent; position:sticky; top:0; z-index:100; }
+        .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 24px; max-width:1100px; margin:0 auto; }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
-        .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 10px rgba(255,170,51,0.4)); }
+        .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 8px rgba(255,170,51,0.35)); }
         @media(max-width:680px){ .logo-img { height:20px; } }
 
 

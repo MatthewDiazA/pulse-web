@@ -260,7 +260,7 @@ export default function AccountPage() {
         @keyframes orb2{0%{transform:translate(0,0) scale(1.1)}100%{transform:translate(-12vw,-10vh) scale(0.9)}}
         @keyframes orb3{0%{transform:translate(0,0) scale(0.95)}100%{transform:translate(8vw,-8vh) scale(1.1)}}
 
-        nav{padding:14px 32px;background:rgba(0,0,0,0.7);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:0.5px solid rgba(255,255,255,0.05);}
+        nav{padding:0 24px;height:56px;background:rgba(0,0,0,0.6);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;}
         .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
         @media(max-width:680px){.logo-img{height:20px;}}
@@ -270,9 +270,9 @@ export default function AccountPage() {
         .nav-pill:hover{border-color:rgba(255,255,255,0.2);}
         .nav-av{width:26px;height:26px;border-radius:50%;background:rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#ffaa33;letter-spacing:0.5px;flex-shrink:0;}
         .nav-name{font-size:12px;color:#ccc;font-family:'Syne',sans-serif;font-weight:500;}
-        .nav-btn{font-size:13px;color:#665;background:none;border:none;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.15s;padding:6px 10px;}
-        .nav-btn:hover{color:#f0f0f0;}
-        .nav-btn.highlight{color:#ffaa33;background:rgba(255,170,51,0.1);border-radius:8px;}
+        .nav-link{font-size:12px;color:rgba(255,255,255,0.3);background:none;border:none;border-bottom:1px solid transparent;padding-bottom:2px;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.2s,border-color 0.2s;letter-spacing:0.3px;text-decoration:none;}
+        .nav-link:hover{color:rgba(255,255,255,0.65);}
+        .nav-link.active{color:#fff;border-bottom-color:#ffaa33;}
         .signout-btn{font-size:12px;color:#443;background:none;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:6px 14px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
         .signout-btn:hover{color:#f0f0f0;border-color:rgba(255,255,255,0.2);}
 
@@ -305,14 +305,18 @@ export default function AccountPage() {
         <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
-        <div className="nav-right">
-          <button className="nav-btn" onClick={() => router.push('/discover')}>Discover</button>
-          <button className="nav-btn" onClick={() => router.push('/connect')}>Connect</button>
-          <button className="nav-btn highlight" onClick={() => router.push('/host')}>Dashboard</button>
+        <div style={{display:'flex',alignItems:'center',gap:'22px'}}>
+          <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
+          <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
+          <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
+          <div style={{width:'1px',height:'14px',background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
           {user && (
-            <div className="nav-pill" onClick={signOut} title="Sign out">
-              <div className="nav-av">{initials}</div>
-              <span className="nav-name">{firstName}</span>
+            <div
+              style={{width:'30px',height:'30px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'10px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer',flexShrink:0}}
+              onClick={signOut}
+              title="Sign out"
+            >
+              {initials}
             </div>
           )}
         </div>
