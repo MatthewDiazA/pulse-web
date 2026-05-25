@@ -168,9 +168,115 @@ function BlastTab() {
 }
 
 // ── Events tab ────────────────────────────────────────────────────────────────
+function EventTicketStats({ eventId }: { eventId: string }) {
+  const [tiers, setTiers] = useState<any[]>([])
+  const [checkedIn, setCheckedIn] = useState(0)
+  const [totalTickets, setTotalTickets] = useState(0)
+  const [buyers, setBuyers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const [{ data: tierData }, { count: ciCount }, { count: total }, { data: ticketData }] = await Promise.all([
+        supabase.from('ticket_tiers').select('id,name,price,quantity,quantity_sold').eq('event_id', eventId),
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId).eq('is_checked_in', true),
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
+        supabase.from('tickets').select('id,is_checked_in,tier:ticket_tiers(name),order:orders(buyer_email,buyer_name)').eq('event_id', eventId),
+      ])
+      setTiers(tierData ?? [])
+      setCheckedIn(ciCount ?? 0)
+      setTotalTickets(total ?? 0)
+      setBuyers(ticketData ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [eventId])
+
+  if (loading) return (
+    <div style={{ padding: '16px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>
+      Loading stats...
+    </div>
+  )
+
+  const revenue = tiers.reduce((s, t) => s + (Number(t.price) * (t.quantity_sold || 0)), 0)
+
+  return (
+    <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', padding: '16px 20px', background: 'rgba(0,0,0,0.3)' }}>
+      {/* Summary row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
+        {[
+          { label: 'Revenue', value: `$${revenue.toFixed(2)}`, color: '#ffaa33' },
+          { label: 'Sold', value: totalTickets ?? 0 },
+          { label: 'Checked in', value: checkedIn },
+          { label: 'At door', value: `${totalTickets > 0 ? Math.round((checkedIn / totalTickets) * 100) : 0}%` },
+        ].map(s => (
+          <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px 14px', border: '0.5px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '6px' }}>{s.label}</div>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '24px', fontWeight: 900, color: (s as any).color ?? '#fff', lineHeight: 1 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-tier breakdown */}
+      {tiers.length > 0 && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '8px' }}>Tiers</div>
+          {tiers.map(t => {
+            const sold = t.quantity_sold || 0
+            const pct = t.quantity > 0 ? (sold / t.quantity) * 100 : 0
+            return (
+              <div key={t.id} style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{t.name}</span>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>{sold} / {t.quantity} · <span style={{ color: '#ffaa33' }}>${Number(t.price).toFixed(2)}</span></span>
+                </div>
+                <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: pct >= 90 ? '#f87171' : pct >= 60 ? '#ffaa33' : '#4ade80', borderRadius: '2px', transition: 'width 0.5s ease' }}/>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Buyer list */}
+      {buyers.length > 0 && (
+        <div>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '8px' }}>Buyers</div>
+          {buyers.map((b, i) => {
+            const email = (b.order as any)?.buyer_email ?? '—'
+            const name = (b.order as any)?.buyer_name ?? ''
+            const tier = (b.tier as any)?.name ?? '—'
+            const initials = name ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase()
+            return (
+              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '4px', border: '0.5px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,170,51,0.08)', border: '0.5px solid rgba(255,170,51,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'rgba(255,170,51,0.6)', flexShrink: 0 }}>
+                  {initials}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || email}</div>
+                  {name && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>{email}</div>}
+                </div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>{tier}</div>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.is_checked_in ? '#4ade80' : 'rgba(255,255,255,0.1)', flexShrink: 0, title: b.is_checked_in ? 'Checked in' : 'Not checked in' }}/>
+              </div>
+            )
+          })}
+          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80' }}/> checked in
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', marginLeft: '8px' }}/> not yet
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EventsTab() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -200,21 +306,29 @@ function EventsTab() {
       {events.map(ev => {
         const date = ev.starts_at ? new Date(ev.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'
         const published = ev.status === 'published'
+        const isExpanded = expanded === ev.id
         return (
-          <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '8px' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#f0f0f0', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>{date} · {ev.category}</div>
+          <div key={ev.id} style={{ background: 'rgba(255,255,255,0.02)', border: `0.5px solid ${isExpanded ? 'rgba(255,170,51,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '10px', marginBottom: '8px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', cursor: 'pointer' }} onClick={() => setExpanded(isExpanded ? null : ev.id)}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#f0f0f0', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>{date} · {ev.category}</div>
+              </div>
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', padding: '3px 10px', borderRadius: '100px', background: published ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)', color: published ? '#4ade80' : 'rgba(255,255,255,0.3)', border: `0.5px solid ${published ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.08)'}`, flexShrink: 0 }}>
+                {published ? 'LIVE' : 'DRAFT'}
+              </span>
+              <button onClick={e => { e.stopPropagation(); toggleStatus(ev.id, ev.status) }} style={{ ...ghostBtn, flexShrink: 0, fontSize: '12px' }}>
+                {published ? 'Unpublish' : 'Publish'}
+              </button>
+              <button onClick={e => { e.stopPropagation(); deleteEvent(ev.id, ev.title) }} style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.4)', cursor: 'pointer', fontSize: '12px', fontFamily: "'Syne',sans-serif", padding: '6px 8px', flexShrink: 0 }}>
+                Delete
+              </button>
+              <span style={{ fontSize: '12px', color: isExpanded ? '#ffaa33' : 'rgba(255,255,255,0.2)', transition: 'transform 0.2s, color 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>▾</span>
             </div>
-            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', padding: '3px 10px', borderRadius: '100px', background: published ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)', color: published ? '#4ade80' : 'rgba(255,255,255,0.3)', border: `0.5px solid ${published ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.08)'}`, flexShrink: 0 }}>
-              {published ? 'LIVE' : 'DRAFT'}
-            </span>
-            <button onClick={() => toggleStatus(ev.id, ev.status)} style={{ ...ghostBtn, flexShrink: 0, fontSize: '12px' }}>
-              {published ? 'Unpublish' : 'Publish'}
-            </button>
-            <button onClick={() => deleteEvent(ev.id, ev.title)} style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.4)', cursor: 'pointer', fontSize: '12px', fontFamily: "'Syne',sans-serif", padding: '6px 8px', flexShrink: 0 }}>
-              Delete
-            </button>
+
+            {/* Expandable stats */}
+            {isExpanded && <EventTicketStats eventId={ev.id}/>}
           </div>
         )
       })}
