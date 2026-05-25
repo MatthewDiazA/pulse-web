@@ -96,7 +96,7 @@ export default function ScanPage() {
       } else {
         vibrate([200])
       }
-      clearTimeout(resultTimer.current)
+      if (resultTimer.current) clearTimeout(resultTimer.current)
       resultTimer.current = setTimeout(() => {
         setResult(null)
         setScanning(false)
