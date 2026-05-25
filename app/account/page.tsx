@@ -1,4 +1,4 @@
-'use client'
+s'use client'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
@@ -260,19 +260,18 @@ export default function AccountPage() {
         @keyframes orb2{0%{transform:translate(0,0) scale(1.1)}100%{transform:translate(-12vw,-10vh) scale(0.9)}}
         @keyframes orb3{0%{transform:translate(0,0) scale(0.95)}100%{transform:translate(8vw,-8vh) scale(1.1)}}
 
-        nav{padding:0 24px;height:56px;background:rgba(0,0,0,0.6);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+        nav{padding:0 32px;height:64px;background:rgba(0,0,0,0.6);position:sticky;top:0;z-index:100;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+        @media(max-width:680px){nav{padding:0 20px;height:56px;}}
         .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;}
-        .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
+        .logo-img{height:24px;width:auto;filter:drop-shadow(0 0 8px rgba(255,170,51,0.35));}
         @media(max-width:680px){.logo-img{height:20px;}}
-        .nav-links{display:flex;align-items:center;gap:22px;}
-        .nav-links-desktop{display:none;}
-        @media(min-width:680px){.nav-links-desktop{display:flex;align-items:center;gap:22px;}}
-
-        .nav-link{font-size:12px;color:rgba(255,255,255,0.3);background:none;border:none;border-bottom:1px solid transparent;padding-bottom:2px;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.2s,border-color 0.2s;letter-spacing:0.3px;text-decoration:none;}
+        .nav-center{display:flex;align-items:center;gap:36px;justify-content:center;}
+        @media(max-width:680px){.nav-center{gap:20px;}}
+        .nav-end{display:flex;align-items:center;justify-content:flex-end;}
+        .nav-link{font-size:14px;color:rgba(255,255,255,0.3);background:none;border:none;border-bottom:1px solid transparent;padding-bottom:3px;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.2s,border-color 0.2s;letter-spacing:0.3px;white-space:nowrap;}
+        @media(max-width:680px){.nav-link{font-size:12px;}}
         .nav-link:hover{color:rgba(255,255,255,0.65);}
         .nav-link.active{color:#fff;border-bottom-color:#ffaa33;}
-        .signout-btn{font-size:12px;color:#443;background:none;border:0.5px solid rgba(255,255,255,0.08);border-radius:100px;padding:6px 14px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;}
-        .signout-btn:hover{color:#f0f0f0;border-color:rgba(255,255,255,0.2);}
 
         .wrap{max-width:900px;margin:0 auto;padding:60px 32px 100px;position:relative;z-index:1;}
         @media(max-width:680px){.wrap{padding:40px 20px 80px;}}
@@ -311,7 +310,7 @@ export default function AccountPage() {
         <div className="nav-end">
           {user && (
             <div
-              style={{width:'30px',height:'30px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'10px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer'}}
+              style={{width:'36px',height:'36px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'11px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer'}}
               onClick={signOut}
               title="Sign out"
             >
