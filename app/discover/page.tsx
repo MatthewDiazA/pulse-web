@@ -147,6 +147,9 @@ export default function Discover() {
     getPreview(events[0])
     if (events[1]) getPreview(events[1])
   }, [loading, events, getPreview])
+
+  // Watch active card changes — only play if audio already unlocked
+  useEffect(() => {
     if (loading || events.length === 0) return
     if (audioRef.current) playFor(activeIndex)
     const next = events[activeIndex + 1]
