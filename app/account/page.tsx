@@ -260,14 +260,15 @@ export default function AccountPage() {
         @keyframes orb2{0%{transform:translate(0,0) scale(1.1)}100%{transform:translate(-12vw,-10vh) scale(0.9)}}
         @keyframes orb3{0%{transform:translate(0,0) scale(0.95)}100%{transform:translate(8vw,-8vh) scale(1.1)}}
 
-        nav{padding:0 32px;height:64px;background:rgba(0,0,0,0.6);position:sticky;top:0;z-index:100;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+        nav{padding:0 40px;height:68px;background:rgba(0,0,0,0.6);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         @media(max-width:680px){nav{padding:0 20px;height:56px;}}
-        .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;}
+        .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;flex-shrink:0;}
         .logo-img{height:24px;width:auto;filter:drop-shadow(0 0 8px rgba(255,170,51,0.35));}
         @media(max-width:680px){.logo-img{height:20px;}}
-        .nav-center{display:flex;align-items:center;gap:36px;justify-content:center;}
-        @media(max-width:680px){.nav-center{gap:20px;}}
-        .nav-end{display:flex;align-items:center;justify-content:flex-end;}
+        .nav-right{display:flex;align-items:center;gap:32px;}
+        @media(max-width:680px){.nav-right{gap:20px;}}
+        .nav-links{display:flex;align-items:center;gap:32px;}
+        @media(max-width:680px){.nav-links{gap:16px;}}
         .nav-link{font-size:14px;color:rgba(255,255,255,0.3);background:none;border:none;border-bottom:1px solid transparent;padding-bottom:3px;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.2s,border-color 0.2s;letter-spacing:0.3px;white-space:nowrap;}
         @media(max-width:680px){.nav-link{font-size:12px;}}
         .nav-link:hover{color:rgba(255,255,255,0.65);}
@@ -302,15 +303,15 @@ export default function AccountPage() {
         <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
-        <div className="nav-center">
-          <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
-          <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
-          <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
-        </div>
-        <div className="nav-end">
+        <div className="nav-right">
+          <div className="nav-links">
+            <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
+            <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
+            <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
+          </div>
           {user && (
             <div
-              style={{width:'36px',height:'36px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'11px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer'}}
+              style={{width:'36px',height:'36px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'11px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer',flexShrink:0}}
               onClick={signOut}
               title="Sign out"
             >
