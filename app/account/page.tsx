@@ -264,12 +264,10 @@ export default function AccountPage() {
         .logo{background:none;border:none;padding:0;cursor:pointer;line-height:0;display:inline-flex;}
         .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
         @media(max-width:680px){.logo-img{height:20px;}}
+        .nav-links{display:flex;align-items:center;gap:22px;}
+        .nav-links-desktop{display:none;}
+        @media(min-width:680px){.nav-links-desktop{display:flex;align-items:center;gap:22px;}}
 
-        .nav-right{display:flex;align-items:center;gap:10px;}
-        .nav-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.1);borderRadius:100px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;}
-        .nav-pill:hover{border-color:rgba(255,255,255,0.2);}
-        .nav-av{width:26px;height:26px;border-radius:50%;background:rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#ffaa33;letter-spacing:0.5px;flex-shrink:0;}
-        .nav-name{font-size:12px;color:#ccc;font-family:'Syne',sans-serif;font-weight:500;}
         .nav-link{font-size:12px;color:rgba(255,255,255,0.3);background:none;border:none;border-bottom:1px solid transparent;padding-bottom:2px;cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.2s,border-color 0.2s;letter-spacing:0.3px;text-decoration:none;}
         .nav-link:hover{color:rgba(255,255,255,0.65);}
         .nav-link.active{color:#fff;border-bottom-color:#ffaa33;}
@@ -305,11 +303,13 @@ export default function AccountPage() {
         <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
-        <div style={{display:'flex',alignItems:'center',gap:'22px'}}>
-          <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
-          <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
-          <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
-          <div style={{width:'1px',height:'14px',background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+        <div style={{display:'flex',alignItems:'center',gap:'16px'}}>
+          <div className="nav-links-desktop">
+            <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
+            <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
+            <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
+            <div style={{width:'1px',height:'14px',background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
+          </div>
           {user && (
             <div
               style={{width:'30px',height:'30px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'10px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer',flexShrink:0}}
