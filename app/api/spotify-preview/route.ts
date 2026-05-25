@@ -13,6 +13,82 @@ function parseSpotify(url: string): { type: string; id: string } | null {
   } catch { return null }
 }
 
+async function scrapeTrackPreview(trackId: string): Promise<{ preview: string | null; title: string | null; artist: string | null }> {
+  const res = await fetch(`https://open.spotify.com/embed/track/${trackId}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  })
+  if (!res.ok) return { preview: null, title: null, artist: null }
+  const html = await res.text()
+
+  const nextDataMatch = html.match(/<script id="__NEXT_DATA__[^>]*>([\s\S]*?)<\/script>/)
+  if (nextDataMatch) {
+    try {
+      const json = JSON.parse(nextDataMatch[1])
+      const entity = json?.props?.pageProps?.state?.data?.entity
+      if (entity?.audioPreview?.url) {
+        return {
+          preview: entity.audioPreview.url,
+          title: entity.name ?? null,
+          artist: entity.artists?.[0]?.name ?? null,
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback regex
+  const m = html.match(/"audioPreview"\s*:\s*\{\s*"url"\s*:\s*"([^"]+)"/)
+  if (m) {
+    return {
+      preview: m[1].replace(/\\u002F/g, '/').replace(/\\\//g, '/'),
+      title: (html.match(/"name"\s*:\s*"([^"]+)"/) ?? [])[1] ?? null,
+      artist: (html.match(/"subtitle"\s*:\s*"([^"]+)"/) ?? [])[1] ?? null,
+    }
+  }
+
+  return { preview: null, title: null, artist: null }
+}
+
+async function getFirstTrackId(type: string, id: string): Promise<string | null> {
+  const res = await fetch(`https://open.spotify.com/embed/${type}/${id}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  })
+  if (!res.ok) return null
+  const html = await res.text()
+
+  // Try __NEXT_DATA__ first
+  const nextDataMatch = html.match(/<script id="__NEXT_DATA__[^>]*>([\s\S]*?)<\/script>/)
+  if (nextDataMatch) {
+    try {
+      const json = JSON.parse(nextDataMatch[1])
+      // Albums store tracks in entity.tracks.items
+      const items = json?.props?.pageProps?.state?.data?.entity?.tracks?.items
+        ?? json?.props?.pageProps?.state?.data?.entity?.items
+        ?? json?.props?.pageProps?.state?.data?.trackList
+      if (items?.length > 0) {
+        for (const item of items) {
+          const uri = item?.uri ?? item?.track?.uri
+          if (uri?.startsWith('spotify:track:')) return uri.split(':')[2]
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback: find any track URI in raw HTML
+  const uriMatch = html.match(/spotify:track:([a-zA-Z0-9]{22})/)
+  if (uriMatch) return uriMatch[1]
+
+  const hrefMatch = html.match(/\/track\/([a-zA-Z0-9]{22})/)
+  if (hrefMatch) return hrefMatch[1]
+
+  return null
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
@@ -22,66 +98,18 @@ export async function GET(request: Request) {
   if (!parsed) return NextResponse.json({ preview: null, error: 'Not a Spotify URL' })
 
   try {
-    const embedUrl = `https://open.spotify.com/embed/${parsed.type}/${parsed.id}`
-
-    const res = await fetch(embedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-    })
-
-    if (!res.ok) {
-      return NextResponse.json({ preview: null, error: `Spotify embed returned ${res.status}` })
+    // Direct track — scrape immediately
+    if (parsed.type === 'track') {
+      const result = await scrapeTrackPreview(parsed.id)
+      return NextResponse.json({ preview: result.preview, title: result.title, artist: result.artist })
     }
 
-    const html = await res.text()
-    const hasNextData = html.includes('__NEXT_DATA__')
-    const hasAudioPreview = html.includes('audioPreview')
+    // Album, playlist, artist — find first track then scrape it
+    const trackId = await getFirstTrackId(parsed.type, parsed.id)
+    if (!trackId) return NextResponse.json({ preview: null, error: `Could not find track in ${parsed.type}` })
 
-    // Parse __NEXT_DATA__ script tag
-    const nextDataMatch = html.match(/<script id="__NEXT_DATA__[^>]*>([\s\S]*?)<\/script>/)
-    if (nextDataMatch) {
-      try {
-        const json = JSON.parse(nextDataMatch[1])
-        const entity = json?.props?.pageProps?.state?.data?.entity
-        const preview = entity?.audioPreview?.url ?? null
-        const title = entity?.name ?? null
-        const artist = entity?.artists?.[0]?.name ?? null
-
-        if (preview) {
-          return NextResponse.json({ preview, title, artist })
-        }
-
-        // Return debug info so we can see the shape
-        return NextResponse.json({
-          preview: null,
-          error: 'audioPreview not in entity',
-          debug: {
-            hasNextData,
-            hasAudioPreview,
-            entityKeys: entity ? Object.keys(entity) : null,
-            type: parsed.type,
-            id: parsed.id,
-          }
-        })
-      } catch (parseErr: any) {
-        return NextResponse.json({ preview: null, error: 'JSON parse failed: ' + parseErr.message, debug: { hasNextData, hasAudioPreview } })
-      }
-    }
-
-    // No __NEXT_DATA__ at all — return what we can see
-    return NextResponse.json({
-      preview: null,
-      error: 'No __NEXT_DATA__ found',
-      debug: {
-        hasNextData,
-        hasAudioPreview,
-        htmlLength: html.length,
-        htmlSnippet: html.slice(0, 200),
-      }
-    })
+    const result = await scrapeTrackPreview(trackId)
+    return NextResponse.json({ preview: result.preview, title: result.title, artist: result.artist })
 
   } catch (err: any) {
     return NextResponse.json({ preview: null, error: err.message })
