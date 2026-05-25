@@ -259,7 +259,7 @@ function EventTicketStats({ eventId }: { eventId: string }) {
                   {name && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>{email}</div>}
                 </div>
                 <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>{tier}</div>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.is_checked_in ? '#4ade80' : 'rgba(255,255,255,0.1)', flexShrink: 0, title: b.is_checked_in ? 'Checked in' : 'Not checked in' }}/>
+                <div title={b.is_checked_in ? 'Checked in' : 'Not checked in'} style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.is_checked_in ? '#4ade80' : 'rgba(255,255,255,0.1)', flexShrink: 0 }}/>
               </div>
             )
           })}
