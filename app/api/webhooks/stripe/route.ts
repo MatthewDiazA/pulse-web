@@ -153,13 +153,44 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 </html>`
 
         await resend.emails.send({
-          from: 'PULSE <onboarding@resend.dev>',
+          from: 'PULSE <tickets@pulsetickets.vip>',
           to: buyerEmail,
           subject: `Your ticket to ${eventTitle}`,
           html,
         })
 
         console.log('Paid ticket email sent to:', buyerEmail)
+
+        // Notify admin of new sale
+        try {
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticketRows[0].qr_code)}`
+          const adminHtml = `<!DOCTYPE html><html><body style="margin:0;padding:32px;background:#000;font-family:Arial,sans-serif;color:#f0f0f0;">
+            <div style="max-width:480px;margin:0 auto;">
+              <div style="font-size:24px;font-weight:900;color:#ffaa33;margin-bottom:24px;letter-spacing:3px;">pulse · new sale</div>
+              <div style="background:#0d0800;border:1px solid rgba(255,170,51,0.2);border-radius:12px;padding:20px;margin-bottom:16px;">
+                <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;">${eventTitle}</div>
+                <div style="font-size:13px;color:#888;margin-bottom:12px;">${tierName} · ${eventDate}${venueLine}</div>
+                <div style="font-size:13px;color:#aaa;">Buyer: <strong style="color:#fff;">${buyerName || 'Unknown'}</strong></div>
+                <div style="font-size:13px;color:#aaa;">Email: <strong style="color:#ffaa33;">${buyerEmail}</strong></div>
+              </div>
+              <div style="text-align:center;background:#0d0800;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;">
+                <div style="font-size:11px;color:#554;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Their QR</div>
+                <div style="background:#fff;border-radius:8px;padding:10px;display:inline-block;">
+                  <img src="${qrUrl}" width="150" height="150" alt="QR" style="display:block;"/>
+                </div>
+              </div>
+            </div>
+          </body></html>`
+
+          await resend.emails.send({
+            from: 'PULSE <tickets@pulsetickets.vip>',
+            to: 'mad2288@columbia.edu',
+            subject: `Ticket sold: ${buyerName || buyerEmail} → ${eventTitle}`,
+            html: adminHtml,
+          })
+        } catch (adminErr) {
+          console.error('Admin notify failed:', adminErr)
+        }
       } catch (emailError) {
         console.error('Email failed:', emailError)
       }
