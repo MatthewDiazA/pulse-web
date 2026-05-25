@@ -28,7 +28,7 @@ export default function ScanPage() {
   const [checkedInCount, setCheckedInCount] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const scannerRef = useRef<any>(null)
-  const resultTimer = useRef<ReturnType<typeof setTimeout>>()
+  const resultTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const load = async () => {
