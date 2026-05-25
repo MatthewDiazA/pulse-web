@@ -203,6 +203,7 @@ export default function AccountPage() {
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const logoRef = useNavLogo<HTMLButtonElement>()
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -212,6 +213,8 @@ export default function AccountPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
+      const { data: admin } = await supabase.from('admins').select('user_id').eq('user_id', user.id).single()
+      if (admin || user.email === 'mad2288@columbia.edu') setIsAdmin(true)
       const { data } = await supabase
         .from('tickets')
         .select('*, event:events(title,starts_at,venue_name,cover_image_url), tier:ticket_tiers(name,price)')
@@ -308,12 +311,14 @@ export default function AccountPage() {
             <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
             <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
             <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
+            {isAdmin && (
+              <button className="nav-link" onClick={() => router.push('/admin')} style={{color:'rgba(255,170,51,0.6)',borderBottomColor:'transparent'}}>admin</button>
+            )}
           </div>
           {user && (
             <div
               style={{width:'36px',height:'36px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'11px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer',flexShrink:0}}
-              onClick={signOut}
-              title="Sign out"
+              onClick={() => router.push('/account')}
             >
               {initials}
             </div>
@@ -349,6 +354,18 @@ export default function AccountPage() {
                 ))}
               </div>
             )}
+
+            {/* Quiet sign out — bottom of page, out of the way */}
+            <div style={{marginTop:'60px',paddingTop:'24px',borderTop:'0.5px solid rgba(255,255,255,0.04)',display:'flex',justifyContent:'center'}}>
+              <button
+                onClick={signOut}
+                style={{background:'none',border:'none',color:'rgba(255,255,255,0.15)',fontFamily:'Syne,sans-serif',fontSize:'12px',cursor:'pointer',letterSpacing:'0.5px',transition:'color 0.2s'}}
+                onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.15)')}
+              >
+                sign out
+              </button>
+            </div>
           </>
         )}
       </div>

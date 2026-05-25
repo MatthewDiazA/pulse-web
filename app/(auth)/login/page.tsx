@@ -95,6 +95,9 @@ export default function LoginPage() {
         .field-input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:13px 14px;color:#fff;font-size:14px;font-family:'Syne',sans-serif;outline:none;transition:border-color 0.2s;}
         .field-input::placeholder{color:rgba(255,255,255,0.2);}
         .field-input:focus{border-color:rgba(255,170,51,0.4);}
+        .field-input:-webkit-autofill,
+        .field-input:-webkit-autofill:hover,
+        .field-input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #0d0800 inset;-webkit-text-fill-color:#fff;border-color:rgba(255,170,51,0.3);}
 
         .forgot-link{display:block;text-align:right;font-size:12px;color:rgba(255,255,255,0.3);cursor:pointer;margin-top:-8px;margin-bottom:20px;background:none;border:none;font-family:'Syne',sans-serif;transition:color 0.15s;}
         .forgot-link:hover{color:rgba(255,255,255,0.6);}
