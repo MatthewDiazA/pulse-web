@@ -7,6 +7,7 @@ import confetti from 'canvas-confetti'
 import { gsap } from 'gsap'
 import { useNavLogo, useTicketTear, GLBadgeStamp } from '../lib/animations'
 import TouchBlot from '../components/TouchBlot'
+import TiltCard from '../components/TiltCard'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function toRomanTierName(name: string): string {
@@ -151,12 +152,12 @@ function WalletCard({ ticket, onClick }: { ticket: any; onClick: () => void }) {
   const cover = ticket.event?.cover_image_url
 
   return (
-    <div
+    <TiltCard
       className="wallet-card-wrap"
       style={{ cursor: 'pointer', borderRadius: '20px', overflow: 'hidden', height: '240px', position: 'relative' }}
+      intensity={0.7}
       onClick={onClick}
     >
-      {/* Background — cover image or dark gradient */}
       {cover ? (
         <>
           <img src={cover} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',zIndex:0}}/>
@@ -165,16 +166,12 @@ function WalletCard({ ticket, onClick }: { ticket: any; onClick: () => void }) {
       ) : (
         <div style={{position:'absolute',inset:0,background:'linear-gradient(135deg,#1a0f00,#0d0800)',zIndex:0}}/>
       )}
-
-      {/* Border */}
       <div style={{
         position:'absolute',inset:0,borderRadius:'20px',zIndex:3,
         border: ticket.is_guestlist ? '1px solid rgba(255,170,51,0.45)' : '0.5px solid rgba(255,255,255,0.08)',
         boxShadow: ticket.is_guestlist ? '0 0 30px rgba(255,170,51,0.15), inset 0 0 30px rgba(255,170,51,0.04)' : '0 8px 40px rgba(0,0,0,0.6)',
         pointerEvents:'none',
       }}/>
-
-      {/* Content */}
       <div style={{position:'relative',zIndex:2,height:'100%',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'18px 20px'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
           {ticket.is_guestlist ? (
@@ -195,7 +192,7 @@ function WalletCard({ ticket, onClick }: { ticket: any; onClick: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </TiltCard>
   )
 }
 

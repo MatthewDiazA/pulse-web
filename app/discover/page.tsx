@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
+import FrequencyVisualizer from '../components/FrequencyVisualizer'
 
 // Module-level singleton — persists across navigations, never duplicated
 let _globalAudio: HTMLAudioElement | null = null
@@ -375,7 +376,7 @@ export default function Discover() {
 
           {audioReady && !muted && nowPlaying && (
             <div className="np">
-              <div className="np-eq"><span/><span/><span/><span/></div>
+              <FrequencyVisualizer audio={audioRef.current} playing={!muted} color="#ffaa33" bars={5} height={15}/>
               <div className="np-text">{nowPlaying.title}{nowPlaying.artist ? ` · ${nowPlaying.artist}` : ''}</div>
             </div>
           )}

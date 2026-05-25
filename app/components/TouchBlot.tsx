@@ -1,13 +1,47 @@
 'use client'
 import { useEffect, useRef, useCallback } from 'react'
 
-const HOLD_COLORS = [
-  { ms: 0,    color: '#ffaa33' },
-  { ms: 400,  color: '#ff6600' },
-  { ms: 900,  color: '#e8001d' },
-  { ms: 1500, color: '#c01a6f' },
-  { ms: 2500, color: '#7b2fff' },
-]
+// Time-of-day color palette — changes based on actual hour
+function getTimeColors(): { ms: number; color: string }[] {
+  const h = new Date().getHours()
+  if (h >= 0 && h < 6) {
+    // Deep night — violet to magenta
+    return [
+      { ms: 0,    color: '#7b2fff' },
+      { ms: 400,  color: '#c01a6f' },
+      { ms: 900,  color: '#e8001d' },
+      { ms: 1500, color: '#ff6600' },
+      { ms: 2500, color: '#ffaa33' },
+    ]
+  } else if (h >= 6 && h < 12) {
+    // Morning — amber to gold
+    return [
+      { ms: 0,    color: '#ffaa33' },
+      { ms: 400,  color: '#ffc850' },
+      { ms: 900,  color: '#ff8c00' },
+      { ms: 1500, color: '#ff6600' },
+      { ms: 2500, color: '#e8001d' },
+    ]
+  } else if (h >= 12 && h < 18) {
+    // Afternoon — orange to red
+    return [
+      { ms: 0,    color: '#ff6600' },
+      { ms: 400,  color: '#ff4400' },
+      { ms: 900,  color: '#e8001d' },
+      { ms: 1500, color: '#c01a6f' },
+      { ms: 2500, color: '#7b2fff' },
+    ]
+  } else {
+    // Evening / night — the classic rave palette
+    return [
+      { ms: 0,    color: '#ffaa33' },
+      { ms: 400,  color: '#ff6600' },
+      { ms: 900,  color: '#e8001d' },
+      { ms: 1500, color: '#c01a6f' },
+      { ms: 2500, color: '#7b2fff' },
+    ]
+  }
+}
 
 function getMaxSize(intensity: number) {
   const base = typeof window !== 'undefined' && window.innerWidth <= 768 ? 110 : 224
@@ -40,11 +74,11 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 interface TouchBlotProps {
-  // 1.0 = full homepage intensity, 0.5 = half size + half opacity
   intensity?: number
 }
 
 export default function TouchBlot({ intensity = 1.0 }: TouchBlotProps) {
+  const HOLD_COLORS = getTimeColors()
   const blots = useRef<Map<number, Blot>>(new Map())
   const holdTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map())
   const pointerToBlot = useRef<Map<number, number>>(new Map())
@@ -64,7 +98,6 @@ export default function TouchBlot({ intensity = 1.0 }: TouchBlotProps) {
     const MAX = getMaxSize(intensity)
     const EXPAND = 500
     const FADE = 1200
-    // Scale opacity by intensity so low-intensity blots are dimmer
     const alphaScale = 0.4 + 0.6 * intensity
 
     for (const [id, blot] of blots.current) {
@@ -148,7 +181,7 @@ export default function TouchBlot({ intensity = 1.0 }: TouchBlotProps) {
       }
     }, 80)
     holdTimers.current.set(id, colorTimer)
-  }, [])
+  }, [HOLD_COLORS])
 
   const endBlot = useCallback((pointerId: number) => {
     const id = pointerToBlot.current.get(pointerId)
