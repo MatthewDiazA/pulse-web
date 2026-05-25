@@ -13,95 +13,6 @@ function parseSpotify(url: string): { type: string; id: string } | null {
   } catch { return null }
 }
 
-async function scrapeTrackEmbed(trackId: string): Promise<{ preview: string | null; title: string | null; artist: string | null }> {
-  const res = await fetch(`https://open.spotify.com/embed/track/${trackId}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-  })
-  if (!res.ok) return { preview: null, title: null, artist: null }
-  const html = await res.text()
-
-  const nextDataMatch = html.match(/<script id="__NEXT_DATA__[^>]*>([^<]+)<\/script>/)
-  if (nextDataMatch) {
-    try {
-      const json = JSON.parse(nextDataMatch[1])
-      const entity = json?.props?.pageProps?.state?.data?.entity
-      if (entity?.audioPreview?.url) {
-        return {
-          preview: entity.audioPreview.url,
-          title: entity.name ?? null,
-          artist: entity.artists?.[0]?.name ?? null,
-        }
-      }
-    } catch {}
-  }
-
-  // Fallback direct regex
-  const m = html.match(/"audioPreview"\s*:\s*\{\s*"url"\s*:\s*"([^"]+)"/)
-  if (m) {
-    const preview = m[1].replace(/\\u002F/g, '/').replace(/\\\//g, '/')
-    const title = (html.match(/"name"\s*:\s*"([^"]+)"/) ?? [])[1] ?? null
-    const artist = (html.match(/"subtitle"\s*:\s*"([^"]+)"/) ?? [])[1] ?? null
-    return { preview, title, artist }
-  }
-
-  return { preview: null, title: null, artist: null }
-}
-
-async function getFirstTrackFromPlaylist(playlistId: string): Promise<string | null> {
-  // Scrape the playlist embed page and extract first track ID from the tracklist
-  const res = await fetch(`https://open.spotify.com/embed/playlist/${playlistId}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-  })
-  if (!res.ok) return null
-  const html = await res.text()
-
-  try {
-    const nextDataMatch = html.match(/<script id="__NEXT_DATA__[^>]*>([^<]+)<\/script>/)
-    if (nextDataMatch) {
-      const json = JSON.parse(nextDataMatch[1])
-      // Try trackList first
-      const trackList = json?.props?.pageProps?.state?.data?.trackList
-      if (trackList?.length > 0) {
-        for (const item of trackList) {
-          const uri = item?.uri ?? item?.track?.uri
-          if (uri) {
-            const id = uri.split(':').pop()
-            if (id) return id
-          }
-        }
-      }
-      // Try entity items
-      const items = json?.props?.pageProps?.state?.data?.entity?.trackList
-        ?? json?.props?.pageProps?.state?.data?.entity?.items
-      if (items?.length > 0) {
-        for (const item of items) {
-          const uri = item?.uri ?? item?.track?.uri
-          if (uri) {
-            const id = uri.split(':').pop()
-            if (id) return id
-          }
-        }
-      }
-    }
-  } catch {}
-
-  // Fallback: find any track URI in the raw HTML
-  const uriMatch = html.match(/spotify:track:([a-zA-Z0-9]{22})/)
-  if (uriMatch) return uriMatch[1]
-
-  // Fallback: find track IDs in href patterns
-  const hrefMatch = html.match(/\/track\/([a-zA-Z0-9]{22})/)
-  if (hrefMatch) return hrefMatch[1]
-
-  return null
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const url = searchParams.get('url')
@@ -111,33 +22,67 @@ export async function GET(request: Request) {
   if (!parsed) return NextResponse.json({ preview: null, error: 'Not a Spotify URL' })
 
   try {
-    // For tracks — scrape directly
-    if (parsed.type === 'track') {
-      const result = await scrapeTrackEmbed(parsed.id)
-      return NextResponse.json({ preview: result.preview, title: result.title, artist: result.artist })
+    const embedUrl = `https://open.spotify.com/embed/${parsed.type}/${parsed.id}`
+
+    const res = await fetch(embedUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    })
+
+    if (!res.ok) {
+      return NextResponse.json({ preview: null, error: `Spotify embed returned ${res.status}` })
     }
 
-    // For playlists/albums/artists — get first track ID then scrape that track
-    let trackId: string | null = null
+    const html = await res.text()
+    const hasNextData = html.includes('__NEXT_DATA__')
+    const hasAudioPreview = html.includes('audioPreview')
 
-    if (parsed.type === 'playlist') {
-      trackId = await getFirstTrackFromPlaylist(parsed.id)
-    } else if (parsed.type === 'album') {
-      // Album embed — find track URI in HTML
-      const res = await fetch(`https://open.spotify.com/embed/album/${parsed.id}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36' },
-      })
-      const html = await res.text()
-      const m = html.match(/spotify:track:([a-zA-Z0-9]{22})/) ?? html.match(/\/track\/([a-zA-Z0-9]{22})/)
-      trackId = m?.[1] ?? null
+    // Parse __NEXT_DATA__ script tag
+    const nextDataMatch = html.match(/<script id="__NEXT_DATA__[^>]*>([\s\S]*?)<\/script>/)
+    if (nextDataMatch) {
+      try {
+        const json = JSON.parse(nextDataMatch[1])
+        const entity = json?.props?.pageProps?.state?.data?.entity
+        const preview = entity?.audioPreview?.url ?? null
+        const title = entity?.name ?? null
+        const artist = entity?.artists?.[0]?.name ?? null
+
+        if (preview) {
+          return NextResponse.json({ preview, title, artist })
+        }
+
+        // Return debug info so we can see the shape
+        return NextResponse.json({
+          preview: null,
+          error: 'audioPreview not in entity',
+          debug: {
+            hasNextData,
+            hasAudioPreview,
+            entityKeys: entity ? Object.keys(entity) : null,
+            type: parsed.type,
+            id: parsed.id,
+          }
+        })
+      } catch (parseErr: any) {
+        return NextResponse.json({ preview: null, error: 'JSON parse failed: ' + parseErr.message, debug: { hasNextData, hasAudioPreview } })
+      }
     }
 
-    if (trackId) {
-      const result = await scrapeTrackEmbed(trackId)
-      return NextResponse.json({ preview: result.preview, title: result.title, artist: result.artist })
-    }
+    // No __NEXT_DATA__ at all — return what we can see
+    return NextResponse.json({
+      preview: null,
+      error: 'No __NEXT_DATA__ found',
+      debug: {
+        hasNextData,
+        hasAudioPreview,
+        htmlLength: html.length,
+        htmlSnippet: html.slice(0, 200),
+      }
+    })
 
-    return NextResponse.json({ preview: null, error: 'Could not find a previewable track' })
   } catch (err: any) {
     return NextResponse.json({ preview: null, error: err.message })
   }
