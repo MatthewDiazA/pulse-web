@@ -303,16 +303,15 @@ export default function AccountPage() {
         <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
-        <div style={{display:'flex',alignItems:'center',gap:'16px'}}>
-          <div className="nav-links-desktop">
-            <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
-            <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
-            <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
-            <div style={{width:'1px',height:'14px',background:'rgba(255,255,255,0.1)',flexShrink:0}}/>
-          </div>
+        <div className="nav-center">
+          <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
+          <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
+          <button className="nav-link active" onClick={() => router.push('/host')}>dashboard</button>
+        </div>
+        <div className="nav-end">
           {user && (
             <div
-              style={{width:'30px',height:'30px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'10px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer',flexShrink:0}}
+              style={{width:'30px',height:'30px',borderRadius:'50%',background:'rgba(255,255,255,0.06)',border:'0.5px solid rgba(255,255,255,0.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Syne,sans-serif',fontSize:'10px',fontWeight:700,color:'rgba(255,255,255,0.4)',cursor:'pointer'}}
               onClick={signOut}
               title="Sign out"
             >
