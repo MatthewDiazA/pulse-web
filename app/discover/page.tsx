@@ -3,6 +3,20 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 
+// Module-level singleton — persists across navigations, never duplicated
+let _globalAudio: HTMLAudioElement | null = null
+function getGlobalAudio(): HTMLAudioElement | null {
+  return _globalAudio
+}
+function createGlobalAudio(): HTMLAudioElement {
+  if (_globalAudio) return _globalAudio
+  const a = new Audio()
+  a.loop = true
+  a.volume = 1
+  _globalAudio = a
+  return a
+}
+
 type Tier = { id: string; price: number }
 type FeedEvent = {
   id: string
@@ -53,6 +67,7 @@ export default function Discover() {
   const [audioError, setAudioError] = useState(false)
 
   const scrollerRef = useRef<HTMLDivElement>(null)
+  // Audio element created on first user tap — required for iOS autoplay policy
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const cardRefs = useRef<(HTMLElement | null)[]>([])
   const previewCache = useRef<Record<string, string | null>>({})
@@ -70,6 +85,14 @@ export default function Discover() {
       setLoading(false)
     }
     load()
+
+    // If audio was already unlocked in a previous visit, restore state
+    const existing = getGlobalAudio()
+    if (existing) {
+      audioRef.current = existing
+      setAudioReady(true)
+      setMuted(existing.muted)
+    }
   }, [])
 
   const getPreview = useCallback(async (ev: FeedEvent): Promise<string | null> => {
@@ -87,6 +110,7 @@ export default function Discover() {
     }
   }, [])
 
+  // Play audio for a given event index — only works after audio element is created
   const playFor = useCallback(async (index: number) => {
     const a = audioRef.current
     const ev = events[index]
@@ -122,9 +146,6 @@ export default function Discover() {
     getPreview(events[0])
     if (events[1]) getPreview(events[1])
   }, [loading, events, getPreview])
-
-  // Play audio when active card changes
-  useEffect(() => {
     if (loading || events.length === 0) return
     if (audioRef.current) playFor(activeIndex)
     const next = events[activeIndex + 1]
@@ -151,24 +172,33 @@ export default function Discover() {
     return () => obs.disconnect()
   }, [loading, events])
 
+  // KEY FIX: Create the Audio element inside the user gesture handler
+  // iOS Safari blocks audio created before a user interaction
   const unlockAudio = useCallback(async () => {
     setAudioError(false)
     try {
-      if (!audioRef.current) {
-        const a = new Audio()
-        a.loop = true
-        a.volume = 1
-        audioRef.current = a
+      // If global audio already exists (returning to page) — reuse it, don't create a new one
+      const existing = getGlobalAudio()
+      if (existing) {
+        audioRef.current = existing
+        existing.muted = false
+        setAudioReady(true)
+        setMuted(false)
+        await playFor(activeIndex)
+        return
       }
-      const a = audioRef.current
 
+      // First time — must create inside gesture handler for iOS
+      const a = createGlobalAudio()
+      audioRef.current = a
+
+      // Unlock iOS audio session synchronously inside gesture
       a.src = ''
-      const playPromise = a.play()
-      if (playPromise) playPromise.catch(() => {})
+      const p = a.play()
+      if (p) p.catch(() => {})
 
       setAudioReady(true)
       setMuted(false)
-
       await playFor(activeIndex)
     } catch (e) {
       console.warn('Audio unlock error:', e)
