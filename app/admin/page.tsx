@@ -120,18 +120,20 @@ function BlastTab() {
 
   const sendSelected = async () => {
     setSending(true); setResults([])
-    const toSend = tickets.filter((t: any) => selected.has(t.email))
-    const allTickets = await (await fetch(`/api/admin/blast-tickets?eventId=${selectedEvent}`)).json()
+    const newResults: { email: string; status: 'sent' | 'failed' }[] = []
 
-    // Group all tickets by email, only send to selected emails
+    // Get all tickets for this event with enriched data
+    const { tickets: allTickets } = await (await fetch(`/api/admin/blast-tickets?eventId=${selectedEvent}`)).json()
+
+    // Group by email, only process selected
     const grouped: Record<string, any[]> = {}
-    for (const t of allTickets.tickets ?? []) {
+    for (const t of allTickets ?? []) {
       if (!t.email || !selected.has(t.email)) continue
       if (!grouped[t.email]) grouped[t.email] = []
       grouped[t.email].push(t)
     }
 
-    const newResults: { email: string; status: 'sent' | 'failed' }[] = []
+    // Send one email per person with all their QR codes
     for (const [email, buyerTickets] of Object.entries(grouped)) {
       const first = buyerTickets[0]
       const count = buyerTickets.length
@@ -139,11 +141,24 @@ function BlastTab() {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(t.qr_code)}`
         return `<div style="text-align:center;margin-bottom:20px;">${count > 1 ? `<div style="font-size:10px;letter-spacing:2px;color:#666;text-transform:uppercase;margin-bottom:8px;">Ticket ${i+1} of ${count}</div>` : ''}<div style="background:#fff;border-radius:10px;padding:12px;display:inline-block;"><img src="${qrUrl}" width="160" height="160" alt="QR" style="display:block;"/></div><div style="margin-top:6px;font-size:10px;color:#666;letter-spacing:1px;text-transform:uppercase;">${t.tier}</div></div>`
       }).join('')
+
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#000;font-family:Arial,sans-serif;color:#f0f0f0;"><table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;padding:40px 20px;"><tr><td><div style="font-size:28px;font-weight:900;letter-spacing:5px;color:#ffaa33;margin-bottom:32px;font-family:Impact,sans-serif;text-transform:lowercase;">pulse</div><div style="background:#0d0800;border:1px solid rgba(255,170,51,0.2);border-radius:16px;overflow:hidden;"><div style="height:3px;background:linear-gradient(90deg,#ff6600,#ffaa33,#ffc850);"></div><div style="padding:28px;text-align:center;"><div style="font-size:11px;letter-spacing:3px;color:#888;text-transform:uppercase;margin-bottom:10px;">You're on the list</div><div style="font-size:32px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:6px;">${first.event_title}</div><div style="font-size:13px;color:#888;">${count > 1 ? `${count} tickets · ` : ''}${first.event_date}${first.venue ? ` · ${first.venue}` : ''}</div></div><div style="padding:0 28px 28px;">${qrBlocks}<div style="text-align:center;font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Show at the door</div></div></div></td></tr></table></body></html>`
+
       try {
-        const r = await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: email, event_title: first.event_title, event_date: first.event_date, venue: first.venue, tier_name: first.tier, qr_code: buyerTickets[0].qr_code, buyer_name: first.name ?? '' }) })
-        // Use our own inline send since /api/email handles single QR only
-        // For multi-ticket we POST directly with custom html via a workaround
+        const r = await fetch('/api/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: email,
+            event_title: first.event_title,
+            event_date: first.event_date,
+            venue: first.venue,
+            tier_name: buyerTickets.map((t: any) => t.tier).join(', '),
+            qr_code: first.qr_code,
+            buyer_name: first.name ?? '',
+            custom_html: html,
+          }),
+        })
         newResults.push({ email, status: 'sent' })
       } catch { newResults.push({ email, status: 'failed' }) }
       setResults([...newResults])
@@ -248,7 +263,7 @@ function EventTicketStats({ eventId }: { eventId: string }) {
       // Also get check-in status
       const { data: ticketData } = await supabase
         .from('tickets')
-        .select('id,is_checked_in,tier:ticket_tiers(name,price),order:orders(stripe_payment_intent_id,total_amount)')
+        .select('id,is_checked_in,order_id,tier:ticket_tiers(name,price)')
         .eq('event_id', eventId)
         .order('created_at', { ascending: true })
 
@@ -273,8 +288,8 @@ function EventTicketStats({ eventId }: { eventId: string }) {
     <div style={{ padding: '16px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>Loading stats...</div>
   )
 
-  const paid = tickets.filter(t => (t.order as any)?.stripe_payment_intent_id)
-  const comped = tickets.filter(t => !(t.order as any)?.stripe_payment_intent_id)
+  const paid = tickets.filter(t => !!(t as any).order_id)
+  const comped = tickets.filter(t => !(t as any).order_id)
   const checkedIn = tickets.filter(t => t.is_checked_in)
   const revenue = paid.reduce((s, t) => s + Number((t.order as any)?.total_amount || 0), 0)
   const totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0)
@@ -332,7 +347,7 @@ function EventTicketStats({ eventId }: { eventId: string }) {
         <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', margin: '16px 0 10px' }}>Roster</div>
         {tickets.map(t => {
           const order = t.order as any
-          const isPaid = !!order?.stripe_payment_intent_id
+          const isPaid = !!(t as any).order_id
           const email = (t as any).email ?? order?.buyer_email ?? '—'
           const name = (t as any).name ?? order?.buyer_name ?? ''
           const tierName = (t.tier as any)?.name ?? '—'
