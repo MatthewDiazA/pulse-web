@@ -228,6 +228,138 @@ function BlastTab() {
 }
 
 
+function EventTicketStats({ eventId }: { eventId: string }) {
+  const [tiers, setTiers] = useState<any[]>([])
+  const [tickets, setTickets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const [{ data: tierData }, { data: ticketData }] = await Promise.all([
+        supabase.from('ticket_tiers').select('id,name,price,quantity,quantity_sold').eq('event_id', eventId),
+        supabase.from('tickets')
+          .select('id,qr_code,is_checked_in,user_id,tier:ticket_tiers(name,price),order:orders(buyer_email,buyer_name,total_amount,stripe_payment_intent_id)')
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: true }),
+      ])
+      setTiers(tierData ?? [])
+      setTickets(ticketData ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [eventId])
+
+  if (loading) return (
+    <div style={{ padding: '16px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>Loading stats...</div>
+  )
+
+  const paid = tickets.filter(t => (t.order as any)?.stripe_payment_intent_id)
+  const comped = tickets.filter(t => !(t.order as any)?.stripe_payment_intent_id)
+  const checkedIn = tickets.filter(t => t.is_checked_in)
+  const revenue = paid.reduce((s, t) => s + Number((t.order as any)?.total_amount || 0), 0)
+  const totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0)
+  const soldPct = totalCapacity > 0 ? Math.round((tickets.length / totalCapacity) * 100) : 0
+
+  return (
+    <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.4)' }}>
+      {/* Top stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '1px', background: 'rgba(255,255,255,0.04)' }}>
+        {[
+          { label: 'Revenue', value: `$${revenue.toFixed(2)}`, sub: `${paid.length} paid`, color: '#ffaa33' },
+          { label: 'Comped / GL', value: comped.length, sub: '$0 · no order', color: comped.length > 0 ? '#a78bfa' : 'rgba(255,255,255,0.3)' },
+          { label: 'Total tickets', value: tickets.length, sub: `${soldPct}% of capacity` },
+          { label: 'Checked in', value: checkedIn.length, sub: `${tickets.length > 0 ? Math.round((checkedIn.length / tickets.length) * 100) : 0}% at door`, color: checkedIn.length > 0 ? '#4ade80' : undefined },
+          { label: 'Still outside', value: tickets.length - checkedIn.length, sub: 'not scanned yet' },
+        ].map(s => (
+          <div key={s.label} style={{ padding: '14px 16px', background: '#000' }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '6px' }}>{s.label}</div>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '28px', fontWeight: 900, color: (s as any).color ?? '#fff', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '3px' }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tier breakdown */}
+      <div style={{ padding: '16px 20px', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }}>Capacity by tier</div>
+        {tiers.map(t => {
+          const sold = t.quantity_sold || 0
+          const pct = t.quantity > 0 ? (sold / t.quantity) * 100 : 0
+          const tierRevenue = Number(t.price) * sold
+          return (
+            <div key={t.id} style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: '#f0f0f0', fontWeight: 600 }}>{t.name}</span>
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>${Number(t.price).toFixed(2)} each</span>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{sold}/{t.quantity} sold</span>
+                  {tierRevenue > 0 && <span style={{ fontSize: '11px', color: '#ffaa33', fontWeight: 700 }}>${tierRevenue.toFixed(2)}</span>}
+                  {Number(t.price) === 0 && <span style={{ fontSize: '10px', color: '#a78bfa' }}>comped</span>}
+                </div>
+              </div>
+              <div style={{ height: '3px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: pct >= 90 ? '#f87171' : pct >= 60 ? '#ffaa33' : '#4ade80', borderRadius: '2px' }}/>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Buyer roster */}
+      <div style={{ padding: '0 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', margin: '16px 0 10px' }}>Roster</div>
+        {tickets.map(t => {
+          const order = t.order as any
+          const isPaid = !!order?.stripe_payment_intent_id
+          const email = order?.buyer_email ?? '—'
+          const name = order?.buyer_name ?? ''
+          const tierName = (t.tier as any)?.name ?? '—'
+          const tierPrice = Number((t.tier as any)?.price || 0)
+          const initials = name ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase()
+          return (
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: t.is_checked_in ? 'rgba(74,222,128,0.04)' : 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '4px', border: `0.5px solid ${t.is_checked_in ? 'rgba(74,222,128,0.15)' : isPaid ? 'rgba(255,255,255,0.05)' : 'rgba(167,139,250,0.15)'}` }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: isPaid ? 'rgba(255,170,51,0.08)' : 'rgba(167,139,250,0.1)', border: `0.5px solid ${isPaid ? 'rgba(255,170,51,0.2)' : 'rgba(167,139,250,0.25)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: isPaid ? 'rgba(255,170,51,0.7)' : 'rgba(167,139,250,0.7)', flexShrink: 0 }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '12px', color: '#f0f0f0', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || email}</div>
+                {name && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>{tierName}</span>
+                {isPaid ? (
+                  <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', color: '#ffaa33', background: 'rgba(255,170,51,0.08)', border: '0.5px solid rgba(255,170,51,0.15)', borderRadius: '4px', padding: '2px 6px' }}>
+                    ${tierPrice > 0 ? tierPrice.toFixed(2) : '0.00'}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', color: '#a78bfa', background: 'rgba(167,139,250,0.08)', border: '0.5px solid rgba(167,139,250,0.2)', borderRadius: '4px', padding: '2px 6px' }}>GL</span>
+                )}
+                <div title={t.is_checked_in ? 'Checked in' : 'Not scanned'} style={{ width: '8px', height: '8px', borderRadius: '50%', background: t.is_checked_in ? '#4ade80' : 'rgba(255,255,255,0.1)' }}/>
+              </div>
+            </div>
+          )
+        })}
+        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+          {[
+            { dot: '#ffaa33', label: 'Paid ticket' },
+            { dot: '#a78bfa', label: 'Guestlist / comped' },
+            { dot: '#4ade80', label: 'Checked in at door' },
+            { dot: 'rgba(255,255,255,0.15)', label: 'Not scanned yet' },
+          ].map(l => (
+            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: l.dot, flexShrink: 0 }}/>{l.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 function EventsTab() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
