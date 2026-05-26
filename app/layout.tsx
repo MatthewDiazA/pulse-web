@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import CursorTrail from './components/CursorTrail'
 import PageTransition from './components/PageTransition'
 
 export const metadata: Metadata = {
@@ -16,7 +15,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body style={{ margin: 0, background: '#000', overflowX: 'hidden' }}>
-        <CursorTrail />
         <PageTransition>
           {children}
         </PageTransition>
