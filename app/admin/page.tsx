@@ -122,7 +122,6 @@ function BlastTab() {
     setSending(true); setResults([])
     const newResults: { email: string; status: 'sent' | 'failed' }[] = []
 
-    // Get all tickets for this event with enriched data
     const { tickets: allTickets } = await (await fetch(`/api/admin/blast-tickets?eventId=${selectedEvent}`)).json()
 
     // Group by email, only process selected
@@ -133,17 +132,8 @@ function BlastTab() {
       grouped[t.email].push(t)
     }
 
-    // Send one email per person with all their QR codes
     for (const [email, buyerTickets] of Object.entries(grouped)) {
       const first = buyerTickets[0]
-      const count = buyerTickets.length
-      const qrBlocks = buyerTickets.map((t: any, i: number) => {
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(t.qr_code)}`
-        return `<div style="text-align:center;margin-bottom:20px;">${count > 1 ? `<div style="font-size:10px;letter-spacing:2px;color:#666;text-transform:uppercase;margin-bottom:8px;">Ticket ${i+1} of ${count}</div>` : ''}<div style="background:#fff;border-radius:10px;padding:12px;display:inline-block;"><img src="${qrUrl}" width="160" height="160" alt="QR" style="display:block;"/></div><div style="margin-top:6px;font-size:10px;color:#666;letter-spacing:1px;text-transform:uppercase;">${t.tier}</div></div>`
-      }).join('')
-
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#000;font-family:Arial,sans-serif;color:#f0f0f0;"><table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;padding:40px 20px;"><tr><td><div style="font-size:28px;font-weight:900;letter-spacing:5px;color:#ffaa33;margin-bottom:32px;font-family:Impact,sans-serif;text-transform:lowercase;">pulse</div><div style="background:#0d0800;border:1px solid rgba(255,170,51,0.2);border-radius:16px;overflow:hidden;"><div style="height:3px;background:linear-gradient(90deg,#ff6600,#ffaa33,#ffc850);"></div><div style="padding:28px;text-align:center;"><div style="font-size:11px;letter-spacing:3px;color:#888;text-transform:uppercase;margin-bottom:10px;">You're on the list</div><div style="font-size:32px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:6px;">${first.event_title}</div><div style="font-size:13px;color:#888;">${count > 1 ? `${count} tickets · ` : ''}${first.event_date}${first.venue ? ` · ${first.venue}` : ''}</div></div><div style="padding:0 28px 28px;">${qrBlocks}<div style="text-align:center;font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Show at the door</div></div></div></td></tr></table></body></html>`
-
       try {
         const r = await fetch('/api/email', {
           method: 'POST',
@@ -153,10 +143,8 @@ function BlastTab() {
             event_title: first.event_title,
             event_date: first.event_date,
             venue: first.venue,
-            tier_name: buyerTickets.map((t: any) => t.tier).join(', '),
-            qr_code: first.qr_code,
             buyer_name: first.name ?? '',
-            custom_html: html,
+            tickets: buyerTickets.map((t: any) => ({ qr_code: t.qr_code, tier_name: t.tier })),
           }),
         })
         newResults.push({ email, status: 'sent' })

@@ -102,61 +102,22 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
             })
           : 'Date TBD'
 
-        const venueLine = eventData?.venue_name ? ` · ${eventData.venue_name}` : ''
-        const venueRow = eventData?.venue_name
-          ? `<tr><td style="font-size:13px;color:#888;padding:6px 0;">Venue</td><td style="font-size:13px;color:#f0f0f0;text-align:right;padding:6px 0;">${eventData.venue_name}</td></tr>`
-          : ''
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticketRows[0].qr_code)}`
         const eventTitle = eventData?.title ?? 'Event'
         const tierName = tier?.name ?? 'Ticket'
-        const totalPaid = ((session.amount_total ?? 0) / 100).toFixed(2)
 
-        const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#000;font-family:Arial,sans-serif;color:#f0f0f0;">
-<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;padding:40px 20px;">
-<tr><td>
-<div style="font-size:36px;font-weight:900;letter-spacing:6px;color:#ffaa33;margin-bottom:40px;font-family:Impact,'Arial Black',sans-serif;text-transform:lowercase;">pulse</div>
-<div style="background:#0d0800;border:1px solid rgba(255,170,51,0.2);border-radius:20px;overflow:hidden;margin-bottom:32px;">
-  <div style="height:4px;background:linear-gradient(90deg,#ff6600,#ffaa33,#ffc850);"></div>
-  <div style="padding:32px;text-align:center;">
-    <div style="font-size:12px;letter-spacing:3px;color:#888;text-transform:uppercase;margin-bottom:12px;">You're on the list</div>
-    <div style="font-size:36px;font-weight:900;color:#f0f0f0;text-transform:uppercase;line-height:1;margin-bottom:8px;">${eventTitle}</div>
-    <div style="font-size:14px;color:#888;margin-bottom:4px;">${tierName}</div>
-    <div style="font-size:13px;color:#666;">${eventDate}${venueLine}</div>
-  </div>
-  <div style="padding:0 32px 32px;text-align:center;">
-    <div style="background:#ffffff;border-radius:12px;padding:16px;display:inline-block;">
-      <img src="${qrUrl}" width="200" height="200" alt="QR Code" style="display:block;"/>
-    </div>
-    <div style="margin-top:12px;font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;">Show this at the door</div>
-  </div>
-</div>
-<div style="background:#0d0800;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;margin-bottom:32px;">
-  <div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;">Order details</div>
-  <table width="100%" cellpadding="0" cellspacing="0">
-    <tr><td style="font-size:13px;color:#888;padding:6px 0;">Event</td><td style="font-size:13px;color:#f0f0f0;text-align:right;padding:6px 0;">${eventTitle}</td></tr>
-    <tr><td style="font-size:13px;color:#888;padding:6px 0;">Ticket type</td><td style="font-size:13px;color:#f0f0f0;text-align:right;padding:6px 0;">${tierName}</td></tr>
-    <tr><td style="font-size:13px;color:#888;padding:6px 0;">Quantity</td><td style="font-size:13px;color:#f0f0f0;text-align:right;padding:6px 0;">${qty}</td></tr>
-    <tr><td style="font-size:13px;color:#888;padding:6px 0;">Date</td><td style="font-size:13px;color:#f0f0f0;text-align:right;padding:6px 0;">${eventDate}</td></tr>
-    ${venueRow}
-    <tr><td style="font-size:13px;color:#888;padding:6px 0;border-top:0.5px solid rgba(255,255,255,0.08);padding-top:12px;">Total paid</td><td style="font-size:15px;color:#ffaa33;font-weight:700;text-align:right;padding:6px 0;">$${totalPaid}</td></tr>
-  </table>
-</div>
-<div style="text-align:center;font-size:12px;color:#555;">
-  <div style="margin-bottom:8px;">Powered by <span style="color:#ffaa33;">pulse</span></div>
-</div>
-</td></tr>
-</table>
-</body>
-</html>`
-
-        await resend.emails.send({
-          from: 'PULSE <tickets@pulsetickets.vip>',
-          to: buyerEmail,
-          subject: `Your ticket to ${eventTitle}`,
-          html,
+        // Send via /api/email — single canonical template
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pulsetx.vercel.app'
+        await fetch(`${appUrl}/api/email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: buyerEmail,
+            event_title: eventTitle,
+            event_date: eventDate,
+            venue: eventData?.venue_name ?? '',
+            buyer_name: buyerName,
+            tickets: ticketRows.map((t: any) => ({ qr_code: t.qr_code, tier_name: tierName })),
+          }),
         })
 
         console.log('Paid ticket email sent to:', buyerEmail)
