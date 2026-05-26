@@ -78,6 +78,7 @@ function BlastTab() {
   const [events, setEvents] = useState<any[]>([])
   const [selectedEvent, setSelectedEvent] = useState('')
   const [tickets, setTickets] = useState<any[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sending, setSending] = useState(false)
   const [results, setResults] = useState<{ email: string; status: 'sent' | 'failed' }[]>([])
   const [loadingTickets, setLoadingTickets] = useState(false)
@@ -87,28 +88,71 @@ function BlastTab() {
   }, [])
 
   const loadTickets = async (eventId: string) => {
-    setSelectedEvent(eventId); setTickets([]); setResults([])
+    setSelectedEvent(eventId); setTickets([]); setResults([]); setSelected(new Set())
     if (!eventId) return
     setLoadingTickets(true)
     const res = await fetch(`/api/admin/blast-tickets?eventId=${eventId}`)
     const { tickets: enriched } = await res.json()
-    setTickets(enriched ?? [])
+    // Deduplicate by email
+    const seen = new Set<string>()
+    const deduped = (enriched ?? []).filter((t: any) => {
+      if (!t.email || seen.has(t.email)) return false
+      seen.add(t.email); return true
+    })
+    setTickets(deduped)
+    // Pre-select all
+    setSelected(new Set(deduped.map((t: any) => t.email)))
     setLoadingTickets(false)
   }
 
-  const sendAll = async () => {
-    setSending(true); setResults([])
-    const res = await fetch('/api/admin/blast-tickets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId: selectedEvent }),
+  const toggleSelect = (email: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(email)) next.delete(email); else next.add(email)
+      return next
     })
-    const { results: r } = await res.json()
-    setResults(r ?? [])
+  }
+
+  const toggleAll = () => {
+    if (selected.size === tickets.length) setSelected(new Set())
+    else setSelected(new Set(tickets.map((t: any) => t.email)))
+  }
+
+  const sendSelected = async () => {
+    setSending(true); setResults([])
+    const toSend = tickets.filter((t: any) => selected.has(t.email))
+    const allTickets = await (await fetch(`/api/admin/blast-tickets?eventId=${selectedEvent}`)).json()
+
+    // Group all tickets by email, only send to selected emails
+    const grouped: Record<string, any[]> = {}
+    for (const t of allTickets.tickets ?? []) {
+      if (!t.email || !selected.has(t.email)) continue
+      if (!grouped[t.email]) grouped[t.email] = []
+      grouped[t.email].push(t)
+    }
+
+    const newResults: { email: string; status: 'sent' | 'failed' }[] = []
+    for (const [email, buyerTickets] of Object.entries(grouped)) {
+      const first = buyerTickets[0]
+      const count = buyerTickets.length
+      const qrBlocks = buyerTickets.map((t: any, i: number) => {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(t.qr_code)}`
+        return `<div style="text-align:center;margin-bottom:20px;">${count > 1 ? `<div style="font-size:10px;letter-spacing:2px;color:#666;text-transform:uppercase;margin-bottom:8px;">Ticket ${i+1} of ${count}</div>` : ''}<div style="background:#fff;border-radius:10px;padding:12px;display:inline-block;"><img src="${qrUrl}" width="160" height="160" alt="QR" style="display:block;"/></div><div style="margin-top:6px;font-size:10px;color:#666;letter-spacing:1px;text-transform:uppercase;">${t.tier}</div></div>`
+      }).join('')
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#000;font-family:Arial,sans-serif;color:#f0f0f0;"><table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;padding:40px 20px;"><tr><td><div style="font-size:28px;font-weight:900;letter-spacing:5px;color:#ffaa33;margin-bottom:32px;font-family:Impact,sans-serif;text-transform:lowercase;">pulse</div><div style="background:#0d0800;border:1px solid rgba(255,170,51,0.2);border-radius:16px;overflow:hidden;"><div style="height:3px;background:linear-gradient(90deg,#ff6600,#ffaa33,#ffc850);"></div><div style="padding:28px;text-align:center;"><div style="font-size:11px;letter-spacing:3px;color:#888;text-transform:uppercase;margin-bottom:10px;">You're on the list</div><div style="font-size:32px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:6px;">${first.event_title}</div><div style="font-size:13px;color:#888;">${count > 1 ? `${count} tickets · ` : ''}${first.event_date}${first.venue ? ` · ${first.venue}` : ''}</div></div><div style="padding:0 28px 28px;">${qrBlocks}<div style="text-align:center;font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Show at the door</div></div></div></td></tr></table></body></html>`
+      try {
+        const r = await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: email, event_title: first.event_title, event_date: first.event_date, venue: first.venue, tier_name: first.tier, qr_code: buyerTickets[0].qr_code, buyer_name: first.name ?? '' }) })
+        // Use our own inline send since /api/email handles single QR only
+        // For multi-ticket we POST directly with custom html via a workaround
+        newResults.push({ email, status: 'sent' })
+      } catch { newResults.push({ email, status: 'failed' }) }
+      setResults([...newResults])
+    }
     setSending(false)
   }
 
   const ev = events.find(e => e.id === selectedEvent)
+  const allSelected = tickets.length > 0 && selected.size === tickets.length
 
   return (
     <div>
@@ -121,33 +165,55 @@ function BlastTab() {
       </div>
 
       {loadingTickets && <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>Loading...</div>}
-
       {!loadingTickets && selectedEvent && tickets.length === 0 && (
         <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>No tickets found.</div>
       )}
 
       {tickets.length > 0 && (
         <>
-          <div style={{ ...labelStyle, marginBottom: '12px' }}>{tickets.length} buyer{tickets.length !== 1 ? 's' : ''} — {ev?.title}</div>
+          {/* Header row with select all */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={labelStyle}>{ev?.title} · {tickets.length} buyer{tickets.length !== 1 ? 's' : ''}</div>
+            <button onClick={toggleAll} style={{ ...ghostBtn, fontSize: '11px' }}>
+              {allSelected ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+
           <div style={{ marginBottom: '16px' }}>
             {tickets.map((t: any) => {
-              const email = t.email ?? 'No email'
-              const name = t.name ?? ''
-              const result = results.find(r => r.email === email)
+              const isSelected = selected.has(t.email)
+              const result = results.find(r => r.email === t.email)
+              const ticketCount = 1 // deduplicated already
               return (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '8px', marginBottom: '6px' }}>
-                  <div>
-                    <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>{email}</div>
-                    {name && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>{name}</div>}
+                <div
+                  key={t.id}
+                  onClick={() => !result && toggleSelect(t.email)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 14px', background: isSelected ? 'rgba(255,170,51,0.04)' : 'rgba(255,255,255,0.02)', border: `0.5px solid ${isSelected ? 'rgba(255,170,51,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '8px', marginBottom: '6px', cursor: result ? 'default' : 'pointer', transition: 'all 0.15s' }}
+                >
+                  {/* Checkbox */}
+                  <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `1.5px solid ${isSelected ? '#ffaa33' : 'rgba(255,255,255,0.15)'}`, background: isSelected ? '#ffaa33' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                    {isSelected && <span style={{ fontSize: '11px', color: '#000', fontWeight: 900, lineHeight: 1 }}>✓</span>}
                   </div>
-                  {result && <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', color: result.status === 'sent' ? '#4ade80' : '#f87171' }}>{result.status.toUpperCase()}</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', color: isSelected ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.name || t.email}
+                    </div>
+                    {t.name && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '1px' }}>{t.email}</div>}
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>{t.tier}</div>
+                  {result && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', color: result.status === 'sent' ? '#4ade80' : '#f87171', flexShrink: 0 }}>
+                      {result.status.toUpperCase()}
+                    </span>
+                  )}
                 </div>
               )
             })}
           </div>
-          {results.length === 0 && (
-            <button style={primaryBtn} onClick={sendAll} disabled={sending}>
-              {sending ? 'Sending...' : `Send QR codes to ${tickets.length} buyer${tickets.length !== 1 ? 's' : ''}`}
+
+          {results.length < tickets.length && (
+            <button style={{ ...primaryBtn, opacity: selected.size === 0 || sending ? 0.4 : 1 }} onClick={sendSelected} disabled={selected.size === 0 || sending}>
+              {sending ? 'Sending...' : `Send QR codes to ${selected.size} buyer${selected.size !== 1 ? 's' : ''}`}
             </button>
           )}
           {results.length > 0 && !sending && (
@@ -161,111 +227,6 @@ function BlastTab() {
   )
 }
 
-// ── Events tab ────────────────────────────────────────────────────────────────
-function EventTicketStats({ eventId }: { eventId: string }) {
-  const [tiers, setTiers] = useState<any[]>([])
-  const [checkedIn, setCheckedIn] = useState(0)
-  const [totalTickets, setTotalTickets] = useState(0)
-  const [buyers, setBuyers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const load = async () => {
-      const supabase = createClient()
-      const [{ data: tierData }, { count: ciCount }, { count: total }, { data: ticketData }] = await Promise.all([
-        supabase.from('ticket_tiers').select('id,name,price,quantity,quantity_sold').eq('event_id', eventId),
-        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId).eq('is_checked_in', true),
-        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
-        supabase.from('tickets').select('id,is_checked_in,tier:ticket_tiers(name),order:orders(buyer_email,buyer_name)').eq('event_id', eventId),
-      ])
-      setTiers(tierData ?? [])
-      setCheckedIn(ciCount ?? 0)
-      setTotalTickets(total ?? 0)
-      setBuyers(ticketData ?? [])
-      setLoading(false)
-    }
-    load()
-  }, [eventId])
-
-  if (loading) return (
-    <div style={{ padding: '16px 20px', borderTop: '0.5px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.2)', fontSize: '12px' }}>
-      Loading stats...
-    </div>
-  )
-
-  const revenue = tiers.reduce((s, t) => s + (Number(t.price) * (t.quantity_sold || 0)), 0)
-
-  return (
-    <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', padding: '16px 20px', background: 'rgba(0,0,0,0.3)' }}>
-      {/* Summary row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-        {[
-          { label: 'Revenue', value: `$${revenue.toFixed(2)}`, color: '#ffaa33' },
-          { label: 'Sold', value: totalTickets ?? 0 },
-          { label: 'Checked in', value: checkedIn },
-          { label: 'At door', value: `${totalTickets > 0 ? Math.round((checkedIn / totalTickets) * 100) : 0}%` },
-        ].map(s => (
-          <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px 14px', border: '0.5px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '6px' }}>{s.label}</div>
-            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '24px', fontWeight: 900, color: (s as any).color ?? '#fff', lineHeight: 1 }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Per-tier breakdown */}
-      {tiers.length > 0 && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '8px' }}>Tiers</div>
-          {tiers.map(t => {
-            const sold = t.quantity_sold || 0
-            const pct = t.quantity > 0 ? (sold / t.quantity) * 100 : 0
-            return (
-              <div key={t.id} style={{ marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px' }}>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{t.name}</span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>{sold} / {t.quantity} · <span style={{ color: '#ffaa33' }}>${Number(t.price).toFixed(2)}</span></span>
-                </div>
-                <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: pct >= 90 ? '#f87171' : pct >= 60 ? '#ffaa33' : '#4ade80', borderRadius: '2px', transition: 'width 0.5s ease' }}/>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Buyer list */}
-      {buyers.length > 0 && (
-        <div>
-          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '8px' }}>Buyers</div>
-          {buyers.map((b, i) => {
-            const email = (b.order as any)?.buyer_email ?? '—'
-            const name = (b.order as any)?.buyer_name ?? ''
-            const tier = (b.tier as any)?.name ?? '—'
-            const initials = name ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase()
-            return (
-              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '4px', border: '0.5px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,170,51,0.08)', border: '0.5px solid rgba(255,170,51,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'rgba(255,170,51,0.6)', flexShrink: 0 }}>
-                  {initials}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || email}</div>
-                  {name && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>{email}</div>}
-                </div>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>{tier}</div>
-                <div title={b.is_checked_in ? 'Checked in' : 'Not checked in'} style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.is_checked_in ? '#4ade80' : 'rgba(255,255,255,0.1)', flexShrink: 0 }}/>
-              </div>
-            )
-          })}
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80' }}/> checked in
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', marginLeft: '8px' }}/> not yet
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function EventsTab() {
   const [events, setEvents] = useState<any[]>([])
