@@ -236,15 +236,34 @@ function EventTicketStats({ eventId }: { eventId: string }) {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
-      const [{ data: tierData }, { data: ticketData }] = await Promise.all([
-        supabase.from('ticket_tiers').select('id,name,price,quantity,quantity_sold').eq('event_id', eventId),
-        supabase.from('tickets')
-          .select('id,qr_code,is_checked_in,user_id,tier:ticket_tiers(name,price),order:orders(buyer_email,buyer_name,total_amount,stripe_payment_intent_id)')
-          .eq('event_id', eventId)
-          .order('created_at', { ascending: true }),
-      ])
+      const { data: tierData } = await supabase
+        .from('ticket_tiers')
+        .select('id,name,price,quantity,quantity_sold')
+        .eq('event_id', eventId)
+
+      // Use the blast-tickets route which has auth.users fallback
+      const res = await fetch(`/api/admin/blast-tickets?eventId=${eventId}`)
+      const { tickets: enriched } = await res.json()
+
+      // Also get check-in status
+      const { data: ticketData } = await supabase
+        .from('tickets')
+        .select('id,is_checked_in,tier:ticket_tiers(name,price),order:orders(stripe_payment_intent_id,total_amount)')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: true })
+
+      // Merge enriched email/name data with ticket check-in/order data
+      const merged = (ticketData ?? []).map(t => {
+        const e = (enriched ?? []).find((x: any) => x.id === t.id)
+        return {
+          ...t,
+          email: e?.email ?? null,
+          name: e?.name ?? null,
+        }
+      })
+
       setTiers(tierData ?? [])
-      setTickets(ticketData ?? [])
+      setTickets(merged)
       setLoading(false)
     }
     load()
@@ -314,11 +333,11 @@ function EventTicketStats({ eventId }: { eventId: string }) {
         {tickets.map(t => {
           const order = t.order as any
           const isPaid = !!order?.stripe_payment_intent_id
-          const email = order?.buyer_email ?? '—'
-          const name = order?.buyer_name ?? ''
+          const email = (t as any).email ?? order?.buyer_email ?? '—'
+          const name = (t as any).name ?? order?.buyer_name ?? ''
           const tierName = (t.tier as any)?.name ?? '—'
           const tierPrice = Number((t.tier as any)?.price || 0)
-          const initials = name ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase()
+          const initials = name ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : email !== '—' ? email.slice(0, 2).toUpperCase() : '?'
           return (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: t.is_checked_in ? 'rgba(74,222,128,0.04)' : 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '4px', border: `0.5px solid ${t.is_checked_in ? 'rgba(74,222,128,0.15)' : isPaid ? 'rgba(255,255,255,0.05)' : 'rgba(167,139,250,0.15)'}` }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: isPaid ? 'rgba(255,170,51,0.08)' : 'rgba(167,139,250,0.1)', border: `0.5px solid ${isPaid ? 'rgba(255,170,51,0.2)' : 'rgba(167,139,250,0.25)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: isPaid ? 'rgba(255,170,51,0.7)' : 'rgba(167,139,250,0.7)', flexShrink: 0 }}>
