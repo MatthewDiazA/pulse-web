@@ -36,7 +36,7 @@ function buildTicketEmail({ buyer_name, event_title, event_date, venue, tickets 
 
   <!-- Logo -->
   <tr><td style="padding-bottom:32px;">
-    <div style="font-family:Impact,'Arial Black',Arial,sans-serif;font-size:32px;font-weight:900;color:#ffaa33;letter-spacing:6px;text-transform:lowercase;">pulse</div>
+    <img src="https://cdtnoviclbwyvdiuazni.supabase.co/storage/v1/object/sign/assets/pulse-word-tight.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wMTFkMzlmOS1lMjNjLTQwNmItYTQ0Mi03ZWZhYTc1YzM5NmMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJhc3NldHMvcHVsc2Utd29yZC10aWdodC5wbmciLCJpYXQiOjE3Nzk4MzMxMzMsImV4cCI6NDkzMzQzMzEzM30.DohNuBCJon82dfN7y4aBpRKhr83pBSmCKsPktVipIOo" alt="PULSE" width="100" height="auto" style="display:block;"/>
   </td></tr>
 
   <!-- Greeting -->
