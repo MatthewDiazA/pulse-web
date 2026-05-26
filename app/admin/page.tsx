@@ -5,7 +5,7 @@ import { createClient } from '../lib/supabase/client'
 
 const ADMIN_EMAIL = 'mad2288@columbia.edu'
 
-type Tab = 'overview' | 'blast' | 'events' | 'users' | 'orders'
+type Tab = 'overview' | 'blast' | 'events' | 'users' | 'orders' | 'views'
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 function useAdmin() {
@@ -532,6 +532,86 @@ function OrdersTab() {
   )
 }
 
+function ViewsTab() {
+  const [data, setData] = useState<any>(null)
+  const [period, setPeriod] = useState('30d')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`/api/pageview?period=${period}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [period])
+
+  if (loading) return <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>Loading...</div>
+  if (!data) return <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>No data yet.</div>
+
+  return (
+    <div>
+      {/* Period selector */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
+        {[
+          { id: '24h', label: 'Today' },
+          { id: '7d', label: '7 days' },
+          { id: '30d', label: '30 days' },
+        ].map(p => (
+          <button key={p.id} onClick={() => setPeriod(p.id)} style={{
+            padding: '7px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+            fontFamily: "'Syne',sans-serif", fontSize: '12px',
+            background: period === p.id ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
+            color: period === p.id ? '#fff' : 'rgba(255,255,255,0.35)',
+            fontWeight: period === p.id ? 700 : 400,
+          }}>{p.label}</button>
+        ))}
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '28px' }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>Total all time</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '36px', fontWeight: 900, color: '#fff', lineHeight: 1 }}>{data.total?.toLocaleString() ?? 0}</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,170,51,0.15)', borderRadius: '14px', padding: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>Last {period === '24h' ? '24h' : period === '7d' ? '7 days' : '30 days'}</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '36px', fontWeight: 900, color: '#ffaa33', lineHeight: 1 }}>{data.recent?.toLocaleString() ?? 0}</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>Today</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '36px', fontWeight: 900, color: '#fff', lineHeight: 1 }}>{data.today?.toLocaleString() ?? 0}</div>
+        </div>
+      </div>
+
+      {/* Page breakdown */}
+      {data.pages && Object.keys(data.pages).length > 0 && (
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }}>Pages</div>
+          {Object.entries(data.pages as Record<string, number>).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([page, count]) => (
+            <div key={page} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontFamily: "'Syne',sans-serif" }}>{page}</span>
+              <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '18px', fontWeight: 900, color: '#fff' }}>{(count as number).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Event breakdown */}
+      {data.events && data.events.length > 0 && (
+        <div>
+          <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }}>Event pages</div>
+          {data.events.map((ev: any) => (
+            <div key={ev.title} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '8px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{ev.title}</span>
+              <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '18px', fontWeight: 900, color: '#ffaa33' }}>{ev.count.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = { fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '8px', display: 'block' }
 const selectStyle: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '11px 14px', color: '#f0f0f0', fontSize: '13px', fontFamily: "'Syne',sans-serif", outline: 'none', appearance: 'none' as const }
@@ -544,6 +624,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'events', label: 'Events' },
   { id: 'users', label: 'Users' },
   { id: 'orders', label: 'Orders' },
+  { id: 'views', label: 'Views' },
 ]
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -621,6 +702,7 @@ export default function AdminPage() {
         {tab === 'events'   && <EventsTab/>}
         {tab === 'users'    && <UsersTab/>}
         {tab === 'orders'   && <OrdersTab/>}
+        {tab === 'views'    && <ViewsTab/>}
       </div>
     </>
   )

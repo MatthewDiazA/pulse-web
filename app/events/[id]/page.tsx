@@ -4,6 +4,7 @@ import { useMagneticButton, usePageReveal, useNavLogo } from '../../lib/animatio
 import TouchBlot from '../../components/TouchBlot'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
+import { usePageView } from '../../lib/usePageView'
 import EventLounge from '../../components/EventLounge'
 
 type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
@@ -71,6 +72,8 @@ function toRomanTierName(name: string): string {
 export default function EventDetail() {
   const router = useRouter()
   const params = useParams()
+  const eventId = params.id as string
+  usePageView(`/events/${eventId}`, eventId)
   const logoRef = useNavLogo<HTMLButtonElement>()
   // Fix: one magnetic ref per page, applied to first available buy button via callback
   const buyBtnCallbackRef = useRef<((el: HTMLButtonElement | null) => void) | null>(null)

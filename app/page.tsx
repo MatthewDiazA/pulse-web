@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from './lib/supabase/client'
+import { usePageView } from './lib/usePageView'
 import { useMagneticButton, useStaggerReveal, useNavLogo } from './lib/animations'
 import TouchBlot from './components/TouchBlot'
 
@@ -197,6 +198,7 @@ function getPrice(event: Event): string {
 export default function Home() {
   const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
+  usePageView('/')
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
   const [userCity, setUserCity] = useState<string | null>(null)

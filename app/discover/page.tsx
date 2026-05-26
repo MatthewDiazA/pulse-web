@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
+import { usePageView } from '../lib/usePageView'
 
 // Module-level singleton — persists across navigations, never duplicated
 let _globalAudio: HTMLAudioElement | null = null
@@ -58,6 +59,7 @@ function igUrl(handle: string): string {
 
 export default function Discover() {
   const router = useRouter()
+  usePageView('/discover')
   const [events, setEvents] = useState<FeedEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)

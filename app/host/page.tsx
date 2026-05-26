@@ -40,6 +40,23 @@ export default function HostDashboard() {
     fetchEvents()
   }, [])
 
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (events.length === 0) return
+    // Fetch view counts for all events
+    Promise.all(events.map(e =>
+      fetch(`/api/pageview?event_id=${e.id}&period=30d`)
+        .then(r => r.json())
+        .then(d => ({ id: e.id, total: d.total ?? 0 }))
+        .catch(() => ({ id: e.id, total: 0 }))
+    )).then(results => {
+      const counts: Record<string, number> = {}
+      results.forEach(r => { counts[r.id] = r.total })
+      setViewCounts(counts)
+    })
+  }, [events])
+
   const totalTickets = events.reduce((sum, e) => sum + (e.ticket_tiers?.reduce((s: number, t: any) => s + t.quantity_sold, 0) ?? 0), 0)
   const totalRevenue = events.reduce((sum, e) => sum + (e.ticket_tiers?.reduce((s: number, t: any) => s + (t.quantity_sold * t.price), 0) ?? 0), 0)
   const publishedCount = events.filter(e => e.status === 'published').length
@@ -278,6 +295,7 @@ export default function HostDashboard() {
                     <div className={`event-dot ${e.status === 'draft' ? 'draft' : ''}`}/>
                     <div className="event-info"><div className="event-name">{e.title}</div><div className="event-date">{date}</div></div>
                     <div className="event-stat"><div className="event-stat-value">{sold}</div><div className="event-stat-label">sold</div></div>
+                    <div className="event-stat"><div className="event-stat-value">{viewCounts[e.id] ?? '—'}</div><div className="event-stat-label">views</div></div>
                     <span className={`status-badge status-${e.status}`}>{e.status}</span>
                     <div className="row-actions">
                       <button className="action-btn" onClick={() => window.location.href=`/events/${e.id}`}>View</button>
