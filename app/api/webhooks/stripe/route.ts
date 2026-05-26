@@ -130,7 +130,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
               <div style="font-size:24px;font-weight:900;color:#ffaa33;margin-bottom:24px;letter-spacing:3px;">pulse · new sale</div>
               <div style="background:#0d0800;border:1px solid rgba(255,170,51,0.2);border-radius:12px;padding:20px;margin-bottom:16px;">
                 <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;">${eventTitle}</div>
-                <div style="font-size:13px;color:#888;margin-bottom:12px;">${tierName} · ${eventDate}${venueLine}</div>
+                <div style="font-size:13px;color:#888;margin-bottom:12px;">${tierName} · ${eventDate}${eventData?.venue_name ? ` · ${eventData.venue_name}` : ''}</div>
                 <div style="font-size:13px;color:#aaa;">Buyer: <strong style="color:#fff;">${buyerName || 'Unknown'}</strong></div>
                 <div style="font-size:13px;color:#aaa;">Email: <strong style="color:#ffaa33;">${buyerEmail}</strong></div>
               </div>
