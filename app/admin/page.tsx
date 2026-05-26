@@ -90,27 +90,21 @@ function BlastTab() {
     setSelectedEvent(eventId); setTickets([]); setResults([])
     if (!eventId) return
     setLoadingTickets(true)
-    const { data } = await createClient().from('tickets').select('id,qr_code,event:events(title,starts_at,venue_name),tier:ticket_tiers(name),order:orders(buyer_email,buyer_name)').eq('event_id', eventId)
-    setTickets(data ?? [])
+    const res = await fetch(`/api/admin/blast-tickets?eventId=${eventId}`)
+    const { tickets: enriched } = await res.json()
+    setTickets(enriched ?? [])
     setLoadingTickets(false)
   }
 
   const sendAll = async () => {
     setSending(true); setResults([])
-    const newResults: { email: string; status: 'sent' | 'failed' }[] = []
-    for (const t of tickets) {
-      const email = (t.order as any)?.buyer_email
-      const name = (t.order as any)?.buyer_name ?? ''
-      if (!email) { newResults.push({ email: 'unknown', status: 'failed' }); continue }
-      const ev = t.event as any
-      const date = ev?.starts_at ? new Date(ev.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'
-      try {
-        const res = await fetch('/api/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: email, event_title: ev?.title ?? 'Event', event_date: date, venue: ev?.venue_name ?? '', tier_name: (t.tier as any)?.name ?? 'Ticket', qr_code: t.qr_code, buyer_name: name }) })
-        const d = await res.json()
-        newResults.push({ email, status: d.success ? 'sent' : 'failed' })
-      } catch { newResults.push({ email, status: 'failed' }) }
-      setResults([...newResults])
-    }
+    const res = await fetch('/api/admin/blast-tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId: selectedEvent }),
+    })
+    const { results: r } = await res.json()
+    setResults(r ?? [])
     setSending(false)
   }
 
@@ -136,9 +130,9 @@ function BlastTab() {
         <>
           <div style={{ ...labelStyle, marginBottom: '12px' }}>{tickets.length} buyer{tickets.length !== 1 ? 's' : ''} — {ev?.title}</div>
           <div style={{ marginBottom: '16px' }}>
-            {tickets.map(t => {
-              const email = (t.order as any)?.buyer_email ?? 'No email'
-              const name = (t.order as any)?.buyer_name ?? ''
+            {tickets.map((t: any) => {
+              const email = t.email ?? 'No email'
+              const name = t.name ?? ''
               const result = results.find(r => r.email === email)
               return (
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '8px', marginBottom: '6px' }}>
