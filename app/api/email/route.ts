@@ -23,7 +23,6 @@ export async function POST(request: Request) {
       : ''
     const venueLine = venue ? ` · ${venue}` : ''
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qr_code)}&bgcolor=ffffff&color=000000&margin=10`
-    const logoUrl = `https://pulsetx.vercel.app/pulse-word-tight.png`
     const greeting = buyer_name ? `Hey ${buyer_name.split(' ')[0]},` : "You're in."
 
     const html = `<!DOCTYPE html>
@@ -36,7 +35,7 @@ export async function POST(request: Request) {
 
   <!-- Logo -->
   <tr><td style="padding-bottom:36px;">
-    <img src="${logoUrl}" alt="PULSE" width="80" height="auto" style="display:block;"/>
+    <div style="font-family:Impact,Arial Black,sans-serif;font-size:32px;font-weight:900;color:#ffaa33;letter-spacing:6px;text-transform:lowercase;">pulse</div>
   </td></tr>
 
   <!-- Greeting -->
@@ -111,9 +110,7 @@ export async function POST(request: Request) {
 
   <!-- Footer -->
   <tr><td style="text-align:center;padding-bottom:40px;">
-    <div style="font-size:12px;color:rgba(255,255,255,0.2);margin-bottom:4px;">Powered by</div>
-    <img src="${logoUrl}" alt="PULSE" width="48" height="auto" style="display:inline-block;opacity:0.4;"/>
-    <div style="font-size:11px;color:rgba(255,255,255,0.15);margin-top:12px;">pulsetickets.vip</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.2);margin-bottom:4px;letter-spacing:1px;">pulsetickets.vip</div>
   </td></tr>
 
 </table>
