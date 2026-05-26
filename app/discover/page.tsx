@@ -95,6 +95,14 @@ export default function Discover() {
       setAudioReady(true)
       setMuted(existing.muted)
     }
+
+    // Pause audio when leaving the page
+    return () => {
+      const audio = getGlobalAudio()
+      if (audio) {
+        audio.pause()
+      }
+    }
   }, [])
 
   const getPreview = useCallback(async (ev: FeedEvent): Promise<string | null> => {
@@ -343,7 +351,6 @@ export default function Discover() {
 
                   <div className="card-body">
                     <div className="card-text">
-                      <div className="kicker">{cat}</div>
                       <h1 className="card-title">{ev.title}</h1>
                       {ev.tagline && <p className="card-tagline">{ev.tagline}</p>}
                       <div className="card-meta">

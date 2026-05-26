@@ -363,7 +363,6 @@ export default function EventDetail() {
         ) : null}
         <div className="hero-overlay"/>
         <div className="hero-content">
-          <div className="cat-badge">{event.category}</div>
           <h1 className="ev-title">{event.title}</h1>
           <div className="ev-meta">
             <span className="meta-item"><i className="ti ti-calendar" style={{fontSize:'15px',color:COLORS.primary}} aria-hidden="true"/>{date}</span>
