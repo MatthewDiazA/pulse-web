@@ -456,7 +456,7 @@ export default function EventDetail() {
                         animation:'urgencyPulse 2s ease-in-out infinite',
                       }}>
                         <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#ff6b6b',flexShrink:0,boxShadow:'0 0 6px rgba(255,80,80,0.8)'}}/>
-                        Only {available} left — act fast
+                        {available} left
                       </div>
                     )}
                     {!soldOut && (
