@@ -444,19 +444,30 @@ export default function EventDetail() {
                       <div className="tier-name">{toRomanTierName(tier.name)}</div>
                     </div>
                     <div className={`tier-price ${price === 0 ? 'free' : ''}`}>{displayPrice(price, qty > 1 ? qty : 1)}</div>
-                    <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',margin:'4px 0 14px',fontFamily:"'Syne',sans-serif"}}>
+                    <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',margin:'4px 0 12px',fontFamily:"'Syne',sans-serif"}}>
                       {soldOut ? 'Sold out' : price === 0 ? 'Free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
                     </div>
-                    {!soldOut && available <= 12 && (
-                      <div style={{
-                        display:'inline-flex',alignItems:'center',gap:'6px',
-                        background:'rgba(255,80,80,0.08)',border:'0.5px solid rgba(255,80,80,0.25)',
-                        borderRadius:'8px',padding:'7px 12px',marginBottom:'14px',
-                        fontFamily:"'Syne',sans-serif",fontSize:'12px',fontWeight:700,color:'#ff6b6b',
-                        animation:'urgencyPulse 2s ease-in-out infinite',
-                      }}>
-                        <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#ff6b6b',flexShrink:0,boxShadow:'0 0 6px rgba(255,80,80,0.8)'}}/>
-                        {available} left
+                    {!soldOut && (
+                      <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
+                        <div style={{flex:1,height:'2px',background:'rgba(255,255,255,0.06)',borderRadius:'1px',overflow:'hidden'}}>
+                          <div style={{
+                            height:'100%',
+                            width:`${Math.max(2, ((tier.quantity - available) / tier.quantity) * 100)}%`,
+                            background: available <= 5 ? '#f87171' : available <= 12 ? '#ffaa33' : 'rgba(255,255,255,0.25)',
+                            borderRadius:'1px',
+                            transition:'width 0.5s ease',
+                          }}/>
+                        </div>
+                        <span style={{
+                          fontFamily:"'Syne',sans-serif",
+                          fontSize:'11px',
+                          fontWeight:600,
+                          color: available <= 5 ? '#f87171' : available <= 12 ? '#ffaa33' : 'rgba(255,255,255,0.35)',
+                          flexShrink:0,
+                          letterSpacing:'0.3px',
+                        }}>
+                          {available} left
+                        </span>
                       </div>
                     )}
                     {!soldOut && (
