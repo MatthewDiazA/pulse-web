@@ -331,6 +331,7 @@ export default function EventDetail() {
         .buy-btn:active{transform:scale(0.99);}
         .buy-btn:disabled{opacity:0.3;cursor:not-allowed;}
         .soldout-btn{width:100%;background:rgba(255,255,255,0.04);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:15px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:not-allowed;text-align:center;}
+        @keyframes urgencyPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,80,80,0.3)}50%{opacity:0.85;box-shadow:0 0 0 4px rgba(255,80,80,0)}}
         @media(max-width:700px){.hero{height:62vh;min-height:380px;}.content{padding:24px 18px 90px;}.two-col{gap:24px;}.ev-meta{gap:10px 14px;}}
         @media(prefers-reduced-motion:reduce){nav::after,.sound-eq span,.acid-content::before,.acid-content::after{animation:none!important;}}
       `}</style>
@@ -446,6 +447,18 @@ export default function EventDetail() {
                     <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',margin:'4px 0 14px',fontFamily:"'Syne',sans-serif"}}>
                       {soldOut ? 'Sold out' : price === 0 ? 'Free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
                     </div>
+                    {!soldOut && available <= 12 && (
+                      <div style={{
+                        display:'inline-flex',alignItems:'center',gap:'6px',
+                        background:'rgba(255,80,80,0.08)',border:'0.5px solid rgba(255,80,80,0.25)',
+                        borderRadius:'8px',padding:'7px 12px',marginBottom:'14px',
+                        fontFamily:"'Syne',sans-serif",fontSize:'12px',fontWeight:700,color:'#ff6b6b',
+                        animation:'urgencyPulse 2s ease-in-out infinite',
+                      }}>
+                        <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'#ff6b6b',flexShrink:0,boxShadow:'0 0 6px rgba(255,80,80,0.8)'}}/>
+                        Only {available} left — act fast
+                      </div>
+                    )}
                     {!soldOut && (
                       <div className="qty-row">
                         <span className="qty-label">Qty</span>
