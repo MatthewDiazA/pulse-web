@@ -438,6 +438,8 @@ export default function EventDetail() {
                 const soldOut = available <= 0
                 const qty = selectedQty[tier.id] || 1
                 const isBuying = buyingTier === tier.id
+                // Door tier: hide remaining-count scarcity bar (still sells, still goes sold-out)
+                const hideAvailability = tier.name.trim().toLowerCase() === 'door'
                 return (
                   <div key={tier.id} className="ticket-card">
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
@@ -447,7 +449,7 @@ export default function EventDetail() {
                     <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',margin:'4px 0 12px',fontFamily:"'Syne',sans-serif"}}>
                       {soldOut ? 'Sold out' : price === 0 ? 'Free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
                     </div>
-                    {!soldOut && (
+                    {!soldOut && !hideAvailability && (
                       <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
                         <div style={{flex:1,height:'2px',background:'rgba(255,255,255,0.06)',borderRadius:'1px',overflow:'hidden'}}>
                           <div style={{
