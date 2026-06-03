@@ -7,6 +7,7 @@ type Buyer = {
   ticket_id: string
   user_id: string | null
   is_checked_in: boolean
+  is_guestlist: boolean
   name: string
 }
 
@@ -71,7 +72,7 @@ export default function HostDashboard() {
 
     const { data: tickets } = await supabase
       .from('tickets')
-      .select('id, user_id, is_checked_in')
+      .select('id, user_id, is_checked_in, is_guestlist')
       .eq('event_id', eventId)
       .order('created_at', { ascending: true })
 
@@ -95,6 +96,7 @@ export default function HostDashboard() {
         ticket_id: t.id,
         user_id: t.user_id,
         is_checked_in: !!t.is_checked_in,
+        is_guestlist: !!t.is_guestlist,
         name: t.user_id ? (nameMap[t.user_id] || 'Guest') : 'Guest',
       })
     }
@@ -107,23 +109,36 @@ export default function HostDashboard() {
   const generateGuestLink = async (eventId: string) => {
     setGenningFor(eventId)
     try {
-      const res = await fetch('/api/guestlist/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId, userId: user.id }),
-      })
-      const data = await res.json()
-      if (data.url) {
-        setGenLink(data.url)
-        setOpenGuests(eventId) // auto-open the guests panel so the link is visible
-        try {
-          await navigator.clipboard.writeText(data.url)
-          setCopiedToken(true)
-          setTimeout(() => setCopiedToken(false), 2500)
-        } catch {}
-      } else {
-        alert(data.error ?? 'Could not generate link')
+      const supabase = createClient()
+      // Reuse the existing link for this event if there is one, so it stays a single
+      // shareable broadcast link. Falls back to creating one the first time.
+      const { data: existing } = await supabase
+        .from('guest_invites')
+        .select('token')
+        .eq('event_id', eventId)
+        .limit(1)
+      let token = existing?.[0]?.token as string | undefined
+      if (!token) {
+        token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+        const { error } = await supabase.from('guest_invites').insert({
+          event_id: eventId,
+          token,
+          created_by: user.id,
+        })
+        if (error) {
+          alert('Could not generate link: ' + error.message)
+          setGenningFor(null)
+          return
+        }
       }
+      const link = `${window.location.origin}/gl/${token}`
+      setGenLink(link)
+      setOpenGuests(eventId) // auto-open the guests panel so the link is visible
+      try {
+        await navigator.clipboard.writeText(link)
+        setCopiedToken(true)
+        setTimeout(() => setCopiedToken(false), 2500)
+      } catch {}
     } catch {
       alert('Something went wrong')
     }
@@ -308,20 +323,26 @@ export default function HostDashboard() {
                         </div>
                       )}
                       <div className="guest-hint">
-                        {genLink ? 'Anyone who opens this link gets a free guest ticket.' : 'Tap "Guest link" to generate a shareable invite link.'}
+                        {genLink ? 'Anyone who opens this link gets a free guest ticket — share it anywhere.' : 'Tap "Guest link" to create one shareable invite link for this event.'}
                       </div>
                       {loadingBuyers === e.id ? (
                         <div style={{fontSize:'13px',color:'#554',padding:'8px 0'}}>Loading guests…</div>
                       ) : list.length === 0 ? (
                         <div style={{fontSize:'13px',color:'#554',padding:'8px 0'}}>No ticket holders yet.</div>
                       ) : (
-                        list.map(b => (
-                          <div key={b.ticket_id} className="guest-li">
-                            <div className="guest-av">{(b.name || 'G').slice(0,2).toUpperCase()}</div>
-                            <div className="guest-name">{b.name}</div>
-                            {b.is_checked_in && <span className="guest-tag in">In</span>}
+                        <>
+                          <div style={{fontSize:'11px',color:'rgba(255,255,255,0.3)',letterSpacing:'1px',textTransform:'uppercase',margin:'4px 0 10px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>
+                            {list.length} total · {list.filter(b => b.is_guestlist).length} on guest list
                           </div>
-                        ))
+                          {list.map(b => (
+                            <div key={b.ticket_id} className="guest-li">
+                              <div className="guest-av">{(b.name || 'G').slice(0,2).toUpperCase()}</div>
+                              <div className="guest-name">{b.name}</div>
+                              {b.is_guestlist && <span className="guest-tag gl">GL</span>}
+                              {b.is_checked_in && <span className="guest-tag in">In</span>}
+                            </div>
+                          ))}
+                        </>
                       )}
                     </div>
                   )}

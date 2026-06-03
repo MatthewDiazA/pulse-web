@@ -239,14 +239,28 @@ export default function EventDetail() {
     if (guestLink) { setLinkSheetOpen(true); return }
     setGenningLink(true)
     try {
-      const res = await fetch('/api/guestlist/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: event.id, userId: currentUser.id }),
-      })
-      const data = await res.json()
-      if (data.url) { setGuestLink(data.url); setLinkSheetOpen(true) }
-    } catch {}
+      const supabase = createClient()
+      // Reuse the existing broadcast link for this event if one exists
+      const { data: existing } = await supabase
+        .from('guest_invites')
+        .select('token')
+        .eq('event_id', event.id)
+        .limit(1)
+      let token = existing?.[0]?.token as string | undefined
+      if (!token) {
+        token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+        const { error } = await supabase.from('guest_invites').insert({
+          event_id: event.id,
+          token,
+          created_by: currentUser.id,
+        })
+        if (error) { alert('Could not generate link: ' + error.message); setGenningLink(false); return }
+      }
+      setGuestLink(`${window.location.origin}/gl/${token}`)
+      setLinkSheetOpen(true)
+    } catch {
+      alert('Something went wrong')
+    }
     setGenningLink(false)
   }
 
