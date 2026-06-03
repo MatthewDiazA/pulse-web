@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from './lib/supabase/client'
 import { usePageView } from './lib/usePageView'
@@ -135,6 +135,7 @@ function NavActions({ compact = false }: { compact?: boolean }) {
     </a>
   )
 }
+
 function CardPlaceholder({ accent, index }: { accent: string; index: number }) {
   return (
     <svg
@@ -161,24 +162,10 @@ function CardPlaceholder({ accent, index }: { accent: string; index: number }) {
         ))}
       </g>
       {[0, 1, 2, 3, 4, 5, 6].map(i => (
-        <circle
-          key={`a${i}`}
-          cx={20 + i * 27}
-          cy={30 + Math.sin(i) * 15}
-          r="2"
-          fill={accent}
-          opacity={0.2 + i * 0.05}
-        />
+        <circle key={`a${i}`} cx={20 + i * 27} cy={30 + Math.sin(i) * 15} r="2" fill={accent} opacity={0.2 + i * 0.05}/>
       ))}
       {[0, 1, 2, 3, 4, 5, 6].map(i => (
-        <circle
-          key={`b${i}`}
-          cx={25 + i * 26}
-          cy={55 + Math.cos(i) * 10}
-          r="2"
-          fill={accent}
-          opacity={0.15 + i * 0.04}
-        />
+        <circle key={`b${i}`} cx={25 + i * 26} cy={55 + Math.cos(i) * 10} r="2" fill={accent} opacity={0.15 + i * 0.04}/>
       ))}
     </svg>
   )
@@ -186,13 +173,82 @@ function CardPlaceholder({ accent, index }: { accent: string; index: number }) {
 
 function getPrice(event: Event): string {
   const tiers = event.ticket_tiers ?? []
-  if (!tiers.length) return 'Free'
-  const prices = tiers.map(t => t.price)
-  const min = Math.min(...prices),
-    max = Math.max(...prices)
+  const prices = tiers.map(t => Number(t.price)).filter(p => !isNaN(p) && p >= 0)
+  if (!prices.length) return 'Free'
+  const min = Math.min(...prices), max = Math.max(...prices)
   if (min === 0) return 'Free'
   if (min === max) return `$${min.toFixed(2)}`
   return `$${min.toFixed(2)}+`
+}
+
+// Extracted so each card owns its own ref + tilt state.
+// Hooks can't run inside a .map() — same pattern as BuyButton on the event page.
+function EventCard({ event, index, tilt, onOpen }: {
+  event: Event; index: number; tilt: boolean; onOpen: () => void
+}) {
+  const ref = useRef<HTMLElement>(null)
+  const cat = event.category ?? 'other'
+  const accent = CATEGORY_ACCENT[cat] ?? COLORS.primary
+  const date = event.starts_at
+    ? new Date(event.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).toUpperCase()
+    : 'TBD'
+  const price = getPrice(event)
+  const isFree = price === 'Free'
+
+  const onMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!tilt) return
+    const el = ref.current; if (!el) return
+    const r = el.getBoundingClientRect()
+    const nx = (e.clientX - r.left) / r.width
+    const ny = (e.clientY - r.top) / r.height
+    const cx = nx - 0.5, cy = ny - 0.5
+    el.style.transform =
+      `perspective(1200px) translate3d(${(cx * 10).toFixed(1)}px,${(cy * 10 - 4).toFixed(1)}px,0)` +
+      ` rotateX(${(-cy * 12).toFixed(1)}deg) rotateY(${(cx * 13).toFixed(1)}deg) scale(1.04)`
+    el.style.setProperty('--mx', `${(nx * 100).toFixed(1)}%`)
+    el.style.setProperty('--my', `${(ny * 100).toFixed(1)}%`)
+  }
+  const onEnter = () => { if (tilt && ref.current) ref.current.style.transition = 'none' }
+  const onLeave = () => {
+    const el = ref.current; if (!el) return
+    el.style.transition = 'transform 0.55s cubic-bezier(.2,.8,.2,1)'
+    el.style.transform = ''
+    const clear = () => { el.style.transition = ''; el.removeEventListener('transitionend', clear) }
+    el.addEventListener('transitionend', clear)
+  }
+
+  return (
+    <article
+      ref={ref}
+      className="card"
+      tabIndex={0}
+      role="link"
+      aria-label={`${event.title}, ${CATEGORY_LABEL[cat]}, ${date}, ${price}`}
+      onClick={onOpen}
+      onPointerMove={onMove}
+      onPointerEnter={onEnter}
+      onPointerLeave={onLeave}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
+    >
+      {event.cover_image_url
+        ? <img src={event.cover_image_url} className="card-bg" alt="" loading="lazy"/>
+        : <CardPlaceholder accent={accent} index={index}/>
+      }
+      <div className="card-overlay"/>
+      <div className="card-shine" aria-hidden="true"/>
+      <div className="card-content">
+        <div className="card-top">
+          <span className={`card-tag tag-${cat}`}>{CATEGORY_LABEL[cat] ?? 'Event'}</span>
+          <span className={`card-price-badge ${isFree ? 'free' : ''}`}>{price}</span>
+        </div>
+        <div>
+          <div className="card-date">{date}</div>
+          <div className="card-title">{event.title}</div>
+          <div className="card-venue">{event.venue_name ?? event.city ?? 'TBD'}</div>
+        </div>
+      </div>
+    </article>
+  )
 }
 
 export default function Home() {
@@ -202,8 +258,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
   const [userCity, setUserCity] = useState<string | null>(null)
+  const [tiltOn, setTiltOn] = useState(false)
   const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.05, trigger: 'mount', deps: [loading, filter] })
   const logoRef = useNavLogo<HTMLButtonElement>()
+  const acidRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -218,16 +276,61 @@ export default function Home() {
         setEvents((data ?? []) as Event[])
         setLoading(false)
       })
-    return () => {
-      alive = false
+    return () => { alive = false }
+  }, [])
+
+  // Tilt only on real mouse + no reduced motion
+  useEffect(() => {
+    setTiltOn(
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+  }, [])
+
+  // Scroll-reactive acid — blobs compress + palette shifts amber→magenta as you
+  // scroll, and scrolling fast pulses the whole field brighter.
+  // Only animates opacity + scale (GPU-composited) — no per-frame blur recompute.
+  useEffect(() => {
+    const acid = acidRef.current
+    if (!acid) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    let lastY = window.scrollY
+    let velocity = 0
+    let running = false
+    let idle = 0
+
+    const tick = () => {
+      const y = window.scrollY
+      const vh = window.innerHeight || 1
+      const p = Math.min(y / (vh * 1.4), 1)   // 0 at top → 1 after ~1.4 screens
+      velocity *= 0.86
+      const energy = Math.min(velocity / (vh * 0.6), 1)
+      const pulse = 1 + energy * 0.45
+
+      acid.style.setProperty('--acid-scale', (1 - p * 0.3).toFixed(3))
+      acid.style.setProperty('--acid-a', Math.max(0, (1 - p * 0.7) * pulse).toFixed(3))  // amber recedes
+      acid.style.setProperty('--acid-b', Math.max(0, (1 - p * 0.2) * pulse).toFixed(3))  // red holds
+      acid.style.setProperty('--acid-c', Math.max(0, (1 + p * 0.3) * pulse).toFixed(3))  // magenta rises
+
+      if (velocity < 0.4) { if (++idle > 3) { running = false; return } } else { idle = 0 }
+      requestAnimationFrame(tick)
     }
+
+    const onScroll = () => {
+      const y = window.scrollY
+      velocity += Math.abs(y - lastY)
+      lastY = y
+      if (!running) { running = true; idle = 0; requestAnimationFrame(tick) }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    running = true; requestAnimationFrame(tick)   // settle for current scroll on mount
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   const handleNearMe = useCallback(() => {
-    if (!('geolocation' in navigator)) {
-      setFilter('nearme')
-      return
-    }
+    if (!('geolocation' in navigator)) { setFilter('nearme'); return }
     navigator.geolocation.getCurrentPosition(
       async pos => {
         try {
@@ -238,9 +341,7 @@ export default function Home() {
           const data = await res.json()
           setUserCity(data.address?.city ?? data.address?.town ?? null)
           setFilter('nearme')
-        } catch {
-          setFilter('nearme')
-        }
+        } catch { setFilter('nearme') }
       },
       () => alert('Please enable location access'),
     )
@@ -248,54 +349,46 @@ export default function Home() {
 
   const filtered = (() => {
     if (filter === 'all') return events
-    if (filter === 'nearme') {
-      return userCity ? events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase())) : events
-    }
+    if (filter === 'nearme') return userCity ? events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase())) : events
     return events.filter(e => e.category === filter)
   })()
 
   const tickerText = 'TONIGHT · YOUR CITY · FIND YOUR PULSE · LIVE EVENTS · HOUSTON · GET ON THE LIST · '
 
   const filters = [
-    { label: 'All', value: 'all' as const, icon: 'ti-layout-grid' },
-    { label: 'Nightlife', value: 'nightlife' as const, icon: 'ti-moon' },
-    { label: 'Concerts', value: 'concert' as const, icon: 'ti-music' },
-    { label: 'Festivals', value: 'festival' as const, icon: 'ti-confetti' },
-    { label: 'Near me', value: 'nearme' as const, icon: 'ti-map-pin' },
+    { label: 'All', value: 'all' as const },
+    { label: 'Nightlife', value: 'nightlife' as const },
+    { label: 'Concerts', value: 'concert' as const },
+    { label: 'Festivals', value: 'festival' as const },
+    { label: 'Near me', value: 'nearme' as const },
   ]
 
   return (
     <>
-      <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"
-      />
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         html, body { background:${COLORS.bg}; min-height:100vh; overflow-x:hidden; }
-
         .page { position:relative; z-index:1; }
         .events-section { position:relative; z-index:1; }
-
         nav { padding:16px 0; background:transparent; position:sticky; top:0; z-index:100; }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; padding:0 24px; max-width:1100px; margin:0 auto; }
         .logo { background:none; border:none; padding:0; cursor:pointer; line-height:0; display:inline-flex; }
         .logo-img { height:22px; width:auto; filter:drop-shadow(0 0 8px rgba(255,170,51,0.35)); }
         @media(max-width:680px){ .logo-img { height:20px; } }
 
-
-
-        /* ACID — morphing amber/red/magenta liquid filling the WHOLE background */
+        /* ACID — scroll-reactive via CSS vars driven from JS.
+           scale + opacity only: GPU-composited, no blur recompute jank.
+           Keyframe drift still runs on compositor underneath. */
         .acid { position:fixed; inset:0; z-index:0; background:${COLORS.bg}; overflow:hidden; pointer-events:none; }
-        .acid::before, .acid::after, .acid .blob3 { content:''; position:absolute; border-radius:50%; filter:blur(90px); opacity:0.6; mix-blend-mode:screen; }
-        .acid::before { width:70vw; height:70vw; background:radial-gradient(circle, ${COLORS.accent} 0%, transparent 66%); top:-18%; left:-10%; animation:acidA 20s ease-in-out infinite; }
-        .acid::after { width:65vw; height:65vw; background:radial-gradient(circle, #e8001d 0%, transparent 64%); top:30%; right:-12%; animation:acidB 24s ease-in-out infinite; }
-        .acid .blob3 { width:60vw; height:60vw; background:radial-gradient(circle, #c01a6f 0%, transparent 62%); bottom:-15%; left:25%; animation:acidC 28s ease-in-out infinite; }
+        .acid::before, .acid::after, .acid .blob3 { content:''; position:absolute; border-radius:50%; filter:blur(90px); mix-blend-mode:screen; scale:var(--acid-scale, 1); }
+        .acid::before { width:72vw; height:72vw; background:radial-gradient(circle, #ffaa33 0%, ${COLORS.accent} 32%, transparent 66%); top:-18%; left:-10%; opacity:calc(0.60 * var(--acid-a, 1)); animation:acidA 20s ease-in-out infinite; }
+        .acid::after  { width:66vw; height:66vw; background:radial-gradient(circle, #ff2d55 0%, #e8001d 42%, transparent 64%); top:30%; right:-12%; opacity:calc(0.55 * var(--acid-b, 1)); animation:acidB 24s ease-in-out infinite; }
+        .acid .blob3  { width:62vw; height:62vw; background:radial-gradient(circle, #ff2d95 0%, #c01a6f 42%, transparent 62%); bottom:-15%; left:25%; opacity:calc(0.50 * var(--acid-c, 1)); animation:acidC 28s ease-in-out infinite; }
         @keyframes acidA { 0%,100%{ transform:translate(0,0) scale(1); } 33%{ transform:translate(40vw,40vh) scale(1.3); } 66%{ transform:translate(18vw,75vh) scale(0.85); } }
         @keyframes acidB { 0%,100%{ transform:translate(0,0) scale(1.1); } 33%{ transform:translate(-40vw,30vh) scale(0.8); } 66%{ transform:translate(-22vw,-30vh) scale(1.25); } }
         @keyframes acidC { 0%,100%{ transform:translate(0,0) scale(1); } 25%{ transform:translate(-30vw,-40vh) scale(1.2); } 50%{ transform:translate(30vw,-60vh) scale(0.9); } 75%{ transform:translate(-20vw,-20vh) scale(1.15); } }
-
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }
@@ -314,12 +407,16 @@ export default function Home() {
         @media(min-width:600px){ .grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
         @media(min-width:900px){ .grid { grid-template-columns:repeat(4, 1fr); gap:16px; } }
 
-        .card { border-radius:14px; cursor:pointer; position:relative; overflow:hidden; aspect-ratio:2/3; background:${COLORS.cardBg}; }
+        /* Card — tilt managed entirely by JS; CSS only handles box-shadow + z-index on hover */
+        .card { border-radius:14px; cursor:pointer; position:relative; overflow:hidden; aspect-ratio:2/3; background:${COLORS.cardBg}; transform-origin:center; will-change:transform; }
         .card:focus-visible { outline:2px solid ${COLORS.primary}; outline-offset:2px; }
-        .card:active { transform:scale(0.96) !important; }
-        @media(hover:hover){ .card:hover { transform:translateY(-4px) !important; box-shadow:0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(255,170,51,0.08); } }
+        .card:active { transform:scale(0.97); }
+        @media(hover:hover){ .card:hover { box-shadow:0 24px 70px rgba(0,0,0,0.85), 0 0 42px rgba(255,170,51,0.12); z-index:5; } }
         .card-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
         .card-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.2) 55%, transparent 100%); }
+        /* Cursor-tracked sheen — above art, below text */
+        .card-shine { position:absolute; inset:0; pointer-events:none; opacity:0; mix-blend-mode:screen; background:radial-gradient(220px circle at var(--mx,50%) var(--my,50%), rgba(255,200,120,0.30), rgba(255,110,40,0.10) 42%, transparent 70%); transition:opacity 0.35s ease; }
+        @media(hover:hover){ .card:hover .card-shine { opacity:1; } }
         .card-content { position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:space-between; }
         .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:4px; }
         .card-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'Syne',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
@@ -351,11 +448,11 @@ export default function Home() {
         @media (prefers-reduced-motion: reduce) {
           .card { transition:none !important; animation:none !important; }
           .acid::before, .acid::after, .acid .blob3 { animation:none !important; }
-          .ticker-track, nav::after, .skel { animation:none !important; }
+          .ticker-track, .skel { animation:none !important; }
         }
       `}</style>
 
-      <div className="acid" aria-hidden="true"><div className="blob3"/></div>
+      <div className="acid" aria-hidden="true" ref={acidRef}><div className="blob3"/></div>
       <TouchBlot />
 
       <div className="page">
@@ -364,16 +461,10 @@ export default function Home() {
             <button ref={logoRef} className="logo" onClick={() => router.push('/')} aria-label="Pulse home">
               <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
             </button>
-            <div className="nav-desktop">
-              <NavActions/>
-            </div>
-            <div className="nav-mobile">
-              <NavActions compact/>
-            </div>
+            <div className="nav-desktop"><NavActions/></div>
+            <div className="nav-mobile"><NavActions compact/></div>
           </div>
         </nav>
-
-
 
         <div className="ticker-wrap" aria-hidden="true">
           <div className="ticker-track">
@@ -391,7 +482,7 @@ export default function Home() {
                 role="tab"
                 aria-selected={filter === f.value}
                 className={`pill ${filter === f.value ? 'active' : ''}`}
-                onClick={() => (f.value === 'nearme' ? handleNearMe() : setFilter(f.value))}
+                onClick={() => f.value === 'nearme' ? handleNearMe() : setFilter(f.value)}
               >
                 {f.label}
               </button>
@@ -399,109 +490,38 @@ export default function Home() {
           </div>
 
           <div className="section-label">
-            {filter === 'all'
-              ? 'All events'
-              : filter === 'nearme'
-                ? 'Near you'
-                : CATEGORY_LABEL[filter]}
+            {filter === 'all' ? 'All events' : filter === 'nearme' ? 'Near you' : CATEGORY_LABEL[filter]}
             {' '}— {filtered.length} {filtered.length === 1 ? 'event' : 'events'}
           </div>
 
           <div className="cards-wrap">
             {loading ? (
               <div className="skeleton" aria-busy="true" aria-label="Loading events">
-                {Array.from({length: 8}).map((_, i) => (
-                  <div key={i} className="skel"/>
-                ))}
+                {Array.from({length: 8}).map((_, i) => <div key={i} className="skel"/>)}
               </div>
             ) : filtered.length === 0 ? (
               <div className="empty">
                 {filter === 'nearme'
                   ? 'No events near you yet.'
                   : events.length === 0
-                    ? (
-                        <>
-                          No events yet.{' '}
-                          <a
-                            href="/host/create"
-                            onClick={e => {
-                              e.preventDefault()
-                              router.push('/host/create')
-                            }}
-                          >
-                            Create the first →
-                          </a>
-                        </>
-                      )
+                    ? <><span>No events yet. </span><a href="/host/create" onClick={e => { e.preventDefault(); router.push('/host/create') }}>Create the first →</a></>
                     : 'No events in this category.'}
               </div>
             ) : (
               <div className="grid" ref={gridRef}>
-                {filtered.map((event, index) => {
-                  const cat = event.category ?? 'other'
-                  const accent = CATEGORY_ACCENT[cat] ?? COLORS.primary
-                  const date = event.starts_at
-                    ? new Date(event.starts_at)
-                        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-                        .toUpperCase()
-                    : 'TBD'
-                  const price = getPrice(event)
-                  const isFree = price === 'Free'
-
-                  return (
-                    <article
-                      key={event.id}
-                      className="card"
-                      tabIndex={0}
-                      role="link"
-                      aria-label={`${event.title}, ${CATEGORY_LABEL[cat]}, ${date}, ${price}`}
-                      onClick={() => router.push(`/events/${event.id}`)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          router.push(`/events/${event.id}`)
-                        }
-                      }}
-                    >
-                      {event.cover_image_url ? (
-                        <img
-                          src={event.cover_image_url}
-                          className="card-bg"
-                          alt=""
-                          loading="lazy"
-                        />
-                      ) : (
-                        <CardPlaceholder accent={accent} index={index}/>
-                      )}
-                      <div className="card-overlay"/>
-                      <div className="card-content">
-                        <div className="card-top">
-                          <span className={`card-tag tag-${cat}`}>
-                            {CATEGORY_LABEL[cat] ?? 'Event'}
-                          </span>
-                          <span className={`card-price-badge ${isFree ? 'free' : ''}`}>
-                            {price}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="card-date">
-                            {date}
-                          </div>
-                          <div className="card-title">{event.title}</div>
-                          <div className="card-venue">
-                            {event.venue_name ?? event.city ?? 'TBD'}
-                          </div>
-                        </div>
-                      </div>
-                    </article>
-                  )
-                })}
+                {filtered.map((event, index) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    index={index}
+                    tilt={tiltOn}
+                    onOpen={() => router.push(`/events/${event.id}`)}
+                  />
+                ))}
               </div>
             )}
             <div className="bottom">
-              <span className="showing">
-                {filtered.length} event{filtered.length !== 1 ? 's' : ''}
-              </span>
+              <span className="showing">{filtered.length} event{filtered.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
         </section>
