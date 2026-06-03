@@ -340,13 +340,11 @@ export default function EventDetail() {
         .section{margin-bottom:28px;}
         .sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:16px;}
         .desc{font-size:14px;line-height:1.9;color:rgba(255,255,255,0.58);}
-        .details-list{display:flex;flex-direction:column;gap:11px;}
-        .detail-row{display:flex;align-items:flex-start;gap:12px;font-size:13px;color:rgba(255,255,255,0.52);line-height:1.45;}
-        .detail-row i{color:${COLORS.primary};font-size:15px;flex-shrink:0;margin-top:1px;}
-        .detail-row.warn{color:${COLORS.accent};}
-        .detail-row.dress{color:${COLORS.highlight};}
-        /* keep for backwards compat with any animated reveal selectors */
-        .detail-chip{display:none;}
+        .details-compact{display:flex;flex-wrap:wrap;gap:8px;}
+        .detail-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;font-size:13px;color:#ccc;}
+        .detail-chip i{color:${COLORS.primary};font-size:14px;}
+        .detail-chip.warn{background:rgba(255,102,0,0.08);border-color:rgba(255,102,0,0.18);color:${COLORS.accent};}
+        .detail-chip.dress{background:rgba(255,200,80,0.06);border-color:rgba(255,200,80,0.14);color:${COLORS.highlight};}
         .social-links{display:flex;gap:10px;margin-top:14px;}
         .social-link{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:#ccc;font-size:19px;cursor:pointer;transition:all 0.15s;text-decoration:none;}
         .social-link:hover{border-color:rgba(255,170,51,0.4);color:${COLORS.primary};transform:translateY(-1px);}
@@ -464,13 +462,13 @@ export default function EventDetail() {
 
             <div className="section">
               <h2 className="sec-title">Details</h2>
-              <div className="details-list">
-                <div className="detail-row"><i className="ti ti-calendar-event" aria-hidden="true"/>{date}{time ? ` · ${time}` : ''}</div>
-                {doorsTime && <div className="detail-row"><i className="ti ti-door" aria-hidden="true"/>Doors open {doorsTime}</div>}
-                {event.venue_name && <div className="detail-row"><i className="ti ti-building" aria-hidden="true"/>{event.venue_name}</div>}
-                {event.address && <div className="detail-row"><i className="ti ti-map-pin" aria-hidden="true"/>{event.address}{event.city ? `, ${event.city}` : ''}{event.state ? ` ${event.state}` : ''}</div>}
-                {event.is_21_plus && <div className="detail-row warn"><i className="ti ti-id" aria-hidden="true"/>21+ · Valid ID required at door</div>}
-                {event.dress_code && <div className="detail-row dress"><i className="ti ti-hanger" aria-hidden="true"/>{event.dress_code}</div>}
+              <div className="details-compact">
+                <div className="detail-chip"><i className="ti ti-calendar-event" aria-hidden="true"/>{date}{time ? ` · ${time}` : ''}</div>
+                {doorsTime && <div className="detail-chip"><i className="ti ti-door" aria-hidden="true"/>Doors open {doorsTime}</div>}
+                {event.venue_name && <div className="detail-chip"><i className="ti ti-building" aria-hidden="true"/>{event.venue_name}</div>}
+                {event.address && <div className="detail-chip"><i className="ti ti-map-pin" aria-hidden="true"/>{event.address}{event.city ? `, ${event.city}` : ''}{event.state ? ` ${event.state}` : ''}</div>}
+                {event.is_21_plus && <div className="detail-chip warn"><i className="ti ti-id" aria-hidden="true"/>21+ · Valid ID required at door</div>}
+                {event.dress_code && <div className="detail-chip dress"><i className="ti ti-hanger" aria-hidden="true"/>{event.dress_code}</div>}
               </div>
               {hasSocial && (
                 <div className="social-links">

@@ -78,7 +78,6 @@ function NavActions({ compact = false }: { compact?: boolean }) {
             alignItems: 'center',
             gap: '5px',
             paddingBottom: '2px',
-            borderBottom: '1px solid rgba(255,255,255,0.35)',
             transition: 'border-color 0.2s',
           }}
         >
