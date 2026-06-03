@@ -6,8 +6,6 @@ import { createClient } from '../lib/supabase/client'
 type Buyer = {
   ticket_id: string
   user_id: string | null
-  holder_name: string | null
-  is_guestlist: boolean
   is_checked_in: boolean
   name: string
 }
@@ -96,10 +94,8 @@ export default function HostDashboard() {
       rows.push({
         ticket_id: t.id,
         user_id: t.user_id,
-        holder_name: t.holder_name,
-        is_guestlist: !!t.is_guestlist,
         is_checked_in: !!t.is_checked_in,
-        name: t.holder_name || (t.user_id ? (nameMap[t.user_id] || 'Guest') : 'Guest'),
+        name: t.user_id ? (nameMap[t.user_id] || 'Guest') : 'Guest',
       })
     }
 
