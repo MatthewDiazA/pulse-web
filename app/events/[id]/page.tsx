@@ -92,6 +92,12 @@ export default function EventDetail() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
+  // Guest list link — host/admin only
+  const [guestLink, setGuestLink] = useState<string | null>(null)
+  const [genningLink, setGenningLink] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [linkSheetOpen, setLinkSheetOpen] = useState(false)
+
   // Per-button magnetic effect via useMagneticButton applied individually
   const BuyButton = ({ tier, isBuying, onClick }: { tier: Tier; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
@@ -226,6 +232,29 @@ export default function EventDetail() {
     finally { setBuyingTier(null) }
   }
 
+  const isHostOrAdmin = isAdmin || currentUser?.id === event?.host_id || currentUser?.email === 'mad2288@columbia.edu'
+
+  const generateGuestLink = async () => {
+    if (!event || !currentUser) return
+    if (guestLink) { setLinkSheetOpen(true); return }
+    setGenningLink(true)
+    try {
+      const res = await fetch('/api/guestlist/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id, userId: currentUser.id }),
+      })
+      const data = await res.json()
+      if (data.url) { setGuestLink(data.url); setLinkSheetOpen(true) }
+    } catch {}
+    setGenningLink(false)
+  }
+
+  const copyGuestLink = async () => {
+    if (!guestLink) return
+    try { await navigator.clipboard.writeText(guestLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2200) } catch {}
+  }
+
   if (loading) return (
     <>
       <style>{`body{background:#000;margin:0;}`}</style>
@@ -279,6 +308,22 @@ export default function EventDetail() {
         @media(max-width:680px){.nav-logo .logo-img{height:20px;}}
         .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'Syne',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
         .edit-event-btn:hover{background:rgba(255,170,51,0.16);}
+        .gl-nav-btn{width:34px;height:34px;border-radius:8px;background:rgba(255,170,51,0.07);border:0.5px solid rgba(255,170,51,0.2);color:${COLORS.primary};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
+        .gl-nav-btn:hover{background:rgba(255,170,51,0.14);}
+        .gl-nav-btn:disabled{opacity:0.3;cursor:not-allowed;}
+        .gl-backdrop{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.72);display:flex;align-items:flex-end;justify-content:center;}
+        .gl-sheet{width:100%;max-width:460px;background:#0d0800;border:0.5px solid rgba(255,255,255,0.07);border-radius:20px 20px 0 0;padding:12px 22px 36px;}
+        @media(min-width:520px){.gl-sheet{border-radius:20px;}}
+        .gl-drag{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.09);margin:0 auto 22px;}
+        .gl-sheet-title{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:4px;}
+        .gl-sheet-desc{font-size:13px;color:rgba(255,255,255,0.35);line-height:1.55;margin-bottom:18px;}
+        .gl-url-row{display:flex;gap:8px;margin-bottom:12px;}
+        .gl-url-input{flex:1;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:11px 12px;font-size:12px;color:rgba(255,255,255,0.65);font-family:'Syne',sans-serif;outline:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .gl-copy-btn{padding:11px 16px;background:${COLORS.primary};color:#000;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;white-space:nowrap;transition:background 0.15s;}
+        .gl-copy-btn:hover{background:#ffc040;}
+        .gl-copy-btn.copied{background:#22c55e;color:#fff;}
+        .gl-close-btn{width:100%;padding:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.35);font-size:13px;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;transition:all 0.15s;}
+        .gl-close-btn:hover{border-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.6);}
         .hero{position:relative;height:480px;overflow:hidden;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
         .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
@@ -293,13 +338,15 @@ export default function EventDetail() {
         .two-col{display:grid;gap:36px;}
         @media(min-width:700px){.two-col{grid-template-columns:1fr 340px;}}
         .section{margin-bottom:28px;}
-        .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#fff;margin-bottom:14px;}
-        .desc{font-size:14px;line-height:1.85;color:#999;}
-        .details-compact{display:flex;flex-wrap:wrap;gap:8px;}
-        .detail-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;font-size:13px;color:#ccc;}
-        .detail-chip i{color:${COLORS.primary};font-size:14px;}
-        .detail-chip.warn{background:rgba(255,102,0,0.08);border-color:rgba(255,102,0,0.18);color:${COLORS.accent};}
-        .detail-chip.dress{background:rgba(255,200,80,0.06);border-color:rgba(255,200,80,0.14);color:${COLORS.highlight};}
+        .sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:16px;}
+        .desc{font-size:14px;line-height:1.9;color:rgba(255,255,255,0.58);}
+        .details-list{display:flex;flex-direction:column;gap:11px;}
+        .detail-row{display:flex;align-items:flex-start;gap:12px;font-size:13px;color:rgba(255,255,255,0.52);line-height:1.45;}
+        .detail-row i{color:${COLORS.primary};font-size:15px;flex-shrink:0;margin-top:1px;}
+        .detail-row.warn{color:${COLORS.accent};}
+        .detail-row.dress{color:${COLORS.highlight};}
+        /* keep for backwards compat with any animated reveal selectors */
+        .detail-chip{display:none;}
         .social-links{display:flex;gap:10px;margin-top:14px;}
         .social-link{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:#ccc;font-size:19px;cursor:pointer;transition:all 0.15s;text-decoration:none;}
         .social-link:hover{border-color:rgba(255,170,51,0.4);color:${COLORS.primary};transform:translateY(-1px);}
@@ -347,11 +394,16 @@ export default function EventDetail() {
         <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
-        {(isAdmin || currentUser?.id === event.host_id) ? (
-          <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>
-            <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
-            Edit
-          </button>
+        {isHostOrAdmin ? (
+          <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+            <button className="gl-nav-btn" onClick={generateGuestLink} disabled={genningLink} title="Guest list link" aria-label="Guest list link">
+              <i className="ti ti-list-check" style={{fontSize:'15px'}} aria-hidden="true"/>
+            </button>
+            <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>
+              <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
+              Edit
+            </button>
+          </div>
         ) : <div style={{width:'60px'}}/>}
       </nav>
 
@@ -412,13 +464,13 @@ export default function EventDetail() {
 
             <div className="section">
               <h2 className="sec-title">Details</h2>
-              <div className="details-compact">
-                <div className="detail-chip"><i className="ti ti-calendar-event" aria-hidden="true"/>{date}{time ? ` · ${time}` : ''}</div>
-                {doorsTime && <div className="detail-chip"><i className="ti ti-door" aria-hidden="true"/>Doors {doorsTime}</div>}
-                {event.venue_name && <div className="detail-chip"><i className="ti ti-building" aria-hidden="true"/>{event.venue_name}</div>}
-                {event.address && <div className="detail-chip"><i className="ti ti-map-pin" aria-hidden="true"/>{event.address}{event.city ? `, ${event.city}` : ''}{event.state ? ` ${event.state}` : ''}</div>}
-                {event.is_21_plus && <div className="detail-chip warn"><i className="ti ti-id" aria-hidden="true"/>21+ · ID required</div>}
-                {event.dress_code && <div className="detail-chip dress"><i className="ti ti-hanger" aria-hidden="true"/>{event.dress_code}</div>}
+              <div className="details-list">
+                <div className="detail-row"><i className="ti ti-calendar-event" aria-hidden="true"/>{date}{time ? ` · ${time}` : ''}</div>
+                {doorsTime && <div className="detail-row"><i className="ti ti-door" aria-hidden="true"/>Doors open {doorsTime}</div>}
+                {event.venue_name && <div className="detail-row"><i className="ti ti-building" aria-hidden="true"/>{event.venue_name}</div>}
+                {event.address && <div className="detail-row"><i className="ti ti-map-pin" aria-hidden="true"/>{event.address}{event.city ? `, ${event.city}` : ''}{event.state ? ` ${event.state}` : ''}</div>}
+                {event.is_21_plus && <div className="detail-row warn"><i className="ti ti-id" aria-hidden="true"/>21+ · Valid ID required at door</div>}
+                {event.dress_code && <div className="detail-row dress"><i className="ti ti-hanger" aria-hidden="true"/>{event.dress_code}</div>}
               </div>
               {hasSocial && (
                 <div className="social-links">
@@ -499,6 +551,23 @@ export default function EventDetail() {
       </div>
 
       {event && <EventLounge eventId={event.id} eventTitle={event.title} hostId={event.host_id}/>}
+
+      {linkSheetOpen && guestLink && (
+        <div className="gl-backdrop" onClick={() => setLinkSheetOpen(false)}>
+          <div className="gl-sheet" onClick={e => e.stopPropagation()}>
+            <div className="gl-drag"/>
+            <div className="gl-sheet-title">Guest list link</div>
+            <p className="gl-sheet-desc">Anyone who opens this link gets a free guest ticket. Share it in your story, DMs, or group chat.</p>
+            <div className="gl-url-row">
+              <input className="gl-url-input" readOnly value={guestLink} onFocus={e => e.currentTarget.select()}/>
+              <button className={`gl-copy-btn ${linkCopied ? 'copied' : ''}`} onClick={copyGuestLink}>
+                {linkCopied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

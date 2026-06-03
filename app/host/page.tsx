@@ -73,7 +73,7 @@ export default function HostDashboard() {
 
     const { data: tickets } = await supabase
       .from('tickets')
-      .select('id, user_id, holder_name, is_guestlist, is_checked_in')
+      .select('id, user_id, is_checked_in')
       .eq('event_id', eventId)
       .order('created_at', { ascending: true })
 
@@ -107,38 +107,31 @@ export default function HostDashboard() {
     setLoadingBuyers(null)
   }
 
-  // Feature #3 — generate a single-use GL link for one event
+  // Generate (or retrieve) the persistent broadcast guest link for an event
   const generateGuestLink = async (eventId: string) => {
     setGenningFor(eventId)
-    setGenLink(null)
-    setCopiedToken(false)
-    const supabase = createClient()
-
-    const token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
-
-    const { error } = await supabase.from('guest_invites').insert({
-      event_id: eventId,
-      token,
-      created_by: user.id,
-    })
-
-    if (error) {
-      alert('Could not generate link: ' + error.message)
-      setGenningFor(null)
-      return
-    }
-
-    const link = `${window.location.origin}/gl/${token}`
-    setGenLink(link)
-    setGenningFor(null)
-
     try {
-      await navigator.clipboard.writeText(link)
-      setCopiedToken(true)
-      setTimeout(() => setCopiedToken(false), 2500)
+      const res = await fetch('/api/guestlist/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, userId: user.id }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        setGenLink(data.url)
+        setOpenGuests(eventId) // auto-open the guests panel so the link is visible
+        try {
+          await navigator.clipboard.writeText(data.url)
+          setCopiedToken(true)
+          setTimeout(() => setCopiedToken(false), 2500)
+        } catch {}
+      } else {
+        alert(data.error ?? 'Could not generate link')
+      }
     } catch {
-      // user can copy manually from the shown field
+      alert('Something went wrong')
     }
+    setGenningFor(null)
   }
 
   return (
@@ -167,21 +160,20 @@ export default function HostDashboard() {
         .greeting-sub{font-size:14px;color:#554;font-weight:300;}
         .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px;}
         @media(min-width:600px){.stats{grid-template-columns:repeat(4,1fr);}}
-        .stat{background:#0d0800;border-radius:14px;padding:18px 20px;border:0.5px solid rgba(255,255,255,0.05);transition:border-color 0.2s;}
-        .stat:hover{border-color:rgba(255,255,255,0.1);}
-        .stat-label{font-size:10px;color:#443;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:10px;font-family:'Syne',sans-serif;}
+        .stat{background:#0d0800;border-radius:14px;padding:18px 20px;border:0.5px solid rgba(255,255,255,0.04);}
+        .stat-label{font-size:10px;color:rgba(255,255,255,0.18);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
         .stat-value{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:36px;color:#f0f0f0;letter-spacing:0.5px;line-height:1;}
         .stat-value.accent{color:#ffaa33;text-shadow:0 0 8px rgba(255,170,51,0.3);}
         .charts{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:24px;}
         @media(min-width:600px){.charts{grid-template-columns:1fr 1fr;}}
         .chart-section{background:#0d0800;border:0.5px solid rgba(255,255,255,0.05);border-radius:14px;padding:20px;}
-        .chart-title{font-size:10px;color:#443;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:16px;font-family:'Syne',sans-serif;}
+        .chart-title{font-size:10px;color:rgba(255,255,255,0.18);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
         .chart-bars{display:flex;align-items:flex-end;gap:8px;height:80px;}
         .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
         .bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;}
         .bar-label{font-size:9px;color:#332;text-align:center;font-family:'Syne',sans-serif;}
         .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:0.5px solid rgba(255,255,255,0.05);}
-        .section-title{font-size:11px;color:#443;letter-spacing:0.8px;text-transform:uppercase;font-family:'Syne',sans-serif;}
+        .section-title{font-size:10px;color:rgba(255,255,255,0.18);letter-spacing:2px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:700;}
         .events-list{display:flex;flex-direction:column;gap:1px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.05);border-radius:14px;overflow:hidden;margin-bottom:40px;}
         .event-row{background:#000;padding:16px 20px;display:flex;align-items:center;gap:14px;transition:background 0.15s;flex-wrap:wrap;}
         @media(hover:hover){.event-row:hover{background:#0d0800;}}
@@ -193,9 +185,9 @@ export default function HostDashboard() {
         .event-stat{text-align:right;min-width:60px;}
         .event-stat-value{font-size:14px;font-weight:500;color:#f0f0f0;}
         .event-stat-label{font-size:10px;color:#443;margin-top:2px;}
-        .status-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;}
-        .status-published{background:rgba(255,170,51,0.1);color:#ffaa33;border:0.5px solid rgba(255,170,51,0.2);}
-        .status-draft{background:rgba(255,255,255,0.04);color:#443;border:0.5px solid rgba(255,255,255,0.08);}
+        .status-badge{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+        .status-published{color:${COLORS.primary};}
+        .status-draft{color:rgba(255,255,255,0.2);}
         .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
         .action-btn{font-size:11px;color:#554;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:5px 10px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;white-space:nowrap;}
         .action-btn:hover{color:#f0f0f0;border-color:rgba(255,255,255,0.16);}
@@ -296,7 +288,9 @@ export default function HostDashboard() {
                     <div className="event-info"><div className="event-name">{e.title}</div><div className="event-date">{date}</div></div>
                     <div className="event-stat"><div className="event-stat-value">{sold}</div><div className="event-stat-label">sold</div></div>
                     <div className="event-stat"><div className="event-stat-value">{viewCounts[e.id] ?? '—'}</div><div className="event-stat-label">views</div></div>
-                    <span className={`status-badge status-${e.status}`}>{e.status}</span>
+                    <span className={`status-badge status-${e.status}`}>
+                      {e.status === 'published' ? '● Live' : '○ Draft'}
+                    </span>
                     <div className="row-actions">
                       <button className="action-btn" onClick={() => window.location.href=`/events/${e.id}`}>View</button>
                       <button className="action-btn" onClick={() => window.location.href=`/host/edit/${e.id}`}>Edit</button>
@@ -309,7 +303,7 @@ export default function HostDashboard() {
 
                   {isOpen && (
                     <div className="guest-panel">
-                      {genLink && genningFor !== e.id && (
+                      {genLink && (
                         <div className="gl-linkbox">
                           <input readOnly value={genLink} onFocus={ev => ev.currentTarget.select()} />
                           <button className="gl-copy" onClick={async () => {
@@ -317,7 +311,9 @@ export default function HostDashboard() {
                           }}>{copiedToken ? 'Copied!' : 'Copy'}</button>
                         </div>
                       )}
-                      <div className="guest-hint">Each guest link works once. Generate a new one for each person.</div>
+                      <div className="guest-hint">
+                        {genLink ? 'Anyone who opens this link gets a free guest ticket.' : 'Tap "Guest link" to generate a shareable invite link.'}
+                      </div>
                       {loadingBuyers === e.id ? (
                         <div style={{fontSize:'13px',color:'#554',padding:'8px 0'}}>Loading guests…</div>
                       ) : list.length === 0 ? (
@@ -326,8 +322,7 @@ export default function HostDashboard() {
                         list.map(b => (
                           <div key={b.ticket_id} className="guest-li">
                             <div className="guest-av">{(b.name || 'G').slice(0,2).toUpperCase()}</div>
-                            <div className="guest-name" onClick={() => b.user_id && (window.location.href=`/profile/${b.user_id}`)}>{b.name}</div>
-                            {b.is_guestlist && <span className="guest-tag gl">GL</span>}
+                            <div className="guest-name">{b.name}</div>
                             {b.is_checked_in && <span className="guest-tag in">In</span>}
                           </div>
                         ))
