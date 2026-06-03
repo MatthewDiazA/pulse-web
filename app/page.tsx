@@ -395,13 +395,14 @@ export default function Home() {
         .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:${COLORS.primary}; opacity:0.32; white-space:nowrap; text-transform:uppercase; }
         @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
 
-        .filters { padding:16px 16px 10px; display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; }
+        .filters { padding:0 16px; display:flex; gap:0; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; border-bottom:0.5px solid rgba(255,255,255,0.06); }
         .filters::-webkit-scrollbar { display:none; }
-        .pill { background:rgba(255,255,255,0.04); border:0.5px solid rgba(255,255,255,0.07); border-radius:100px; padding:8px 16px; font-size:13px; color:#665; cursor:pointer; font-family:'Syne',sans-serif; transition:all 0.2s; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; gap:6px; }
-        .pill:active { transform:scale(0.94); }
-        .pill.active { background:rgba(255,170,51,0.1); color:${COLORS.primary}; border-color:rgba(255,170,51,0.3); font-weight:500; }
+        .pill { background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-0.5px; padding:16px 20px 14px; font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:rgba(255,255,255,0.18); cursor:pointer; transition:color 0.2s, border-color 0.2s; white-space:nowrap; flex-shrink:0; }
+        .pill:hover:not(.active) { color:rgba(255,255,255,0.45); }
+        .pill:active { opacity:0.7; }
+        .pill.active { color:#fff; border-bottom-color:${COLORS.primary}; }
 
-        .section-label { font-size:11px; color:#3a2a1a; letter-spacing:1.5px; text-transform:uppercase; font-family:'Syne',sans-serif; padding:0 16px 10px; max-width:1100px; margin:0 auto; }
+        .section-label { font-size:11px; color:rgba(255,255,255,0.12); letter-spacing:1.5px; text-transform:uppercase; font-family:'Syne',sans-serif; padding:14px 16px 8px; max-width:1100px; margin:0 auto; }
         .cards-wrap { padding:4px 12px 100px; max-width:1100px; margin:0 auto; }
         .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
         @media(min-width:600px){ .grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
