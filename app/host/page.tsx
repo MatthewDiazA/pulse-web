@@ -182,7 +182,7 @@ export default function HostDashboard() {
         .event-stat-value{font-size:14px;font-weight:500;color:#f0f0f0;}
         .event-stat-label{font-size:10px;color:#443;margin-top:2px;}
         .status-badge{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
-        .status-published{color:${COLORS.primary};}
+        .status-published{color:#ffaa33;}
         .status-draft{color:rgba(255,255,255,0.2);}
         .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
         .action-btn{font-size:11px;color:#554;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:6px;padding:5px 10px;cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.15s;white-space:nowrap;}
