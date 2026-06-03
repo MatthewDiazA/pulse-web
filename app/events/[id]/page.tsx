@@ -78,7 +78,7 @@ export default function EventDetail() {
   // Fix: one magnetic ref per page, applied to first available buy button via callback
   const buyBtnCallbackRef = useRef<((el: HTMLButtonElement | null) => void) | null>(null)
   const buyBtnCleanup = useRef<(() => void) | null>(null)
-  usePageReveal({ selectors: ['.cat-badge', '.ev-title', '.ev-meta', '.section', '.tickets-panel'], delay: 0.2 })
+  usePageReveal({ selectors: ['.ev-title', '.ev-meta', '.section', '.tickets-panel'], delay: 0.2 })
   const [event, setEvent] = useState<EventData | null>(null)
   const [loading, setLoading] = useState(true)
   const [buyingTier, setBuyingTier] = useState<string | null>(null)
@@ -330,7 +330,6 @@ export default function EventDetail() {
         .hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
         .hero-overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,0.15) 0%,rgba(0,0,0,0.55) 55%,${COLORS.bg} 100%);}
         .hero-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 20px 36px;max-width:900px;margin:0 auto;}
-        .cat-badge{display:inline-flex;padding:4px 12px;background:rgba(255,170,51,0.14);border:0.5px solid rgba(255,170,51,0.28);border-radius:100px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${COLORS.primary};margin-bottom:12px;font-weight:600;width:fit-content;}
         .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(34px,9vw,68px);font-weight:900;line-height:0.92;color:#fff;text-transform:uppercase;margin-bottom:14px;text-shadow:0 4px 30px rgba(0,0,0,0.7);}
         .ev-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:rgba(255,255,255,0.7);}
         .meta-item{display:flex;align-items:center;gap:5px;}
@@ -338,7 +337,7 @@ export default function EventDetail() {
         .two-col{display:grid;gap:36px;}
         @media(min-width:700px){.two-col{grid-template-columns:1fr 340px;}}
         .section{margin-bottom:28px;}
-        .sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:16px;}
+        .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.22);margin-bottom:16px;}
         .desc{font-size:14px;line-height:1.9;color:rgba(255,255,255,0.58);}
         .details-compact{display:flex;flex-wrap:wrap;gap:8px;}
         .detail-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;font-size:13px;color:#ccc;}
