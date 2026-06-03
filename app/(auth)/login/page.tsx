@@ -48,7 +48,18 @@ export default function LoginPage() {
       // Sign in
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      router.push('/account')
+
+      // If a guest list page (or other page) stored a redirect, honour it
+      let redirect = '/account'
+      try {
+        const stored = sessionStorage.getItem('pulse_redirect')
+        if (stored) {
+          sessionStorage.removeItem('pulse_redirect')
+          redirect = stored
+        }
+      } catch {}
+
+      router.push(redirect)
     } catch (e: any) {
       setError(e.message ?? 'Something went wrong')
     }
@@ -58,7 +69,7 @@ export default function LoginPage() {
   const headings = {
     signin: { title: 'Welcome back', sub: 'Sign in to your account' },
     signup: { title: 'Join Pulse', sub: 'Create your account' },
-    forgot: { title: 'Reset password', sub: 'We\'ll send you a link' },
+    forgot: { title: 'Reset password', sub: "We'll send you a link" },
   }
 
   return (
@@ -189,7 +200,9 @@ export default function LoginPage() {
           )}
 
           <button className="submit-btn" onClick={handleSubmit} disabled={loading}>
-            {loading ? <span className="spinner"/> : mode === 'signin' ? 'Sign in →' : mode === 'signup' ? 'Create account →' : 'Send reset link →'}
+            {loading
+              ? <span className="spinner"/>
+              : mode === 'signin' ? 'Sign in →' : mode === 'signup' ? 'Create account →' : 'Send reset link →'}
           </button>
 
           {mode === 'signin' && (

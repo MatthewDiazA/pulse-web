@@ -7,14 +7,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-function generateCode() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0
-    const v = c === 'x' ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
-
 export async function POST(request: Request) {
   try {
     const { token, userId } = await request.json()
@@ -53,7 +45,7 @@ export async function POST(request: Request) {
       .limit(1)
 
     if (existing && existing.length > 0) {
-      // Still mark this token consumed by them so the link can't be passed on
+      // Still mark this token consumed so the link can't be passed on
       await supabase
         .from('guest_invites')
         .update({ claimed_by: userId, claimed_at: new Date().toISOString() })
@@ -76,23 +68,63 @@ export async function POST(request: Request) {
     }
 
     // 5. Mint exactly one GL ticket
+    const qrCode = `PULSE-GL-${invite.event_id.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
     const { error: ticketErr } = await supabase.from('tickets').insert({
       event_id: invite.event_id,
       tier_id: invite.tier_id ?? null,
       user_id: userId,
-      qr_code: `PULSE-GL-${invite.event_id.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      qr_code: qrCode,
       status: 'active',
       is_guestlist: true,
     })
 
     if (ticketErr) {
-      // Roll back the claim so the link still works if the ticket failed
+      // Roll back the claim so the link still works
       await supabase
         .from('guest_invites')
         .update({ claimed_by: null, claimed_at: null })
         .eq('id', invite.id)
       console.error('GL ticket insert failed:', ticketErr)
       return NextResponse.json({ error: 'Could not create your guest list ticket. Try again.' }, { status: 500 })
+    }
+
+    // 6. Send ticket confirmation email (fire-and-forget — non-fatal)
+    try {
+      const [{ data: event }, { data: { user: authUser } }] = await Promise.all([
+        supabase
+          .from('events')
+          .select('title, starts_at, venue_name')
+          .eq('id', invite.event_id)
+          .single(),
+        supabase.auth.admin.getUserById(userId),
+      ])
+
+      const userEmail = authUser?.email ?? ''
+      const userName = (authUser?.user_metadata?.full_name as string | undefined) ?? ''
+      const eventDate = event?.starts_at
+        ? new Date(event.starts_at).toLocaleDateString('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
+          })
+        : 'TBD'
+
+      if (userEmail) {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: userEmail,
+            buyer_name: userName,
+            event_title: event?.title ?? 'Your event',
+            event_date: eventDate,
+            venue: event?.venue_name ?? undefined,
+            tier_name: 'Guest List',
+            qr_code: qrCode,
+          }),
+        })
+      }
+    } catch (emailErr) {
+      console.warn('[claim-guest] email failed (non-fatal):', emailErr)
     }
 
     return NextResponse.json({ success: true, eventId: invite.event_id })
