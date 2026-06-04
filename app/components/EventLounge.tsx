@@ -4,7 +4,7 @@ import { useSpringMessage, useMagneticButton } from '../lib/animations'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 
-type LoungeMessage = {
+type ChatMessage = {
   id: string
   event_id: string
   user_id: string
@@ -15,20 +15,12 @@ type LoungeMessage = {
   created_at: string
 }
 
-const AVATARS = [
-  { id: 'flame', emoji: '🔥', bg: 'rgba(255,100,0,0.15)' },
-  { id: 'skull', emoji: '💀', bg: 'rgba(255,255,255,0.08)' },
-  { id: 'alien', emoji: '👽', bg: 'rgba(100,255,100,0.1)' },
-  { id: 'ghost', emoji: '👻', bg: 'rgba(255,255,255,0.1)' },
-  { id: 'devil', emoji: '😈', bg: 'rgba(150,50,255,0.12)' },
-  { id: 'star', emoji: '⭐', bg: 'rgba(255,200,50,0.12)' },
-  { id: 'bolt', emoji: '⚡', bg: 'rgba(255,220,0,0.12)' },
-  { id: 'moon', emoji: '🌙', bg: 'rgba(100,150,255,0.1)' },
-  { id: 'heart', emoji: '🖤', bg: 'rgba(255,255,255,0.06)' },
-  { id: 'crown', emoji: '👑', bg: 'rgba(255,180,0,0.12)' },
-  { id: 'eye', emoji: '👁️', bg: 'rgba(100,200,255,0.1)' },
-  { id: 'diamond', emoji: '💎', bg: 'rgba(100,200,255,0.12)' },
-]
+// The chat stays live until this many hours after the event start, then dissolves
+// into a read-only state. Generous window so it never closes during the night-of.
+const CHAT_OPEN_HOURS_AFTER_START = 12
+
+const initialsOf = (name: string) =>
+  (name || 'G').trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
 
 export default function EventLounge({
   eventId,
@@ -39,23 +31,21 @@ export default function EventLounge({
   eventTitle: string
   hostId: string
 }) {
-  const [messages, setMessages] = useState<LoungeMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [newMsg, setNewMsg] = useState('')
   const [user, setUser] = useState<any>(null)
   const [hasTicket, setHasTicket] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [sending, setSending] = useState(false)
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0])
-  const [showPicker, setShowPicker] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [eventClosed, setEventClosed] = useState(false)
   const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   const messagesRef = useSpringMessage<HTMLDivElement>()
   const sendBtnRef = useMagneticButton<HTMLButtonElement>({ strength: 0.25 })
 
-  // Fetch user, check ticket, check admin
+  // Fetch user, check ticket, check admin, determine if the event has closed
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data }) => {
@@ -75,6 +65,16 @@ export default function EventLounge({
         .eq('user_id', data.user.id)
         .single()
       if (admin) setIsAdmin(true)
+
+      const { data: ev } = await supabase
+        .from('events')
+        .select('starts_at')
+        .eq('id', eventId)
+        .single()
+      const start = ev?.starts_at ? new Date(ev.starts_at).getTime() : null
+      if (start !== null) {
+        setEventClosed(Date.now() > start + CHAT_OPEN_HOURS_AFTER_START * 3600 * 1000)
+      }
     })
   }, [eventId])
 
@@ -88,7 +88,7 @@ export default function EventLounge({
       .eq('event_id', eventId)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setMessages(data as LoungeMessage[])
+        if (data) setMessages(data as ChatMessage[])
       })
 
     const channel = supabase
@@ -97,7 +97,7 @@ export default function EventLounge({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'lounge_messages', filter: `event_id=eq.${eventId}` },
         (payload) => {
-          const msg = payload.new as LoungeMessage
+          const msg = payload.new as ChatMessage
           setMessages(prev => [...prev, msg])
           if (!isOpen) setUnread(u => u + 1)
         },
@@ -122,16 +122,16 @@ export default function EventLounge({
   }, [messages.length, isOpen])
 
   const handleSend = async () => {
-    if (!newMsg.trim() || !user || sending) return
+    if (!newMsg.trim() || !user || sending || eventClosed) return
     setSending(true)
     const supabase = createClient()
-    const userName = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Anonymous'
+    const userName = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Guest'
 
     await supabase.from('lounge_messages').insert({
       event_id: eventId,
       user_id: user.id,
       user_name: userName,
-      user_avatar: selectedAvatar.emoji,
+      user_avatar: '', // avatars are now derived initials; column kept for compatibility
       content: newMsg.trim(),
     })
 
@@ -144,7 +144,7 @@ export default function EventLounge({
     await supabase.from('lounge_messages').delete().eq('id', msgId)
   }
 
-  const handlePin = async (msg: LoungeMessage) => {
+  const handlePin = async (msg: ChatMessage) => {
     const supabase = createClient()
     await supabase
       .from('lounge_messages')
@@ -162,75 +162,77 @@ export default function EventLounge({
   const isHost = user?.id === hostId
   const canModerate = isHost || isAdmin
 
+  const ChatIcon = ({ size = 16, color = '#ffaa33', opacity = 1 }: { size?: number; color?: string; opacity?: number }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity }}>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    </svg>
+  )
+
   return (
     <>
       <style>{`
-        .lounge-trigger{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#1a0f00,#0d0800);border:1px solid rgba(255,170,51,0.3);border-radius:100px;padding:14px 22px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 20px rgba(255,170,51,0.15);transition:all 0.2s;font-family:'Nunito',sans-serif;}
-        .lounge-trigger:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.7),0 0 30px rgba(255,170,51,0.25);border-color:rgba(255,170,51,0.5);}
-        .lounge-trigger:active{transform:scale(0.96);}
-        .trigger-text{font-size:14px;font-weight:700;color:#ffaa33;letter-spacing:0.5px;}
-        .trigger-dot{width:8px;height:8px;border-radius:50%;background:#ffaa33;animation:triggerPulse 2s ease-in-out infinite;}
-        @keyframes triggerPulse{0%,100%{opacity:0.4;transform:scale(1)}50%{opacity:1;transform:scale(1.2)}}
-        .unread-badge{background:#ff6600;color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;}
+        .lounge-trigger{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;align-items:center;gap:9px;background:rgba(13,8,0,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:0.5px solid rgba(255,170,51,0.22);border-radius:100px;padding:13px 20px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.55);transition:transform 0.2s,border-color 0.2s;font-family:'Syne',sans-serif;}
+        .lounge-trigger:hover{transform:translateY(-2px);border-color:rgba(255,170,51,0.4);}
+        .lounge-trigger:active{transform:scale(0.97);}
+        .trigger-text{font-size:13px;font-weight:700;color:#ffaa33;letter-spacing:0.3px;}
+        .trigger-dot{width:7px;height:7px;border-radius:50%;background:#ffaa33;animation:triggerPulse 2.4s ease-in-out infinite;}
+        @keyframes triggerPulse{0%,100%{opacity:0.35;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}
+        .unread-badge{background:#ff6600;color:#fff;font-size:11px;font-weight:700;min-width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;padding:0 5px;}
 
-        .lounge-panel{position:fixed;bottom:0;right:0;width:420px;height:600px;max-height:80vh;max-width:100vw;z-index:1000;display:flex;flex-direction:column;background:#080400;border:1px solid rgba(255,170,51,0.15);border-radius:20px 20px 0 0;box-shadow:0 -8px 60px rgba(0,0,0,0.9),0 0 40px rgba(255,170,51,0.05);transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
+        .lounge-panel{position:fixed;bottom:0;right:0;width:412px;height:600px;max-height:82vh;max-width:100vw;z-index:1000;display:flex;flex-direction:column;background:#070400;border:0.5px solid rgba(255,255,255,0.08);border-radius:18px 18px 0 0;box-shadow:0 -8px 60px rgba(0,0,0,0.85);transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
         .lounge-panel.open{transform:translateY(0);}
 
-        .lounge-header{padding:18px 20px 14px;background:linear-gradient(180deg,rgba(255,170,51,0.06) 0%,transparent 100%);border-bottom:0.5px solid rgba(255,170,51,0.1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-        .lounge-header-left{display:flex;align-items:center;gap:10px;}
-        .lounge-icon{width:32px;height:32px;border-radius:10px;background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;}
-        .lounge-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;}
-        .lounge-subtitle{font-size:11px;color:#554;margin-top:1px;}
-        .lounge-close{background:none;border:none;color:#554;font-size:20px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:all 0.15s;}
+        .lounge-header{padding:17px 20px 14px;border-bottom:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+        .lounge-header-left{display:flex;align-items:center;gap:11px;min-width:0;}
+        .lounge-icon{width:32px;height:32px;border-radius:9px;background:rgba(255,170,51,0.08);border:0.5px solid rgba(255,170,51,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .lounge-title{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;line-height:1;}
+        .lounge-subtitle{font-size:11px;color:rgba(255,255,255,0.3);margin-top:3px;font-family:'Syne',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .lounge-close{background:none;border:none;color:rgba(255,255,255,0.3);font-size:22px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:all 0.15s;flex-shrink:0;line-height:1;}
         .lounge-close:hover{background:rgba(255,255,255,0.05);color:#fff;}
 
-        .pinned-bar{padding:10px 20px;background:rgba(255,170,51,0.04);border-bottom:0.5px solid rgba(255,170,51,0.08);flex-shrink:0;}
-        .pinned-label{font-size:9px;color:#ffaa33;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-weight:600;}
-        .pinned-text{font-size:12px;color:#ccc;line-height:1.4;}
+        .pinned-bar{padding:10px 20px;background:rgba(255,170,51,0.035);border-bottom:0.5px solid rgba(255,170,51,0.08);flex-shrink:0;}
+        .pinned-label{font-size:9px;color:#ffaa33;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:700;font-family:'Barlow Condensed',sans-serif;}
+        .pinned-text{font-size:12px;color:rgba(255,255,255,0.7);line-height:1.4;font-family:'Syne',sans-serif;}
 
-        .lounge-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;scrollbar-color:rgba(255,170,51,0.1) transparent;}
+        .lounge-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;}
         .lounge-messages::-webkit-scrollbar{width:4px;}
-        .lounge-messages::-webkit-scrollbar-thumb{background:rgba(255,170,51,0.15);border-radius:4px;}
+        .lounge-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px;}
 
-        .msg{display:flex;gap:8px;padding:6px 0;position:relative;}
+        .msg{display:flex;gap:9px;padding:6px 0;position:relative;font-family:'Syne',sans-serif;}
         .msg:hover .msg-actions{opacity:1;}
-        .msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px;}
+        .msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:2px;background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.2);color:rgba(255,170,51,0.8);letter-spacing:0.3px;}
         .msg-body{flex:1;min-width:0;}
-        .msg-header{display:flex;align-items:baseline;gap:6px;margin-bottom:1px;}
-        .msg-name{font-size:12px;font-weight:600;color:#f0f0f0;cursor:pointer;transition:color 0.1s;}
+        .msg-header{display:flex;align-items:baseline;gap:7px;margin-bottom:2px;}
+        .msg-name{font-size:12px;font-weight:700;color:#f0f0f0;cursor:pointer;transition:color 0.1s;}
         .msg-name:hover{color:#ffaa33;}
         .msg-name.host{color:#ffaa33;}
-        .msg-time{font-size:10px;color:#332;}
-        .msg-text{font-size:13px;color:#bbb;line-height:1.5;word-wrap:break-word;}
-        .msg-pinned{background:rgba(255,170,51,0.03);border-left:2px solid rgba(255,170,51,0.3);padding-left:10px;margin-left:-10px;}
+        .msg-host-tag{font-size:8px;color:#ffaa33;margin-left:5px;letter-spacing:1.5px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;}
+        .msg-time{font-size:10px;color:rgba(255,255,255,0.18);}
+        .msg-text{font-size:13px;color:rgba(255,255,255,0.72);line-height:1.5;word-wrap:break-word;}
+        .msg-pinned{background:rgba(255,170,51,0.03);border-left:2px solid rgba(255,170,51,0.3);padding-left:11px;margin-left:-11px;}
         .msg-actions{position:absolute;top:4px;right:0;display:flex;gap:4px;opacity:0;transition:opacity 0.15s;}
-        .msg-action-btn{background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 6px;font-size:10px;color:#554;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.1s;}
+        .msg-action-btn{background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:5px;padding:2px 7px;font-size:10px;color:rgba(255,255,255,0.4);cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.1s;}
         .msg-action-btn:hover{color:#f0f0f0;background:rgba(255,255,255,0.08);}
         .msg-action-btn.del:hover{color:#ff6666;}
 
-        .lounge-input-area{padding:12px 16px 16px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.4);flex-shrink:0;display:flex;gap:8px;align-items:flex-end;}
-        .avatar-pick{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,170,51,0.25);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0;transition:all 0.15s;position:relative;}
-        .avatar-pick:hover{border-color:rgba(255,170,51,0.5);}
-        .avatar-dropdown{position:absolute;bottom:40px;left:0;background:#1a0f00;border:0.5px solid rgba(255,170,51,0.25);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,0.8);}
-        .av-opt{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;border:1px solid transparent;transition:all 0.1s;}
-        .av-opt:hover{transform:scale(1.15);}
-        .av-opt.sel{border-color:#ffaa33;background:rgba(255,170,51,0.1);}
-        .msg-input{flex:1;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:20px;padding:10px 16px;color:#fff;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:none;max-height:80px;min-height:38px;line-height:1.4;}
+        .lounge-input-area{padding:12px 16px 16px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.3);flex-shrink:0;display:flex;gap:9px;align-items:flex-end;}
+        .msg-input{flex:1;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.1);border-radius:20px;padding:10px 16px;color:#fff;font-size:13px;font-family:'Syne',sans-serif;outline:none;resize:none;max-height:80px;min-height:38px;line-height:1.4;transition:border-color 0.15s;}
         .msg-input:focus{border-color:rgba(255,170,51,0.3);}
-        .msg-input::placeholder{color:#443;}
-        .send-btn{width:36px;height:36px;border-radius:50%;background:#ffaa33;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.15s;box-shadow:0 0 12px rgba(255,170,51,0.2);}
-        .send-btn:hover{box-shadow:0 0 20px rgba(255,170,51,0.4);transform:scale(1.05);}
+        .msg-input::placeholder{color:rgba(255,255,255,0.22);}
+        .send-btn{width:36px;height:36px;border-radius:50%;background:#ffaa33;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform 0.15s;}
+        .send-btn:hover{transform:scale(1.06);}
         .send-btn:active{transform:scale(0.92);}
-        .send-btn:disabled{opacity:0.3;cursor:not-allowed;box-shadow:none;}
+        .send-btn:disabled{opacity:0.3;cursor:not-allowed;}
         .send-arrow{width:16px;height:16px;fill:none;stroke:#000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
 
-        .empty-lounge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#443;padding:40px;}
-        .empty-lounge-icon{font-size:32px;opacity:0.3;}
-        .empty-lounge-text{font-size:13px;text-align:center;line-height:1.5;}
+        .chat-closed-bar{padding:16px 20px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.3);flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:8px;color:rgba(255,255,255,0.32);font-size:12px;font-family:'Syne',sans-serif;letter-spacing:0.2px;}
+
+        .empty-lounge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:rgba(255,255,255,0.25);padding:40px;font-family:'Syne',sans-serif;}
+        .empty-lounge-text{font-size:13px;text-align:center;line-height:1.6;}
 
         @media(max-width:480px){
-          .lounge-panel{width:100%;border-radius:16px 16px 0 0;height:70vh;}
-          .lounge-trigger{bottom:16px;right:16px;padding:12px 18px;}
+          .lounge-panel{width:100%;border-radius:14px 14px 0 0;height:72vh;}
+          .lounge-trigger{bottom:16px;right:16px;padding:12px 17px;}
         }
       `}</style>
 
@@ -238,7 +240,7 @@ export default function EventLounge({
       {!isOpen && (
         <div className="lounge-trigger" onClick={() => { setIsOpen(true); setUnread(0) }}>
           <div className="trigger-dot"/>
-          <span className="trigger-text">Lounge</span>
+          <span className="trigger-text">Chat</span>
           {unread > 0 && <span className="unread-badge">{unread}</span>}
         </div>
       )}
@@ -247,10 +249,12 @@ export default function EventLounge({
       <div className={`lounge-panel ${isOpen ? 'open' : ''}`}>
         <div className="lounge-header">
           <div className="lounge-header-left">
-            <div className="lounge-icon">🎧</div>
-            <div>
-              <div className="lounge-title">Lounge</div>
-              <div className="lounge-subtitle">{messages.length} messages</div>
+            <div className="lounge-icon"><ChatIcon size={16}/></div>
+            <div style={{ minWidth: 0 }}>
+              <div className="lounge-title">Chat</div>
+              <div className="lounge-subtitle">
+                {eventClosed ? 'Closed · read only' : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
+              </div>
             </div>
           </div>
           <button className="lounge-close" onClick={() => setIsOpen(false)}>×</button>
@@ -266,10 +270,9 @@ export default function EventLounge({
         <div className="lounge-messages" ref={messagesRef}>
           {messages.length === 0 ? (
             <div className="empty-lounge">
-              <div className="empty-lounge-icon">🎧</div>
+              <ChatIcon size={30} color="rgba(255,255,255,0.25)"/>
               <div className="empty-lounge-text">
-                The lounge is empty<br/>
-                Say something to the crowd
+                No messages yet.<br/>Say something to the room.
               </div>
             </div>
           ) : (
@@ -282,11 +285,10 @@ export default function EventLounge({
                 minute: '2-digit',
                 timeZone: 'UTC',
               })
-              const avBg = AVATARS.find(a => a.emoji === msg.user_avatar)?.bg ?? 'rgba(255,255,255,0.06)'
               return (
                 <div key={msg.id} className={`msg ${msg.is_pinned ? 'msg-pinned' : ''}`}>
                   {showName ? (
-                    <div className="msg-avatar" style={{ background: avBg }}>{msg.user_avatar}</div>
+                    <div className="msg-avatar">{initialsOf(msg.user_name)}</div>
                   ) : (
                     <div style={{ width: 28, flexShrink: 0 }}/>
                   )}
@@ -301,7 +303,7 @@ export default function EventLounge({
                           title={isMe ? '' : `Whisper ${msg.user_name}`}
                         >
                           {msg.user_name}
-                          {isMsgHost && <span style={{fontSize:'9px',color:'#ffaa33',marginLeft:'4px',letterSpacing:'0.5px'}}>HOST</span>}
+                          {isMsgHost && <span className="msg-host-tag">Host</span>}
                         </span>
                         <span className="msg-time">{time}</span>
                       </div>
@@ -325,49 +327,34 @@ export default function EventLounge({
           <div ref={bottomRef}/>
         </div>
 
-        <div className="lounge-input-area">
-          <div
-            className="avatar-pick"
-            style={{ background: selectedAvatar.bg }}
-            onClick={() => setShowPicker(!showPicker)}
-          >
-            {selectedAvatar.emoji}
-            {showPicker && (
-              <div className="avatar-dropdown" onClick={e => e.stopPropagation()}>
-                {AVATARS.map(av => (
-                  <div
-                    key={av.id}
-                    className={`av-opt ${selectedAvatar.id === av.id ? 'sel' : ''}`}
-                    style={{ background: av.bg }}
-                    onClick={() => { setSelectedAvatar(av); setShowPicker(false) }}
-                  >
-                    {av.emoji}
-                  </div>
-                ))}
-              </div>
-            )}
+        {eventClosed ? (
+          <div className="chat-closed-bar">
+            This chat has closed for {eventTitle}.
           </div>
-          <textarea
-            className="msg-input"
-            placeholder="Say something..."
-            value={newMsg}
-            onChange={e => setNewMsg(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            maxLength={500}
-            rows={1}
-          />
-          <button ref={sendBtnRef} className="send-btn" disabled={!newMsg.trim() || sending} onClick={handleSend}>
-            <svg className="send-arrow" viewBox="0 0 24 24">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-          </button>
-        </div>
+        ) : (
+          <div className="lounge-input-area">
+            <textarea
+              className="msg-input"
+              placeholder="Say something..."
+              value={newMsg}
+              onChange={e => setNewMsg(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              maxLength={500}
+              rows={1}
+            />
+            <button ref={sendBtnRef} className="send-btn" disabled={!newMsg.trim() || sending} onClick={handleSend}>
+              <svg className="send-arrow" viewBox="0 0 24 24">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </>
   )
