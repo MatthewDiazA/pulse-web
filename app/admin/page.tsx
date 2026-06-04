@@ -5,7 +5,7 @@ import { createClient } from '../lib/supabase/client'
 
 const ADMIN_EMAIL = 'mad2288@columbia.edu'
 
-type Tab = 'overview' | 'blast' | 'events' | 'users' | 'orders' | 'views'
+type Tab = 'overview' | 'blast' | 'events' | 'users' | 'orders' | 'views' | 'conversion'
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 function useAdmin() {
@@ -721,6 +721,94 @@ function ViewsTab() {
   )
 }
 
+// ── Conversion tab ────────────────────────────────────────────────────────────
+function ConversionTab() {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    ;(async () => {
+      const { data: events } = await createClient()
+        .from('events')
+        .select('id,title,status,ticket_tiers(quantity_sold,price)')
+        .order('starts_at', { ascending: false })
+      const evs = events ?? []
+      const withViews = await Promise.all(evs.map(async (e: any) => {
+        let views = 0
+        try {
+          const d = await (await fetch(`/api/pageview?event_id=${e.id}&period=30d`)).json()
+          views = d.total ?? 0
+        } catch {}
+        const sold = (e.ticket_tiers ?? []).reduce((s: number, t: any) => s + (t.quantity_sold || 0), 0)
+        const revenue = (e.ticket_tiers ?? []).reduce((s: number, t: any) => s + ((t.quantity_sold || 0) * Number(t.price || 0)), 0)
+        return { id: e.id, title: e.title, status: e.status, views, sold, revenue }
+      }))
+      if (alive) { setRows(withViews); setLoading(false) }
+    })()
+    return () => { alive = false }
+  }, [])
+
+  if (loading) return <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>Loading...</div>
+
+  const totalViews = rows.reduce((s, r) => s + r.views, 0)
+  const totalSold = rows.reduce((s, r) => s + r.sold, 0)
+  const overall = totalViews > 0 ? (totalSold / totalViews) * 100 : 0
+  const sorted = [...rows].sort((a, b) => b.views - a.views)
+
+  const rate = (sold: number, views: number) => (views > 0 ? (sold / views) * 100 : 0)
+  const rateColor = (r: number) => (r >= 10 ? '#4ade80' : r >= 3 ? '#ffaa33' : 'rgba(255,255,255,0.4)')
+
+  return (
+    <div>
+      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginBottom: '16px', lineHeight: 1.5 }}>
+        Page views to tickets sold, all-time per event.
+      </div>
+
+      {/* Aggregate */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '28px' }}>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
+          <div style={labelStyle}>Total views</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '34px', fontWeight: 900, color: '#fff', lineHeight: 1 }}>{totalViews.toLocaleString()}</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
+          <div style={labelStyle}>Tickets sold</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '34px', fontWeight: 900, color: '#fff', lineHeight: 1 }}>{totalSold.toLocaleString()}</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,170,51,0.15)', borderRadius: '14px', padding: '20px' }}>
+          <div style={labelStyle}>Conversion</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '34px', fontWeight: 900, color: '#ffaa33', lineHeight: 1 }}>{overall.toFixed(1)}%</div>
+        </div>
+      </div>
+
+      {/* Per-event */}
+      <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }}>By event</div>
+      {sorted.length === 0 ? (
+        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>No events yet.</div>
+      ) : sorted.map(r => {
+        const cr = rate(r.sold, r.views)
+        return (
+          <div key={r.id} style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 600, color: '#f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '20px', fontWeight: 900, color: rateColor(cr), flexShrink: 0 }}>{cr.toFixed(1)}%</div>
+            </div>
+            <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '8px' }}>
+              <span>{r.views.toLocaleString()} views</span>
+              <span>{r.sold.toLocaleString()} sold</span>
+              <span>${r.revenue.toFixed(0)}</span>
+            </div>
+            <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.min(100, cr)}%`, background: rateColor(cr), borderRadius: '2px' }}/>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Shared styles ─────────────────────────────────────────────────────────────
 const labelStyle: React.CSSProperties = { fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', marginBottom: '8px', display: 'block' }
 const selectStyle: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '11px 14px', color: '#f0f0f0', fontSize: '13px', fontFamily: "'Syne',sans-serif", outline: 'none', appearance: 'none' as const }
@@ -734,6 +822,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'users', label: 'Users' },
   { id: 'orders', label: 'Orders' },
   { id: 'views', label: 'Views' },
+  { id: 'conversion', label: 'Conversion' },
 ]
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -812,6 +901,7 @@ export default function AdminPage() {
         {tab === 'users'    && <UsersTab/>}
         {tab === 'orders'   && <OrdersTab/>}
         {tab === 'views'    && <ViewsTab/>}
+        {tab === 'conversion' && <ConversionTab/>}
       </div>
     </>
   )

@@ -171,13 +171,13 @@ export default function EventLounge({
   return (
     <>
       <style>{`
-        .lounge-trigger{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;align-items:center;gap:9px;background:rgba(13,8,0,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:0.5px solid rgba(255,170,51,0.22);border-radius:100px;padding:13px 20px;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.55);transition:transform 0.2s,border-color 0.2s;font-family:'Syne',sans-serif;}
-        .lounge-trigger:hover{transform:translateY(-2px);border-color:rgba(255,170,51,0.4);}
+        .lounge-trigger{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:0.5px solid rgba(255,255,255,0.14);border-radius:100px;padding:12px 22px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,0.5);transition:transform 0.2s,border-color 0.2s;font-family:'Syne',sans-serif;}
+        .lounge-trigger:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.26);}
         .lounge-trigger:active{transform:scale(0.97);}
-        .trigger-text{font-size:13px;font-weight:700;color:#ffaa33;letter-spacing:0.3px;}
-        .trigger-dot{width:7px;height:7px;border-radius:50%;background:#ffaa33;animation:triggerPulse 2.4s ease-in-out infinite;}
-        @keyframes triggerPulse{0%,100%{opacity:0.35;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}
-        .unread-badge{background:#ff6600;color:#fff;font-size:11px;font-weight:700;min-width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;padding:0 5px;}
+        .lounge-trigger.has-unread{border-color:rgba(255,170,51,0.45);}
+        .trigger-text{font-size:12px;font-weight:600;color:rgba(255,255,255,0.62);letter-spacing:1.2px;transition:color 0.2s;}
+        .lounge-trigger.has-unread .trigger-text{color:#ffaa33;}
+        .unread-badge{background:#ffaa33;color:#000;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;padding:0 5px;}
 
         .lounge-panel{position:fixed;bottom:0;right:0;width:412px;height:600px;max-height:82vh;max-width:100vw;z-index:1000;display:flex;flex-direction:column;background:#070400;border:0.5px solid rgba(255,255,255,0.08);border-radius:18px 18px 0 0;box-shadow:0 -8px 60px rgba(0,0,0,0.85);transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
         .lounge-panel.open{transform:translateY(0);}
@@ -238,9 +238,8 @@ export default function EventLounge({
 
       {/* Floating trigger button */}
       {!isOpen && (
-        <div className="lounge-trigger" onClick={() => { setIsOpen(true); setUnread(0) }}>
-          <div className="trigger-dot"/>
-          <span className="trigger-text">Chat</span>
+        <div className={`lounge-trigger ${unread > 0 ? 'has-unread' : ''}`} onClick={() => { setIsOpen(true); setUnread(0) }}>
+          <span className="trigger-text">the Chat</span>
           {unread > 0 && <span className="unread-badge">{unread}</span>}
         </div>
       )}
@@ -251,7 +250,7 @@ export default function EventLounge({
           <div className="lounge-header-left">
             <div className="lounge-icon"><ChatIcon size={16}/></div>
             <div style={{ minWidth: 0 }}>
-              <div className="lounge-title">Chat</div>
+              <div className="lounge-title">the Chat</div>
               <div className="lounge-subtitle">
                 {eventClosed ? 'Closed · read only' : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
               </div>

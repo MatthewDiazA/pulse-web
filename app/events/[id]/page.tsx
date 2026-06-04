@@ -98,6 +98,13 @@ export default function EventDetail() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [linkSheetOpen, setLinkSheetOpen] = useState(false)
 
+  // Guest list manager — host/admin only
+  const [manageOpen, setManageOpen] = useState(false)
+  const [guests, setGuests] = useState<{ ticket_id: string; user_id: string | null; name: string; email: string; is_checked_in: boolean }[]>([])
+  const [guestSearch, setGuestSearch] = useState('')
+  const [loadingGuests, setLoadingGuests] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+
   // Per-button magnetic effect via useMagneticButton applied individually
   const BuyButton = ({ tier, isBuying, onClick }: { tier: Tier; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
@@ -269,6 +276,36 @@ export default function EventDetail() {
     try { await navigator.clipboard.writeText(guestLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2200) } catch {}
   }
 
+  const openGuestManager = async () => {
+    if (!event || !currentUser) return
+    setManageOpen(true)
+    setLoadingGuests(true)
+    try {
+      const res = await fetch('/api/guest-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list', eventId: event.id, requesterId: currentUser.id }),
+      })
+      const data = await res.json()
+      setGuests(data.guests ?? [])
+    } catch {}
+    setLoadingGuests(false)
+  }
+
+  const removeGuest = async (ticketId: string) => {
+    if (!event || !currentUser) return
+    setRemovingId(ticketId)
+    try {
+      const res = await fetch('/api/guest-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', eventId: event.id, requesterId: currentUser.id, ticketId }),
+      })
+      if (res.ok) setGuests(g => g.filter(x => x.ticket_id !== ticketId))
+    } catch {}
+    setRemovingId(null)
+  }
+
   if (loading) return (
     <>
       <style>{`body{background:#000;margin:0;}`}</style>
@@ -338,6 +375,20 @@ export default function EventDetail() {
         .gl-copy-btn.copied{background:#22c55e;color:#fff;}
         .gl-close-btn{width:100%;padding:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.35);font-size:13px;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;transition:all 0.15s;}
         .gl-close-btn:hover{border-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.6);}
+        .gm-search{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#fff;font-family:'Syne',sans-serif;outline:none;margin-bottom:12px;}
+        .gm-search:focus{border-color:rgba(255,170,51,0.3);}
+        .gm-search::placeholder{color:rgba(255,255,255,0.25);}
+        .gm-list{max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+        .gm-row{display:flex;align-items:center;gap:11px;padding:9px 11px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:10px;}
+        .gm-av{width:30px;height:30px;border-radius:50%;background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,170,51,0.8);flex-shrink:0;font-family:'Syne',sans-serif;}
+        .gm-info{flex:1;min-width:0;}
+        .gm-name{font-size:13px;font-weight:600;color:#f0f0f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .gm-email{font-size:11px;color:rgba(255,255,255,0.28);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .gm-in{font-size:9px;font-weight:700;letter-spacing:1.5px;color:#5ec888;text-transform:uppercase;flex-shrink:0;font-family:'Barlow Condensed',sans-serif;}
+        .gm-remove{background:none;border:0.5px solid rgba(255,80,80,0.25);color:rgba(255,120,120,0.85);border-radius:7px;padding:5px 11px;font-size:11px;font-family:'Syne',sans-serif;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
+        .gm-remove:hover{background:rgba(255,80,80,0.1);border-color:rgba(255,80,80,0.4);}
+        .gm-remove:disabled{opacity:0.4;cursor:default;}
+        .gm-empty{font-size:13px;color:rgba(255,255,255,0.3);padding:10px 0;}
         .hero{position:relative;height:480px;overflow:hidden;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
         .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
@@ -409,6 +460,9 @@ export default function EventDetail() {
           <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
             <button className="gl-nav-btn" onClick={generateGuestLink} disabled={genningLink} title="Guest list link" aria-label="Guest list link">
               <i className="ti ti-list-check" style={{fontSize:'15px'}} aria-hidden="true"/>
+            </button>
+            <button className="gl-nav-btn" onClick={openGuestManager} title="Manage guest list" aria-label="Manage guest list">
+              <i className="ti ti-users" style={{fontSize:'15px'}} aria-hidden="true"/>
             </button>
             <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>
               <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
@@ -558,6 +612,48 @@ export default function EventDetail() {
               </button>
             </div>
             <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {manageOpen && (
+        <div className="gl-backdrop" onClick={() => setManageOpen(false)}>
+          <div className="gl-sheet" onClick={e => e.stopPropagation()}>
+            <div className="gl-drag"/>
+            <div className="gl-sheet-title">Guest list</div>
+            <p className="gl-sheet-desc">
+              {loadingGuests
+                ? 'Loading…'
+                : `${guests.length} ${guests.length === 1 ? 'guest' : 'guests'}${guests.filter(g => g.is_checked_in).length ? ` · ${guests.filter(g => g.is_checked_in).length} checked in` : ''}`}
+            </p>
+            <input className="gm-search" placeholder="Search guests…" value={guestSearch} onChange={e => setGuestSearch(e.target.value)}/>
+            <div className="gm-list">
+              {loadingGuests ? (
+                <div className="gm-empty">Loading guests…</div>
+              ) : guests.length === 0 ? (
+                <div className="gm-empty">No one has claimed a guest spot yet.</div>
+              ) : (
+                guests
+                  .filter(g => {
+                    const q = guestSearch.toLowerCase()
+                    return !q || g.name.toLowerCase().includes(q) || g.email.toLowerCase().includes(q)
+                  })
+                  .map(g => (
+                    <div key={g.ticket_id} className="gm-row">
+                      <div className="gm-av">{(g.name || 'G').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}</div>
+                      <div className="gm-info">
+                        <div className="gm-name">{g.name}</div>
+                        {g.email && <div className="gm-email">{g.email}</div>}
+                      </div>
+                      {g.is_checked_in && <span className="gm-in">In</span>}
+                      <button className="gm-remove" disabled={removingId === g.ticket_id} onClick={() => removeGuest(g.ticket_id)}>
+                        {removingId === g.ticket_id ? '…' : 'Remove'}
+                      </button>
+                    </div>
+                  ))
+              )}
+            </div>
+            <button className="gl-close-btn" onClick={() => setManageOpen(false)}>Done</button>
           </div>
         </div>
       )}
