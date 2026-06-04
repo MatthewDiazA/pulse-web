@@ -607,36 +607,95 @@ function OrdersTab() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    createClient().from('orders').select('id,total_amount,status,created_at,buyer_email,buyer_name,event:events(title)').order('created_at', { ascending: false }).limit(100).then(({ data }) => {
+    createClient().from('orders').select('id,total_amount,status,created_at,buyer_email,buyer_name,event:events(title)').order('created_at', { ascending: false }).limit(300).then(({ data }) => {
       setOrders(data ?? [])
       setLoading(false)
     })
   }, [])
 
-  const total = orders.filter(o => o.status === 'confirmed').reduce((s, o) => s + Number(o.total_amount || 0), 0)
-
   if (loading) return <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>Loading...</div>
+
+  const confirmed = orders.filter(o => o.status === 'confirmed')
+  const revenue = confirmed.reduce((s, o) => s + Number(o.total_amount || 0), 0)
+  const aov = confirmed.length ? revenue / confirmed.length : 0
+
+  // revenue by event
+  const evMap: Record<string, { revenue: number; count: number }> = {}
+  confirmed.forEach(o => {
+    const t = (o.event as any)?.title ?? 'Unknown'
+    evMap[t] = evMap[t] || { revenue: 0, count: 0 }
+    evMap[t].revenue += Number(o.total_amount || 0)
+    evMap[t].count++
+  })
+  const eventRows = Object.entries(evMap).map(([title, v]) => ({ title, ...v })).sort((a, b) => b.revenue - a.revenue)
+  const maxEvRev = Math.max(...eventRows.map(e => e.revenue), 1)
+
+  // top buyers
+  const bMap: Record<string, { name: string; spend: number; count: number }> = {}
+  confirmed.forEach(o => {
+    const e = o.buyer_email ?? 'unknown'
+    bMap[e] = bMap[e] || { name: o.buyer_name ?? '', spend: 0, count: 0 }
+    bMap[e].spend += Number(o.total_amount || 0)
+    bMap[e].count++
+  })
+  const buyerRows = Object.entries(bMap).map(([email, v]) => ({ email, ...v })).sort((a, b) => b.spend - a.spend).slice(0, 8)
+
+  const recent = confirmed.slice(0, 12)
+  const secLabel: React.CSSProperties = { fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', margin: '28px 0 12px' }
+  const card: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }
+  const big: React.CSSProperties = { fontFamily: "'Barlow Condensed',sans-serif", fontSize: '34px', fontWeight: 900, lineHeight: 1 }
 
   return (
     <div>
-      <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', marginBottom: '16px' }}>
-        {orders.length} orders · <span style={{ color: '#ffaa33', fontWeight: 700 }}>${total.toFixed(2)} total</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
+        <div style={{ ...card, borderColor: 'rgba(255,170,51,0.15)' }}><div style={labelStyle}>Revenue</div><div style={{ ...big, color: '#ffaa33' }}>${revenue.toFixed(0)}</div></div>
+        <div style={card}><div style={labelStyle}>Paid orders</div><div style={{ ...big, color: '#fff' }}>{confirmed.length}</div></div>
+        <div style={card}><div style={labelStyle}>Avg order</div><div style={{ ...big, color: '#fff' }}>${aov.toFixed(0)}</div></div>
       </div>
-      {orders.map(o => {
-        const date = new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-        return (
-          <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f0f0', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(o.event as any)?.title ?? 'Unknown event'}</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>{o.buyer_email} · {date}</div>
+
+      {confirmed.length === 0 ? (
+        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', marginTop: '28px' }}>No paid orders yet. Sales will appear here as they come in.</div>
+      ) : (
+        <>
+          <div style={secLabel}>Revenue by event</div>
+          {eventRows.map(e => (
+            <div key={e.title} style={{ padding: '11px 15px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '7px' }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 600, color: '#f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{e.count} orders</div>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '18px', fontWeight: 900, color: '#ffaa33', flexShrink: 0 }}>${e.revenue.toFixed(0)}</div>
+              </div>
+              <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}><div style={{ height: '100%', width: `${(e.revenue / maxEvRev) * 100}%`, background: 'rgba(255,170,51,0.6)', borderRadius: '2px' }}/></div>
             </div>
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '18px', fontWeight: 900, color: o.status === 'confirmed' ? '#ffaa33' : 'rgba(255,255,255,0.3)' }}>${Number(o.total_amount || 0).toFixed(2)}</div>
-              <div style={{ fontSize: '10px', color: o.status === 'confirmed' ? '#4ade80' : '#f87171', letterSpacing: '1px', fontWeight: 700 }}>{o.status?.toUpperCase()}</div>
+          ))}
+
+          <div style={secLabel}>Top buyers</div>
+          {buyerRows.map(b => (
+            <div key={b.email} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 15px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name || b.email}</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.email}</div>
+              </div>
+              {b.count > 1 && <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1px', color: '#ffaa33', textTransform: 'uppercase', flexShrink: 0 }}>{b.count}× repeat</span>}
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '18px', fontWeight: 900, color: '#fff', flexShrink: 0 }}>${b.spend.toFixed(0)}</div>
             </div>
-          </div>
-        )
-      })}
+          ))}
+
+          <div style={secLabel}>Recent sales</div>
+          {recent.map(o => {
+            const date = new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+            return (
+              <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 15px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(o.event as any)?.title ?? 'Unknown event'}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.buyer_email} · {date}</div>
+                </div>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '17px', fontWeight: 900, color: '#ffaa33', flexShrink: 0 }}>${Number(o.total_amount || 0).toFixed(0)}</div>
+              </div>
+            )
+          })}
+        </>
+      )}
     </div>
   )
 }
