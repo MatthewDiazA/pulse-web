@@ -10,8 +10,59 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
   try {
-    const { token, userId } = await request.json()
+    const body = await request.json()
+    const { token, userId, action, eventId, requesterId, ticketId } = body
 
+    // ── Guest-list management (host/admin only): list + remove ──────────────
+    if (action === 'list' || action === 'remove') {
+      // authorize: requester must be the event host or a site admin
+      let allowed = false
+      if (eventId && requesterId) {
+        const { data: ev } = await supabase.from('events').select('host_id').eq('id', eventId).single()
+        if (ev?.host_id === requesterId) allowed = true
+        else {
+          const { data: admin } = await supabase.from('admins').select('user_id').eq('user_id', requesterId).single()
+          allowed = !!admin
+        }
+      }
+      if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+      if (action === 'list') {
+        const { data: tickets } = await supabase
+          .from('tickets')
+          .select('id, user_id, is_checked_in, created_at')
+          .eq('event_id', eventId)
+          .eq('is_guestlist', true)
+          .order('created_at', { ascending: false })
+        const userIds = Array.from(new Set((tickets ?? []).map(t => t.user_id).filter(Boolean))) as string[]
+        const nameMap: Record<string, { name: string; email: string }> = {}
+        if (userIds.length) {
+          const { data: profs } = await supabase.from('profiles').select('id, full_name, username, email').in('id', userIds)
+          for (const p of profs ?? []) nameMap[p.id] = { name: p.full_name ?? p.username ?? 'Guest', email: p.email ?? '' }
+        }
+        const guests = (tickets ?? []).map(t => ({
+          ticket_id: t.id,
+          user_id: t.user_id,
+          name: t.user_id ? (nameMap[t.user_id]?.name ?? 'Guest') : 'Guest',
+          email: t.user_id ? (nameMap[t.user_id]?.email ?? '') : '',
+          is_checked_in: !!t.is_checked_in,
+        }))
+        return NextResponse.json({ guests })
+      }
+
+      // action === 'remove'
+      if (!ticketId) return NextResponse.json({ error: 'Missing ticketId' }, { status: 400 })
+      const { error: delErr } = await supabase
+        .from('tickets')
+        .delete()
+        .eq('id', ticketId)
+        .eq('event_id', eventId)
+        .eq('is_guestlist', true)
+      if (delErr) return NextResponse.json({ error: 'Could not remove guest' }, { status: 500 })
+      return NextResponse.json({ success: true })
+    }
+
+    // ── Default: claim a guest ticket from a /gl/ link ──────────────────────
     if (!token || !userId) {
       return NextResponse.json({ error: 'Missing token or userId' }, { status: 400 })
     }

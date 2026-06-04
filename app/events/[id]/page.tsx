@@ -281,7 +281,7 @@ export default function EventDetail() {
     setManageOpen(true)
     setLoadingGuests(true)
     try {
-      const res = await fetch('/api/guest-list', {
+      const res = await fetch('/api/claim-guest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list', eventId: event.id, requesterId: currentUser.id }),
@@ -296,7 +296,7 @@ export default function EventDetail() {
     if (!event || !currentUser) return
     setRemovingId(ticketId)
     try {
-      const res = await fetch('/api/guest-list', {
+      const res = await fetch('/api/claim-guest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'remove', eventId: event.id, requesterId: currentUser.id, ticketId }),
