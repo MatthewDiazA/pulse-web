@@ -110,14 +110,14 @@ function buildTicketEmail({ buyer_name, event_title, event_date, venue, tickets 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { to, event_title, event_date, venue, tier_name, qr_code, buyer_name, custom_html, tickets: multiTickets } = body
+    const { to, event_title, event_date, venue, tier_name, qr_code, buyer_name, custom_html, subject, tickets: multiTickets } = body
 
     // Path 1: custom_html override (legacy)
     if (custom_html) {
       await resend.emails.send({
         from: 'PULSE <tickets@pulsetickets.vip>',
         to,
-        subject: `Your ticket to ${event_title}`,
+        subject: subject ?? `Your ticket to ${event_title}`,
         html: custom_html,
       })
       return NextResponse.json({ success: true })

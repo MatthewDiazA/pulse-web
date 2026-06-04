@@ -446,30 +446,12 @@ export default function EventDetail() {
               </div>
             )}
 
-            {event.spotify_playlist_url && (
+            {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
               <div className="section">
                 <h2 className="sec-title">Sound</h2>
-                {previewUrl ? (
-                  <div className="sound-bar" onClick={toggleSound}>
-                    <div className="sound-play"><i className={`ti ${playing ? 'ti-player-pause-filled' : 'ti-player-play-filled'}`} aria-hidden="true"/></div>
-                    <div className="sound-info">
-                      <div className="sound-label">{soundMeta?.title ?? 'Preview the night'}</div>
-                      <div className="sound-sub">{soundMeta?.artist || 'Tap to play a 30-second preview'}</div>
-                    </div>
-                    {playing && <div className="sound-eq"><span/><span/><span/><span/></div>}
-                  </div>
-                ) : previewUrl === null ? (
-                  spotifyEmbed(event.spotify_playlist_url) && (
-                    <div className="spotify-fallback">
-                      <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
-                    </div>
-                  )
-                ) : (
-                  <div className="sound-bar" style={{cursor:'default',opacity:0.6}}>
-                    <div className="sound-play"><i className="ti ti-loader-2" aria-hidden="true"/></div>
-                    <div className="sound-info"><div className="sound-label">Loading sound…</div></div>
-                  </div>
-                )}
+                <div className="spotify-fallback">
+                  <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
+                </div>
               </div>
             )}
 

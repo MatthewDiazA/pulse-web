@@ -448,13 +448,23 @@ function EventsTab() {
 // ── Users tab ─────────────────────────────────────────────────────────────────
 function UsersTab() {
   const [users, setUsers] = useState<any[]>([])
+  const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
+  // guest-link send state (per user)
+  const [openUser, setOpenUser] = useState<string | null>(null)
+  const [pickEvent, setPickEvent] = useState<Record<string, string>>({})
+  const [sendingTo, setSendingTo] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<Record<string, { ok: boolean; msg: string }>>({})
+
   useEffect(() => {
-    createClient().from('profiles').select('id,full_name,username,is_host,created_at').order('created_at', { ascending: false }).limit(100).then(({ data }) => {
+    createClient().from('profiles').select('id,full_name,username,is_host,created_at,email').order('created_at', { ascending: false }).limit(100).then(({ data }) => {
       setUsers(data ?? [])
       setLoading(false)
+    })
+    createClient().from('events').select('id,title,starts_at').order('starts_at', { ascending: false }).then(({ data }) => {
+      setEvents(data ?? [])
     })
   }, [])
 
@@ -463,28 +473,127 @@ function UsersTab() {
     setUsers(us => us.map(u => u.id === id ? { ...u, is_host: !current } : u))
   }
 
+  // Get-or-create the broadcast guest link for an event (reuses the existing token)
+  const getEventGuestLink = async (eventId: string): Promise<string | null> => {
+    const supabase = createClient()
+    const { data: existing } = await supabase.from('guest_invites').select('token').eq('event_id', eventId).limit(1)
+    let token = existing?.[0]?.token as string | undefined
+    if (!token) {
+      const { data: { user: me } } = await supabase.auth.getUser()
+      token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+      const { error } = await supabase.from('guest_invites').insert({ event_id: eventId, token, created_by: me?.id })
+      if (error) return null
+    }
+    return `${window.location.origin}/gl/${token}`
+  }
+
+  const sendGuestLink = async (u: any) => {
+    const eventId = pickEvent[u.id] || events[0]?.id
+    if (!eventId) { setFeedback(f => ({ ...f, [u.id]: { ok: false, msg: 'No events available' } })); return }
+    if (!u.email) { setFeedback(f => ({ ...f, [u.id]: { ok: false, msg: 'No email on file for this user' } })); return }
+
+    setSendingTo(u.id)
+    setFeedback(f => { const n = { ...f }; delete n[u.id]; return n })
+    try {
+      const link = await getEventGuestLink(eventId)
+      if (!link) {
+        setFeedback(f => ({ ...f, [u.id]: { ok: false, msg: 'Could not create a link for that event' } }))
+        setSendingTo(null); return
+      }
+      const ev = events.find(e => e.id === eventId)
+      const title = ev?.title ?? 'the event'
+      const firstName = (u.full_name ?? '').split(' ')[0] || 'there'
+      const html = `<!DOCTYPE html><html><body style="margin:0;background:#000;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;padding:40px 24px;">
+    <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#ffaa33;font-weight:700;margin-bottom:24px;">PULSE &middot; Guest List</div>
+    <div style="font-size:27px;font-weight:900;color:#ffffff;text-transform:uppercase;line-height:1.06;margin-bottom:14px;">You're on the list for ${title}</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:28px;">Hey ${firstName}, tap below to claim your guest list spot. You'll get a ticket with a QR code for entry &mdash; no charge.</div>
+    <a href="${link}" style="display:inline-block;background:#ffaa33;color:#000000;text-decoration:none;font-size:15px;font-weight:700;padding:14px 30px;border-radius:100px;">Claim your spot</a>
+    <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:28px;line-height:1.5;">Or open this link:<br/><span style="color:rgba(255,170,51,0.75);word-break:break-all;">${link}</span></div>
+    <div style="margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:1px;">pulsetickets.vip</div>
+  </div></body></html>`
+
+      const res = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: u.email,
+          event_title: title,
+          subject: `You're on the guest list for ${title}`,
+          custom_html: html,
+        }),
+      })
+      if (res.ok) {
+        setFeedback(f => ({ ...f, [u.id]: { ok: true, msg: `Sent to ${u.email}` } }))
+        setOpenUser(null)
+      } else {
+        setFeedback(f => ({ ...f, [u.id]: { ok: false, msg: 'Email failed to send' } }))
+      }
+    } catch {
+      setFeedback(f => ({ ...f, [u.id]: { ok: false, msg: 'Something went wrong' } }))
+    }
+    setSendingTo(null)
+  }
+
   const filtered = users.filter(u => {
     const q = search.toLowerCase()
-    return !q || (u.full_name ?? '').toLowerCase().includes(q) || (u.username ?? '').toLowerCase().includes(q)
+    return !q || (u.full_name ?? '').toLowerCase().includes(q) || (u.username ?? '').toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q)
   })
 
   if (loading) return <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>Loading...</div>
 
   return (
     <div>
-      <input style={{ ...selectStyle, marginBottom: '16px' }} placeholder="Search name or username..." value={search} onChange={e => setSearch(e.target.value)}/>
+      <input style={{ ...selectStyle, marginBottom: '16px' }} placeholder="Search name, username or email..." value={search} onChange={e => setSearch(e.target.value)}/>
       {filtered.map(u => {
         const initials = (u.full_name ?? u.username ?? 'U').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+        const isOpen = openUser === u.id
+        const fb = feedback[u.id]
         return (
-          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,170,51,0.1)', border: '0.5px solid rgba(255,170,51,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'rgba(255,170,51,0.7)', flexShrink: 0 }}>{initials}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.full_name ?? 'No name'}</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>@{u.username ?? 'no-username'}</div>
+          <div key={u.id} style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: '10px', marginBottom: '6px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,170,51,0.1)', border: '0.5px solid rgba(255,170,51,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: 'rgba(255,170,51,0.7)', flexShrink: 0 }}>{initials}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#f0f0f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.full_name ?? 'No name'}</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email ?? `@${u.username ?? 'no-username'}`}</div>
+              </div>
+              <button onClick={() => { setOpenUser(isOpen ? null : u.id); setFeedback(f => { const n = { ...f }; delete n[u.id]; return n }) }} style={{ ...ghostBtn, fontSize: '11px', flexShrink: 0, color: isOpen ? '#ffaa33' : 'rgba(255,170,51,0.7)', borderColor: 'rgba(255,170,51,0.25)', background: 'rgba(255,170,51,0.06)' }}>
+                {isOpen ? 'Cancel' : 'Guest link'}
+              </button>
+              <button onClick={() => toggleHost(u.id, u.is_host)} style={{ ...ghostBtn, fontSize: '11px', flexShrink: 0 }}>
+                {u.is_host ? 'Remove host' : 'Make host'}
+              </button>
             </div>
-            <button onClick={() => toggleHost(u.id, u.is_host)} style={{ ...ghostBtn, fontSize: '11px', flexShrink: 0 }}>
-              {u.is_host ? 'Remove host' : 'Make host'}
-            </button>
+
+            {isOpen && (
+              <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
+                  {u.email ? <>Email a guest list link to <span style={{ color: 'rgba(255,255,255,0.6)' }}>{u.email}</span></> : 'This user has no email on file.'}
+                </div>
+                {u.email && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                    <select
+                      value={pickEvent[u.id] ?? events[0]?.id ?? ''}
+                      onChange={e => setPickEvent(p => ({ ...p, [u.id]: e.target.value }))}
+                      style={{ ...selectStyle, flex: 1, padding: '9px 12px', fontSize: '12px' }}
+                    >
+                      {events.map(ev => <option key={ev.id} value={ev.id} style={{ background: '#1a1208' }}>{ev.title}</option>)}
+                    </select>
+                    <button
+                      onClick={() => sendGuestLink(u)}
+                      disabled={sendingTo === u.id}
+                      style={{ ...primaryBtn, width: 'auto', padding: '9px 18px', fontSize: '13px', opacity: sendingTo === u.id ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                    >
+                      {sendingTo === u.id ? 'Sending…' : 'Send'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {fb && (
+              <div style={{ padding: '0 16px 12px', fontSize: '11px', color: fb.ok ? '#4ade80' : '#f87171' }}>{fb.msg}</div>
+            )}
           </div>
         )
       })}
