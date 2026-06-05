@@ -2,12 +2,16 @@ import type { Metadata } from 'next'
 import PageTransition from './components/PageTransition'
 
 export const metadata: Metadata = {
-  title: 'Pulse — Find Your Night',
-  description: 'Discover the best parties, concerts, and events near you. Buy tickets instantly.',
+  title: 'Pulse',
   openGraph: {
     title: 'Pulse',
-    description: 'Discover the best parties, concerts, and events near you.',
-    images: ['/pulse-logo.png'],
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pulse',
+    images: ['/og-image.png'],
   },
 }
 
