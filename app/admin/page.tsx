@@ -451,6 +451,7 @@ function UsersTab() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set())
 
   // guest-link send state (per user)
   const [openUser, setOpenUser] = useState<string | null>(null)
@@ -466,11 +467,25 @@ function UsersTab() {
     createClient().from('events').select('id,title,starts_at').order('starts_at', { ascending: false }).then(({ data }) => {
       setEvents(data ?? [])
     })
+    createClient().from('admins').select('user_id').then(({ data }) => {
+      setAdminIds(new Set((data ?? []).map((a: any) => a.user_id)))
+    })
   }, [])
 
   const toggleHost = async (id: string, current: boolean) => {
     await createClient().from('profiles').update({ is_host: !current }).eq('id', id)
     setUsers(us => us.map(u => u.id === id ? { ...u, is_host: !current } : u))
+  }
+
+  const toggleAdmin = async (id: string) => {
+    const supabase = createClient()
+    if (adminIds.has(id)) {
+      await supabase.from('admins').delete().eq('user_id', id)
+      setAdminIds(prev => { const n = new Set(prev); n.delete(id); return n })
+    } else {
+      await supabase.from('admins').insert({ user_id: id })
+      setAdminIds(prev => new Set([...prev, id]))
+    }
   }
 
   // Get-or-create the broadcast guest link for an event (reuses the existing token)
@@ -559,6 +574,9 @@ function UsersTab() {
               </div>
               <button onClick={() => { setOpenUser(isOpen ? null : u.id); setFeedback(f => { const n = { ...f }; delete n[u.id]; return n }) }} style={{ ...ghostBtn, fontSize: '11px', flexShrink: 0, color: isOpen ? '#ffaa33' : 'rgba(255,170,51,0.7)', borderColor: 'rgba(255,170,51,0.25)', background: 'rgba(255,170,51,0.06)' }}>
                 {isOpen ? 'Cancel' : 'Guest link'}
+              </button>
+              <button onClick={() => toggleAdmin(u.id)} style={{ ...ghostBtn, fontSize: '11px', flexShrink: 0, ...(adminIds.has(u.id) ? { color: '#ffaa33', borderColor: 'rgba(255,170,51,0.3)' } : {}) }}>
+                {adminIds.has(u.id) ? 'Remove admin' : 'Make admin'}
               </button>
               <button onClick={() => toggleHost(u.id, u.is_host)} style={{ ...ghostBtn, fontSize: '11px', flexShrink: 0 }}>
                 {u.is_host ? 'Remove host' : 'Make host'}
