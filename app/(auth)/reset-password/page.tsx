@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 
@@ -11,47 +11,58 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
   const [ready, setReady] = useState(false)
+  const [debug, setDebug] = useState('')
+  const ranRef = useRef(false)
 
   useEffect(() => {
+    if (ranRef.current) return   // guard: verifyOtp consumes the token, never run twice
+    ranRef.current = true
+
     const supabase = createClient()
+    const params = new URLSearchParams(window.location.search)
+    const token_hash = params.get('token_hash')
+    const type = params.get('type')
+    const code = params.get('code')
 
-    // @supabase/ssr uses PKCE — the reset link arrives as ?code=xxx
-    // We must exchange that code for a session before the form is usable.
-    const code = new URLSearchParams(window.location.search).get('code')
-
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (data.session && !error) {
-          setReady(true)
-        } else {
-          setError('This reset link has expired or already been used. Please request a new one.')
-        }
-      })
-      return
+    const fail = (raw?: string) => {
+      setError('This reset link has expired or already been used. Please request a new one.')
+      if (raw) setDebug(raw)
     }
 
-    // Fallback: already have a valid session (e.g. page was refreshed after exchange)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setReady(true)
-      } else {
-        // Also listen for PASSWORD_RECOVERY in case of implicit-flow links
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
-            setReady(true)
-            subscription.unsubscribe()
-          }
-        })
-        // Give it 1.5s then show error if nothing fired
-        setTimeout(() => {
-          supabase.auth.getSession().then(({ data }) => {
-            if (!data.session) {
-              setError('This reset link has expired or already been used. Please request a new one.')
-            }
-          })
-        }, 1500)
+    async function verify() {
+      // Method 1 — token_hash (device-independent, no PKCE cookie needed). Preferred.
+      if (token_hash) {
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type: (type as any) || 'recovery' })
+        if (!error) setReady(true)
+        else fail(error.message)
+        return
       }
-    })
+
+      // Method 2 — PKCE code exchange (works only in the same browser the reset was requested from)
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (data?.session && !error) setReady(true)
+        else fail(error?.message || 'code exchange returned no session')
+        return
+      }
+
+      // Method 3 — implicit hash flow / already-established session
+      const { data } = await supabase.auth.getSession()
+      if (data.session) { setReady(true); return }
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN')) {
+          setReady(true)
+          subscription.unsubscribe()
+        }
+      })
+      setTimeout(async () => {
+        const { data } = await supabase.auth.getSession()
+        if (!data.session) fail('no token_hash, code, or session found in URL')
+      }, 2000)
+    }
+
+    verify()
   }, [])
 
   const handleReset = async () => {
@@ -91,7 +102,7 @@ export default function ResetPasswordPage() {
         .success{font-size:15px;color:#4ade80;text-align:center;margin-top:8px;line-height:1.6;}
         .loading-state{font-size:13px;color:rgba(255,255,255,0.3);text-align:center;padding:20px 0;}
         .request-link{margin-top:18px;text-align:center;font-size:13px;color:rgba(255,255,255,0.3);}
-        .request-link a{color:#ffaa33;text-decoration:none;}
+        .request-link a{color:#ffaa33;text-decoration:none;font-weight:700;}
       `}</style>
 
       <div className="acid"/>
@@ -107,6 +118,7 @@ export default function ResetPasswordPage() {
           {error ? (
             <>
               <div className="error">{error}</div>
+              {debug && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginBottom: '14px', fontFamily: 'monospace' }}>debug: {debug}</div>}
               <div className="request-link">
                 <a href="/forgot-password">Request a new reset link</a>
               </div>
