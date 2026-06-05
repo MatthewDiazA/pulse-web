@@ -13,11 +13,44 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Supabase puts the session in the URL hash — just check we have a session
     const supabase = createClient()
+
+    // @supabase/ssr uses PKCE — the reset link arrives as ?code=xxx
+    // We must exchange that code for a session before the form is usable.
+    const code = new URLSearchParams(window.location.search).get('code')
+
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (data.session && !error) {
+          setReady(true)
+        } else {
+          setError('This reset link has expired or already been used. Please request a new one.')
+        }
+      })
+      return
+    }
+
+    // Fallback: already have a valid session (e.g. page was refreshed after exchange)
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true)
-      else setError('Invalid or expired reset link. Please request a new one.')
+      if (data.session) {
+        setReady(true)
+      } else {
+        // Also listen for PASSWORD_RECOVERY in case of implicit-flow links
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
+            setReady(true)
+            subscription.unsubscribe()
+          }
+        })
+        // Give it 1.5s then show error if nothing fired
+        setTimeout(() => {
+          supabase.auth.getSession().then(({ data }) => {
+            if (!data.session) {
+              setError('This reset link has expired or already been used. Please request a new one.')
+            }
+          })
+        }, 1500)
+      }
     })
   }, [])
 
@@ -49,34 +82,48 @@ export default function ResetPasswordPage() {
         .card{width:100%;max-width:400px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.08);border-radius:20px;padding:36px 32px;}
         .title{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;text-transform:uppercase;color:#fff;margin-bottom:6px;}
         .sub{font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:28px;}
-        label{display:block;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:7px;}
-        input{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:10px;padding:13px 14px;color:#fff;font-size:14px;font-family:'Syne',sans-serif;outline:none;margin-bottom:16px;transition:border-color 0.2s;}
-        input:focus{border-color:rgba(255,170,51,0.4);}
-        .btn{width:100%;background:#ffaa33;color:#000;border:none;border-radius:100px;padding:14px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;}
-        .btn:disabled{opacity:0.45;cursor:not-allowed;}
-        .error{background:rgba(255,80,80,0.08);border:0.5px solid rgba(255,80,80,0.2);border-radius:8px;padding:10px 14px;font-size:13px;color:#ff8888;margin-bottom:16px;}
-        .success{background:rgba(74,222,128,0.08);border:0.5px solid rgba(74,222,128,0.2);border-radius:8px;padding:10px 14px;font-size:13px;color:#4ade80;margin-bottom:16px;}
+        label{display:block;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px;}
+        input[type=password]{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:13px 14px;font-size:14px;color:#fff;font-family:'Syne',sans-serif;outline:none;margin-bottom:18px;}
+        input[type=password]:focus{border-color:rgba(255,170,51,0.4);}
+        .submit-btn{width:100%;background:#ffaa33;color:#000;font-size:15px;font-weight:700;padding:14px;border-radius:100px;border:none;cursor:pointer;font-family:'Syne',sans-serif;margin-top:4px;transition:opacity 0.15s;}
+        .submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
+        .error{font-size:13px;color:#f87171;margin-bottom:16px;line-height:1.5;}
+        .success{font-size:15px;color:#4ade80;text-align:center;margin-top:8px;line-height:1.6;}
+        .loading-state{font-size:13px;color:rgba(255,255,255,0.3);text-align:center;padding:20px 0;}
+        .request-link{margin-top:18px;text-align:center;font-size:13px;color:rgba(255,255,255,0.3);}
+        .request-link a{color:#ffaa33;text-decoration:none;}
       `}</style>
 
-      <div className="acid" aria-hidden="true"/>
+      <div className="acid"/>
       <div className="page">
         <button className="logo-btn" onClick={() => router.push('/')}>
           <img src="/pulse-word-tight.png" alt="Pulse" className="logo-img"/>
         </button>
+
         <div className="card">
           <div className="title">New password</div>
-          <div className="sub">Choose a strong password for your account</div>
+          <div className="sub">Choose something you'll remember.</div>
 
-          {error && <div className="error">{error}</div>}
-          {done && <div className="success">Password updated. Redirecting you...</div>}
-
-          {ready && !done && (
+          {error ? (
+            <>
+              <div className="error">{error}</div>
+              <div className="request-link">
+                <a href="/forgot-password">Request a new reset link</a>
+              </div>
+            </>
+          ) : !ready ? (
+            <div className="loading-state">Verifying your reset link…</div>
+          ) : done ? (
+            <div className="success">Password updated. Taking you to your account…</div>
+          ) : (
             <>
               <label>New password</label>
-              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"/>
+              <input type="password" placeholder="At least 8 characters" value={password} onChange={e => setPassword(e.target.value)}/>
               <label>Confirm password</label>
-              <input type="password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleReset()}/>
-              <button className="btn" onClick={handleReset} disabled={loading}>{loading ? 'Saving...' : 'Set new password →'}</button>
+              <input type="password" placeholder="Same as above" value={confirm} onChange={e => setConfirm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleReset()}/>
+              <button className="submit-btn" onClick={handleReset} disabled={loading || !password || !confirm}>
+                {loading ? 'Updating…' : 'Set new password'}
+              </button>
             </>
           )}
         </div>
