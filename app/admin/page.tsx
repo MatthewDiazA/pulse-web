@@ -550,17 +550,39 @@ function UsersTab() {
     setSendingTo(null)
   }
 
-  const filtered = users.filter(u => {
-    const q = search.toLowerCase()
-    return !q || (u.full_name ?? '').toLowerCase().includes(q) || (u.username ?? '').toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q)
-  })
+  const [searchResults, setSearchResults] = useState<any[] | null>(null)
+  const [searching, setSearching] = useState(false)
+
+  useEffect(() => {
+    if (!search.trim()) { setSearchResults(null); return }
+    const t = setTimeout(async () => {
+      setSearching(true)
+      const q = `%${search.trim()}%`
+      const { data } = await createClient()
+        .from('profiles')
+        .select('id,full_name,username,is_host,created_at,email')
+        .or(`full_name.ilike.${q},email.ilike.${q},username.ilike.${q}`)
+        .limit(50)
+      setSearchResults(data ?? [])
+      setSearching(false)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const displayUsers = searchResults !== null ? searchResults : users
 
   if (loading) return <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>Loading...</div>
 
   return (
     <div>
-      <input style={{ ...selectStyle, marginBottom: '16px' }} placeholder="Search name, username or email..." value={search} onChange={e => setSearch(e.target.value)}/>
-      {filtered.map(u => {
+      <input
+        style={{ ...selectStyle, marginBottom: '16px' }}
+        placeholder="Search name, username or email..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
+      {searching && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }}>Searching…</div>}
+      {displayUsers.map(u => {
         const initials = (u.full_name ?? u.username ?? 'U').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
         const isOpen = openUser === u.id
         const fb = feedback[u.id]

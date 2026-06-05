@@ -73,7 +73,6 @@ export default function EventDetail() {
   const router = useRouter()
   const params = useParams()
   const eventId = params.id as string
-  usePageView(`/events/${eventId}`, eventId)
   const logoRef = useNavLogo<HTMLButtonElement>()
   // Fix: one magnetic ref per page, applied to first available buy button via callback
   const buyBtnCallbackRef = useRef<((el: HTMLButtonElement | null) => void) | null>(null)
@@ -85,6 +84,7 @@ export default function EventDetail() {
   const [selectedQty, setSelectedQty] = useState<Record<string, number>>({})
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
   const [soundOpen, setSoundOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined)
   const [soundMeta, setSoundMeta] = useState<{ title: string; artist: string } | null>(null)
@@ -157,6 +157,7 @@ export default function EventDetail() {
         const { data: admin } = await supabase.from('admins').select('user_id').eq('user_id', data.user.id).single()
         if (admin) setIsAdmin(true)
       }
+      setAuthReady(true)
     })
   }, [])
 
@@ -240,6 +241,9 @@ export default function EventDetail() {
   }
 
   const isHostOrAdmin = isAdmin || currentUser?.id === event?.host_id || currentUser?.email === 'mad2288@columbia.edu'
+  // Only record a view once auth has resolved and we've confirmed it's a real visitor
+  const trackable = authReady && !loading && !isHostOrAdmin
+  usePageView(`/events/${eventId}`, eventId, trackable)
 
   const generateGuestLink = async () => {
     if (!event || !currentUser) return
