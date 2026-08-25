@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from './lib/supabase/client'
 import { usePageView } from './lib/usePageView'
@@ -40,6 +40,9 @@ const CATEGORY_ACCENT: Record<Event['category'], string> = {
   festival: COLORS.highlight,
   other: '#ff8800',
 }
+
+// Keep a show listed through the night it happens, drop it the next morning.
+const GRACE_MS = 12 * 60 * 60 * 1000
 
 function useUser() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
@@ -180,6 +183,13 @@ function getPrice(event: Event): string {
   return `$${min.toFixed(2)}+`
 }
 
+function shortDate(iso: string | null): string {
+  if (!iso) return 'TBD'
+  return new Date(iso)
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    .toUpperCase()
+}
+
 // Extracted so each card owns its own ref + tilt state.
 // Hooks can't run inside a .map() — same pattern as BuyButton on the event page.
 function EventCard({ event, index, tilt, onOpen }: {
@@ -188,9 +198,7 @@ function EventCard({ event, index, tilt, onOpen }: {
   const ref = useRef<HTMLElement>(null)
   const cat = event.category ?? 'other'
   const accent = CATEGORY_ACCENT[cat] ?? COLORS.primary
-  const date = event.starts_at
-    ? new Date(event.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).toUpperCase()
-    : 'TBD'
+  const date = shortDate(event.starts_at)
   const price = getPrice(event)
   const isFree = price === 'Free'
 
@@ -255,21 +263,22 @@ export default function Home() {
   const [events, setEvents] = useState<Event[]>([])
   usePageView('/')
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'nightlife' | 'concert' | 'festival' | 'nearme'>('all')
-  const [userCity, setUserCity] = useState<string | null>(null)
   const [tiltOn, setTiltOn] = useState(false)
-  const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.05, trigger: 'mount', deps: [loading, filter] })
+  const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.05, trigger: 'mount', deps: [loading] })
   const logoRef = useNavLogo<HTMLButtonElement>()
   const acidRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
     let alive = true
+    const cutoff = new Date(Date.now() - GRACE_MS).toISOString()
     supabase
       .from('events')
       .select('*, ticket_tiers(*)')
       .eq('status', 'published')
-      .order('starts_at', { ascending: true })
+      // Past shows fall off the morning after. Undated events are always kept.
+      .or(`starts_at.is.null,starts_at.gte.${cutoff}`)
+      .order('starts_at', { ascending: true, nullsFirst: false })
       .then(({ data }) => {
         if (!alive) return
         setEvents((data ?? []) as Event[])
@@ -328,39 +337,11 @@ export default function Home() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const handleNearMe = useCallback(() => {
-    if (!('geolocation' in navigator)) { setFilter('nearme'); return }
-    navigator.geolocation.getCurrentPosition(
-      async pos => {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
-            { headers: { 'Accept-Language': 'en' } },
-          )
-          const data = await res.json()
-          setUserCity(data.address?.city ?? data.address?.town ?? null)
-          setFilter('nearme')
-        } catch { setFilter('nearme') }
-      },
-      () => alert('Please enable location access'),
-    )
-  }, [])
-
-  const filtered = (() => {
-    if (filter === 'all') return events
-    if (filter === 'nearme') return userCity ? events.filter(e => e.city?.toLowerCase().includes(userCity.toLowerCase())) : events
-    return events.filter(e => e.category === filter)
-  })()
-
-  const tickerText = 'TONIGHT · YOUR CITY · FIND YOUR PULSE · LIVE EVENTS · HOUSTON · GET ON THE LIST · '
-
-  const filters = [
-    { label: 'All', value: 'all' as const },
-    { label: 'Nightlife', value: 'nightlife' as const },
-    { label: 'Concerts', value: 'concert' as const },
-    { label: 'Festivals', value: 'festival' as const },
-    { label: 'Near me', value: 'nearme' as const },
-  ]
+  // Ticker reads the soonest published event — nothing to update by hand.
+  const next = events[0]
+  const tickerText = next
+    ? `${next.title} · ${next.starts_at ? shortDate(next.starts_at) : 'tba'} · ${next.venue_name ?? next.city ?? 'houston'} · `.toLowerCase()
+    : 'pulse · houston · '
 
   return (
     <>
@@ -391,15 +372,8 @@ export default function Home() {
 
         .ticker-wrap { overflow:hidden; border-top:0.5px solid rgba(255,255,255,0.04); border-bottom:0.5px solid rgba(255,255,255,0.04); background:rgba(255,170,51,0.02); padding:10px 0; }
         .ticker-track { display:flex; width:max-content; animation:ticker 22s linear infinite; }
-        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:${COLORS.primary}; opacity:0.32; white-space:nowrap; text-transform:uppercase; }
+        .ticker-item { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:${COLORS.primary}; opacity:0.32; white-space:nowrap; }
         @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-
-        .filters { padding:0 16px; display:flex; gap:0; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; max-width:1100px; margin:0 auto; border-bottom:0.5px solid rgba(255,255,255,0.06); }
-        .filters::-webkit-scrollbar { display:none; }
-        .pill { background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-0.5px; padding:16px 20px 14px; font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:rgba(255,255,255,0.18); cursor:pointer; transition:color 0.2s, border-color 0.2s; white-space:nowrap; flex-shrink:0; }
-        .pill:hover:not(.active) { color:rgba(255,255,255,0.45); }
-        .pill:active { opacity:0.7; }
-        .pill.active { color:#fff; border-bottom-color:${COLORS.primary}; }
 
         .section-label { font-size:11px; color:rgba(255,255,255,0.12); letter-spacing:1.5px; text-transform:uppercase; font-family:'Syne',sans-serif; padding:14px 16px 8px; max-width:1100px; margin:0 auto; }
         .cards-wrap { padding:4px 12px 100px; max-width:1100px; margin:0 auto; }
@@ -474,24 +448,8 @@ export default function Home() {
         </div>
 
         <section className="events-section" aria-label="Events">
-          <div className="filters" role="tablist">
-            {filters.map(f => (
-              <button
-                key={f.value}
-                type="button"
-                role="tab"
-                aria-selected={filter === f.value}
-                className={`pill ${filter === f.value ? 'active' : ''}`}
-                onClick={() => f.value === 'nearme' ? handleNearMe() : setFilter(f.value)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
           <div className="section-label">
-            {filter === 'all' ? 'All events' : filter === 'nearme' ? 'Near you' : CATEGORY_LABEL[filter]}
-            {' '}— {filtered.length} {filtered.length === 1 ? 'event' : 'events'}
+            {events.length} {events.length === 1 ? 'event' : 'events'}
           </div>
 
           <div className="cards-wrap">
@@ -499,17 +457,14 @@ export default function Home() {
               <div className="skeleton" aria-busy="true" aria-label="Loading events">
                 {Array.from({length: 8}).map((_, i) => <div key={i} className="skel"/>)}
               </div>
-            ) : filtered.length === 0 ? (
+            ) : events.length === 0 ? (
               <div className="empty">
-                {filter === 'nearme'
-                  ? 'No events near you yet.'
-                  : events.length === 0
-                    ? <><span>No events yet. </span><a href="/host/create" onClick={e => { e.preventDefault(); router.push('/host/create') }}>Create the first →</a></>
-                    : 'No events in this category.'}
+                <span>No events yet. </span>
+                <a href="/host/create" onClick={e => { e.preventDefault(); router.push('/host/create') }}>Create the first →</a>
               </div>
             ) : (
               <div className="grid" ref={gridRef}>
-                {filtered.map((event, index) => (
+                {events.map((event, index) => (
                   <EventCard
                     key={event.id}
                     event={event}
@@ -521,7 +476,7 @@ export default function Home() {
               </div>
             )}
             <div className="bottom">
-              <span className="showing">{filtered.length} event{filtered.length !== 1 ? 's' : ''}</span>
+              <span className="showing">{events.length} event{events.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
         </section>
