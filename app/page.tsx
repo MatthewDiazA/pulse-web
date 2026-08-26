@@ -41,8 +41,25 @@ const CATEGORY_ACCENT: Record<Event['category'], string> = {
   other: '#ff8800',
 }
 
-// Keep a show listed through the night it happens, drop it the next morning.
+// A show counts as "upcoming" until 12 hours after doors.
 const GRACE_MS = 12 * 60 * 60 * 1000
+
+function isUpcoming(e: Event, cutoff: number): boolean {
+  if (!e.starts_at) return true                 // undated events stay in the live set
+  return new Date(e.starts_at).getTime() >= cutoff
+}
+
+// Upcoming shows first, soonest to furthest out.
+// Then past shows, most recent to oldest — the archive trailing behind.
+function orderEvents(list: Event[]): Event[] {
+  const cutoff = Date.now() - GRACE_MS
+  const t = (e: Event) => (e.starts_at ? new Date(e.starts_at).getTime() : Infinity)
+
+  const upcoming = list.filter(e => isUpcoming(e, cutoff)).sort((a, b) => t(a) - t(b))
+  const past = list.filter(e => !isUpcoming(e, cutoff)).sort((a, b) => t(b) - t(a))
+
+  return [...upcoming, ...past]
+}
 
 function useUser() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
@@ -192,8 +209,8 @@ function shortDate(iso: string | null): string {
 
 // Extracted so each card owns its own ref + tilt state.
 // Hooks can't run inside a .map() — same pattern as BuyButton on the event page.
-function EventCard({ event, index, tilt, onOpen }: {
-  event: Event; index: number; tilt: boolean; onOpen: () => void
+function EventCard({ event, index, tilt, past, onOpen }: {
+  event: Event; index: number; tilt: boolean; past: boolean; onOpen: () => void
 }) {
   const ref = useRef<HTMLElement>(null)
   const cat = event.category ?? 'other'
@@ -227,10 +244,10 @@ function EventCard({ event, index, tilt, onOpen }: {
   return (
     <article
       ref={ref}
-      className="card"
+      className={`card ${past ? 'card-past' : ''}`}
       tabIndex={0}
       role="link"
-      aria-label={`${event.title}, ${CATEGORY_LABEL[cat]}, ${date}, ${price}`}
+      aria-label={`${event.title}, ${CATEGORY_LABEL[cat]}, ${date}, ${past ? 'past event' : price}`}
       onClick={onOpen}
       onPointerMove={onMove}
       onPointerEnter={onEnter}
@@ -246,7 +263,10 @@ function EventCard({ event, index, tilt, onOpen }: {
       <div className="card-content">
         <div className="card-top">
           <span className={`card-tag tag-${cat}`}>{CATEGORY_LABEL[cat] ?? 'Event'}</span>
-          <span className={`card-price-badge ${isFree ? 'free' : ''}`}>{price}</span>
+          {past
+            ? <span className="card-price-badge past">past</span>
+            : <span className={`card-price-badge ${isFree ? 'free' : ''}`}>{price}</span>
+          }
         </div>
         <div>
           <div className="card-date">{date}</div>
@@ -271,17 +291,14 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient()
     let alive = true
-    const cutoff = new Date(Date.now() - GRACE_MS).toISOString()
     supabase
       .from('events')
       .select('*, ticket_tiers(*)')
       .eq('status', 'published')
-      // Past shows fall off the morning after. Undated events are always kept.
-      .or(`starts_at.is.null,starts_at.gte.${cutoff}`)
-      .order('starts_at', { ascending: true, nullsFirst: false })
+      .order('starts_at', { ascending: true })
       .then(({ data }) => {
         if (!alive) return
-        setEvents((data ?? []) as Event[])
+        setEvents(orderEvents((data ?? []) as Event[]))
         setLoading(false)
       })
     return () => { alive = false }
@@ -337,8 +354,10 @@ export default function Home() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Ticker reads the soonest published event — nothing to update by hand.
-  const next = events[0]
+  const cutoff = Date.now() - GRACE_MS
+
+  // Ticker reads the soonest upcoming event — nothing to update by hand.
+  const next = events.find(e => isUpcoming(e, cutoff))
   const tickerText = next
     ? `${next.title} · ${next.starts_at ? shortDate(next.starts_at) : 'tba'} · ${next.venue_name ?? next.city ?? 'houston'} · `.toLowerCase()
     : 'pulse · houston · '
@@ -386,6 +405,9 @@ export default function Home() {
         .card:focus-visible { outline:2px solid ${COLORS.primary}; outline-offset:2px; }
         .card:active { transform:scale(0.97); }
         @media(hover:hover){ .card:hover { box-shadow:0 24px 70px rgba(0,0,0,0.85), 0 0 42px rgba(255,170,51,0.12); z-index:5; } }
+        /* Past shows read as archive, not inventory */
+        .card-past .card-bg, .card-past svg { filter:grayscale(0.55); opacity:0.55; }
+        .card-past .card-title, .card-past .card-date, .card-past .card-venue { opacity:0.62; }
         .card-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
         .card-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.2) 55%, transparent 100%); }
         /* Cursor-tracked sheen — above art, below text */
@@ -396,6 +418,7 @@ export default function Home() {
         .card-tag { font-size:9px; font-weight:600; padding:3px 7px; border-radius:100px; letter-spacing:0.8px; text-transform:uppercase; font-family:'Syne',sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
         .card-price-badge { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:900; color:#fff; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:3px 7px; border-radius:100px; border:0.5px solid rgba(255,255,255,0.1); white-space:nowrap; }
         .card-price-badge.free { color:${COLORS.primary}; border-color:rgba(255,170,51,0.35); }
+        .card-price-badge.past { color:rgba(255,255,255,0.45); font-weight:700; letter-spacing:1px; text-transform:uppercase; font-size:10px; }
         .card-date { font-size:9px; color:rgba(255,255,255,0.45); letter-spacing:0.6px; text-transform:uppercase; margin-bottom:3px; font-family:'Syne',sans-serif; display:flex; align-items:center; gap:3px; }
         .card-title { font-family:'Barlow Condensed',sans-serif; font-size:clamp(16px,4vw,22px); font-weight:900; color:#fff; text-transform:uppercase; line-height:1; margin-bottom:4px; }
         .card-venue { font-size:10px; color:rgba(255,255,255,0.4); font-family:'Syne',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:3px; }
@@ -470,6 +493,7 @@ export default function Home() {
                     event={event}
                     index={index}
                     tilt={tiltOn}
+                    past={!isUpcoming(event, cutoff)}
                     onOpen={() => router.push(`/events/${event.id}`)}
                   />
                 ))}
