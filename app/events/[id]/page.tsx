@@ -38,7 +38,8 @@ function spotifyEmbed(url: string): string | null {
     const parts = u.pathname.split('/').filter(Boolean).filter(p => !/^intl-/i.test(p))
     if (parts.length < 2) return null
     const [type, id] = parts
-    return `https://open.spotify.com/embed/${type}/${id.split('?')[0]}?autoplay=1`
+    // theme=0 renders the dark variant instead of the artwork-tinted default
+    return `https://open.spotify.com/embed/${type}/${id.split('?')[0]}?theme=0`
   } catch { return null }
 }
 
@@ -47,7 +48,7 @@ function igUrl(handle: string): string {
   return `https://www.instagram.com/${clean}/`
 }
 
-const COLORS = { primary: '#ffaa33', accent: '#ff6600', highlight: '#ffc850', bg: '#000' } as const
+const COLORS = { primary: '#ffaa33', bg: '#000' } as const
 const FEE_RATE = 0.10
 
 function safePrice(p: unknown): number {
@@ -55,10 +56,25 @@ function safePrice(p: unknown): number {
   return isNaN(n) || n < 0 ? 0 : n
 }
 
+// $10 not $10.00 — trailing zeros read like a receipt
+function money(n: number): string {
+  return Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`
+}
+
 function displayPrice(price: number, qty: number): string {
   const p = safePrice(price)
-  if (p === 0) return 'Free'
-  return `$${(p * qty).toFixed(2)}`
+  if (p === 0) return 'free'
+  return money(p * qty)
+}
+
+// "10:00 PM" -> "10pm", "10:30 PM" -> "10:30pm"
+function shortTime(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const h = d.toLocaleTimeString('en-US', { hour: 'numeric', timeZone: 'UTC' }).replace(/\s?(AM|PM)/i, '')
+  const m = d.toLocaleTimeString('en-US', { minute: '2-digit', timeZone: 'UTC' })
+  const suffix = d.toLocaleTimeString('en-US', { hour: 'numeric', timeZone: 'UTC' }).slice(-2).toLowerCase()
+  return m === '00' ? `${h}${suffix}` : `${h}:${m}${suffix}`
 }
 
 function toRomanTierName(name: string): string {
@@ -74,9 +90,6 @@ export default function EventDetail() {
   const params = useParams()
   const eventId = params.id as string
   const logoRef = useNavLogo<HTMLButtonElement>()
-  // Fix: one magnetic ref per page, applied to first available buy button via callback
-  const buyBtnCallbackRef = useRef<((el: HTMLButtonElement | null) => void) | null>(null)
-  const buyBtnCleanup = useRef<(() => void) | null>(null)
   usePageReveal({ selectors: ['.ev-title', '.ev-meta', '.section', '.tickets-panel'], delay: 0.2 })
   const [event, setEvent] = useState<EventData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,7 +98,6 @@ export default function EventDetail() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [authReady, setAuthReady] = useState(false)
-  const [soundOpen, setSoundOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined)
   const [soundMeta, setSoundMeta] = useState<{ title: string; artist: string } | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -109,7 +121,7 @@ export default function EventDetail() {
   const BuyButton = ({ tier, isBuying, onClick }: { tier: Tier; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
     const price = safePrice(tier.price)
-    const label = isBuying ? 'Processing...' : price === 0 ? 'RSVP — Free' : 'Get tickets'
+    const label = isBuying ? 'processing…' : price === 0 ? 'rsvp · free' : 'get tickets'
     return (
       <button ref={ref} className="buy-btn" disabled={isBuying} onClick={onClick}>
         {label}
@@ -142,13 +154,6 @@ export default function EventDetail() {
     return () => { a.pause(); a.src = '' }
   }, [])
 
-  const toggleSound = () => {
-    const a = audioRef.current
-    if (!a || !previewUrl) return
-    if (playing) { a.pause(); setPlaying(false) }
-    else { if (a.src !== previewUrl) a.src = previewUrl; a.play().then(() => setPlaying(true)).catch(() => setPlaying(false)) }
-  }
-
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data }) => {
@@ -161,7 +166,7 @@ export default function EventDetail() {
     })
   }, [])
 
-  // Saint Pablo canvas animation
+  // Hero canvas — only visible when there's no cover image or video
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -185,38 +190,14 @@ export default function EventDetail() {
           const wave = Math.sin(t * 1.3 + c * 0.5 + r * 0.7) * 0.5 + 0.5
           const pulse = Math.sin(t * 2.4 + (c + r) * 0.3) * 0.3 + 0.7
           const intensity = wave * pulse
-          const hue = 28 + Math.sin(t * 0.4 + c * 0.14) * 14
-          const sat = 90 + intensity * 10, light = 30 + intensity * 42, alpha = 0.1 + intensity * 0.72
-          ctx.fillStyle = `hsla(${hue},${sat}%,${light}%,${alpha * 0.2})`; ctx.beginPath(); ctx.arc(bx, by, 6 + intensity * 10, 0, Math.PI * 2); ctx.fill()
-          ctx.fillStyle = `hsla(${hue},${sat}%,${light + 15}%,${alpha * 0.5})`; ctx.beginPath(); ctx.arc(bx, by, 3 + intensity * 4, 0, Math.PI * 2); ctx.fill()
-          ctx.fillStyle = `hsla(${hue},${sat}%,${light + 30}%,${alpha})`; ctx.beginPath(); ctx.arc(bx, by, 2, 0, Math.PI * 2); ctx.fill()
+          const light = 30 + intensity * 42, alpha = 0.1 + intensity * 0.5
+          ctx.fillStyle = `hsla(0,0%,${light}%,${alpha * 0.18})`; ctx.beginPath(); ctx.arc(bx, by, 6 + intensity * 10, 0, Math.PI * 2); ctx.fill()
+          ctx.fillStyle = `hsla(0,0%,${light + 20}%,${alpha * 0.4})`; ctx.beginPath(); ctx.arc(bx, by, 2.5 + intensity * 3, 0, Math.PI * 2); ctx.fill()
         }
       }
-      for (let i = 0; i < 8; i++) {
-        const baseAngle = -Math.PI * 0.82 + (i / 7) * Math.PI * 0.64
-        const angle = baseAngle + Math.sin(t * 0.55 + i * 0.8) * 0.07
-        const len = H * 1.3, ex = cx + Math.cos(angle) * len, ey = Math.sin(angle) * len
-        const rayA = 0.02 + 0.018 * Math.sin(t * 0.7 + i)
-        const grad = ctx.createLinearGradient(cx, 0, ex, ey)
-        grad.addColorStop(0, `rgba(255,150,30,${rayA * 5})`); grad.addColorStop(0.3, `rgba(255,100,10,${rayA})`); grad.addColorStop(1, 'rgba(255,60,0,0)')
-        ctx.beginPath(); ctx.moveTo(cx - 15, 0); ctx.lineTo(cx + 15, 0); ctx.lineTo(ex + 40, ey); ctx.lineTo(ex - 40, ey); ctx.closePath(); ctx.fillStyle = grad; ctx.fill()
-      }
-      for (let i = 0; i < 50; i++) {
-        const angle = (i / 50) * Math.PI * 2 + t * 0.22
-        const spiral = 15 + i * 2.5 + Math.sin(t * 0.8 + i * 0.22) * 20
-        const x = cx + spiral * Math.cos(angle + Math.sin(t * 0.3 + i * 0.1))
-        const y = H * 0.4 + spiral * Math.sin(angle + Math.cos(t * 0.25 + i * 0.08)) * 0.55
-        const hue = 22 + Math.sin(t * 0.45 + i * 0.1) * 18
-        const sz = 1.2 + Math.sin(t * 2 + i * 0.5) * 0.5
-        const a = 0.12 + 0.28 * Math.sin(t * 1.4 + i * 0.2)
-        ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI * 2); ctx.fillStyle = `hsla(${hue},100%,65%,${a})`; ctx.fill()
-      }
       const fog = ctx.createRadialGradient(cx, H * 0.45, 0, cx, H * 0.45, W * 0.5)
-      fog.addColorStop(0, `rgba(255,120,20,${0.04 + 0.025 * Math.sin(t * 0.6)})`); fog.addColorStop(0.5, `rgba(255,80,0,${0.015 + 0.01 * Math.sin(t * 0.4)})`); fog.addColorStop(1, 'rgba(255,50,0,0)')
+      fog.addColorStop(0, 'rgba(255,255,255,0.035)'); fog.addColorStop(1, 'rgba(255,255,255,0)')
       ctx.fillStyle = fog; ctx.fillRect(0, 0, W, H)
-      const crowd = ctx.createLinearGradient(0, H * 0.75, 0, H)
-      crowd.addColorStop(0, 'rgba(0,0,0,0)'); crowd.addColorStop(1, `rgba(255,70,5,${0.035 + 0.02 * Math.sin(t * 0.3)})`)
-      ctx.fillStyle = crowd; ctx.fillRect(0, H * 0.75, W, H * 0.25)
     }
     const loop = () => { t += 0.014; drawFrame(); raf = requestAnimationFrame(loop) }
     if (prefersReduced) drawFrame(); else loop()
@@ -314,7 +295,7 @@ export default function EventDetail() {
     <>
       <style>{`body{background:#000;margin:0;}`}</style>
       <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <div style={{width:'28px',height:'28px',border:`2px solid ${COLORS.primary}`,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+        <div style={{width:'22px',height:'22px',border:`1px solid rgba(255,255,255,0.5)`,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </>
@@ -323,157 +304,145 @@ export default function EventDetail() {
   if (!event) return (
     <>
       <style>{`body{background:#000;margin:0;}`}</style>
-      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'16px',fontFamily:'Syne,sans-serif',color:'#665'}}>
-        <div style={{fontSize:'48px',opacity:0.3}}>404</div>
-        <div>Event not found</div>
-        <button onClick={() => router.push('/')} style={{padding:'12px 24px',background:COLORS.primary,color:'#000',border:'none',borderRadius:'100px',cursor:'pointer',fontSize:'14px',fontWeight:700,fontFamily:'Syne,sans-serif'}}>Go home</button>
+      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'18px',fontFamily:'Syne,sans-serif',color:'rgba(255,255,255,0.4)'}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:'64px',opacity:0.25,lineHeight:1}}>404</div>
+        <div style={{fontSize:'13px',letterSpacing:'1px'}}>event not found</div>
+        <button onClick={() => router.push('/')} style={{padding:'11px 22px',background:'transparent',color:'#fff',border:'0.5px solid rgba(255,255,255,0.25)',cursor:'pointer',fontSize:'12px',fontFamily:'Syne,sans-serif',letterSpacing:'1px'}}>go home</button>
       </div>
     </>
   )
 
-  const date = event.starts_at ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }) : 'TBD'
-  const time = event.starts_at ? new Date(event.starts_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:'UTC' }) : ''
-  const doorsTime = event.doors_at ? new Date(event.doors_at).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:'UTC' }) : null
-  const location = [event.venue_name, event.city, event.state].filter(Boolean).join(', ')
+  const date = event.starts_at
+    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }).toLowerCase()
+    : 'tba'
+  const time = shortTime(event.starts_at)
+  const doorsTime = shortTime(event.doors_at)
+  const street = [event.address, event.city].filter(Boolean).join(', ')
   const hasSocial = event.instagram_handle || event.tiktok_url
+
+  // One flyer line: everything a poster would print, in poster order
+  const metaLine = [date, time, event.venue_name?.toLowerCase(), street?.toLowerCase()].filter(Boolean).join('  ·  ')
+
+  const cheapest = event.ticket_tiers?.length
+    ? [...event.ticket_tiers].sort((a, b) => safePrice(a.price) - safePrice(b.price))[0]
+    : null
+  const allSoldOut = !!event.ticket_tiers?.length &&
+    event.ticket_tiers.every(t => t.quantity - (t.quantity_sold || 0) <= 0)
 
   return (
     <>
       <TouchBlot intensity={0.4} />
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:${COLORS.bg};color:#f0f0f0;font-family:'Syne',sans-serif;overflow-x:hidden;}
 
-        /* Acid background — content area only, low opacity so it doesn't fight the hero */
-        .acid-content{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
-        .acid-content::before{content:'';position:absolute;width:60vmax;height:60vmax;border-radius:50%;background:radial-gradient(circle,rgba(255,102,0,0.10) 0%,rgba(232,0,29,0.05) 45%,transparent 70%);bottom:-10vmax;left:-10vmax;animation:acidA 20s ease-in-out infinite alternate;mix-blend-mode:screen;filter:blur(50px);}
-        .acid-content::after{content:'';position:absolute;width:50vmax;height:50vmax;border-radius:50%;background:radial-gradient(circle,rgba(192,26,111,0.08) 0%,transparent 65%);top:40%;right:-10vmax;animation:acidB 24s ease-in-out infinite alternate;mix-blend-mode:screen;filter:blur(55px);}
-        @keyframes acidA{0%{transform:translate(0,0)}100%{transform:translate(10vw,-8vh)}}
-        @keyframes acidB{0%{transform:translate(0,0)}100%{transform:translate(-8vw,10vh)}}
-
-        nav{padding:14px 20px;background:rgba(0,0,0,0.95);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
-        nav::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${COLORS.accent},${COLORS.primary},${COLORS.highlight},transparent);background-size:300% 100%;animation:navGlow 5s ease-in-out infinite;}
-        @keyframes navGlow{0%{background-position:0% 50%;opacity:0.2}50%{background-position:100% 50%;opacity:0.8}100%{background-position:0% 50%;opacity:0.2}}
-        .back-btn{background:none;border:none;color:#665;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:color 0.15s;}
-        .back-btn:hover{color:#f0f0f0;}
+        /* NAV — admin tools are neutral. Amber belongs to the buy button alone. */
+        nav{padding:14px 20px;background:rgba(0,0,0,0.9);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.08);}
+        .back-btn{background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;letter-spacing:0.5px;transition:color 0.15s;}
+        .back-btn:hover{color:#fff;}
         .nav-logo{cursor:pointer;background:none;border:none;padding:0;flex:1;display:flex;justify-content:center;line-height:0;}
-        .nav-logo .logo-img{height:22px;width:auto;filter:drop-shadow(0 0 10px rgba(255,170,51,0.4));}
-        @media(max-width:680px){.nav-logo .logo-img{height:20px;}}
-        .edit-event-btn{background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.3);color:${COLORS.primary};font-size:13px;font-family:'Syne',sans-serif;font-weight:600;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
-        .edit-event-btn:hover{background:rgba(255,170,51,0.16);}
-        .gl-nav-btn{width:34px;height:34px;border-radius:8px;background:rgba(255,170,51,0.07);border:0.5px solid rgba(255,170,51,0.2);color:${COLORS.primary};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
-        .gl-nav-btn:hover{background:rgba(255,170,51,0.14);}
-        .gl-nav-btn:disabled{opacity:0.3;cursor:not-allowed;}
-        .gl-backdrop{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.72);display:flex;align-items:flex-end;justify-content:center;}
-        .gl-sheet{width:100%;max-width:460px;background:#0d0800;border:0.5px solid rgba(255,255,255,0.07);border-radius:20px 20px 0 0;padding:12px 22px 36px;}
-        @media(min-width:520px){.gl-sheet{border-radius:20px;}}
-        .gl-drag{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,0.09);margin:0 auto 22px;}
-        .gl-sheet-title{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;color:#fff;text-transform:uppercase;margin-bottom:4px;}
-        .gl-sheet-desc{font-size:13px;color:rgba(255,255,255,0.35);line-height:1.55;margin-bottom:18px;}
+        .nav-logo .logo-img{height:19px;width:auto;}
+        .admin-tools{display:flex;gap:8px;align-items:center;}
+        .tool-btn{background:none;border:0.5px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.55);font-size:11px;font-family:'Syne',sans-serif;letter-spacing:0.5px;padding:6px 11px;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+        .tool-btn:hover{border-color:rgba(255,255,255,0.4);color:#fff;}
+        .tool-btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+        .gl-backdrop{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.8);display:flex;align-items:flex-end;justify-content:center;}
+        .gl-sheet{width:100%;max-width:460px;background:#080808;border:0.5px solid rgba(255,255,255,0.1);padding:12px 22px 36px;}
+        .gl-drag{width:36px;height:3px;background:rgba(255,255,255,0.12);margin:0 auto 22px;}
+        .gl-sheet-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:700;color:#fff;margin-bottom:6px;}
+        .gl-sheet-desc{font-size:12px;color:rgba(255,255,255,0.35);line-height:1.6;margin-bottom:18px;}
         .gl-url-row{display:flex;gap:8px;margin-bottom:12px;}
-        .gl-url-input{flex:1;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:11px 12px;font-size:12px;color:rgba(255,255,255,0.65);font-family:'Syne',sans-serif;outline:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .gl-copy-btn{padding:11px 16px;background:${COLORS.primary};color:#000;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;white-space:nowrap;transition:background 0.15s;}
-        .gl-copy-btn:hover{background:#ffc040;}
-        .gl-copy-btn.copied{background:#22c55e;color:#fff;}
-        .gl-close-btn{width:100%;padding:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.35);font-size:13px;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;transition:all 0.15s;}
-        .gl-close-btn:hover{border-color:rgba(255,255,255,0.18);color:rgba(255,255,255,0.6);}
-        .gm-search{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;font-size:13px;color:#fff;font-family:'Syne',sans-serif;outline:none;margin-bottom:12px;}
-        .gm-search:focus{border-color:rgba(255,170,51,0.3);}
+        .gl-url-input{flex:1;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);padding:11px 12px;font-size:12px;color:rgba(255,255,255,0.65);font-family:'Syne',sans-serif;outline:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .gl-copy-btn{padding:11px 18px;background:#fff;color:#000;border:none;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;white-space:nowrap;}
+        .gl-copy-btn.copied{background:#5ec888;}
+        .gl-close-btn{width:100%;padding:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);font-size:12px;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;}
+        .gm-search{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);padding:10px 12px;font-size:13px;color:#fff;font-family:'Syne',sans-serif;outline:none;margin-bottom:12px;}
         .gm-search::placeholder{color:rgba(255,255,255,0.25);}
         .gm-list{max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
-        .gm-row{display:flex;align-items:center;gap:11px;padding:9px 11px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:10px;}
-        .gm-av{width:30px;height:30px;border-radius:50%;background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,170,51,0.8);flex-shrink:0;font-family:'Syne',sans-serif;}
+        .gm-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border:0.5px solid rgba(255,255,255,0.07);}
+        .gm-av{width:28px;height:28px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;font-family:'Syne',sans-serif;}
         .gm-info{flex:1;min-width:0;}
         .gm-name{font-size:13px;font-weight:600;color:#f0f0f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .gm-email{font-size:11px;color:rgba(255,255,255,0.28);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .gm-in{font-size:9px;font-weight:700;letter-spacing:1.5px;color:#5ec888;text-transform:uppercase;flex-shrink:0;font-family:'Barlow Condensed',sans-serif;}
-        .gm-remove{background:none;border:0.5px solid rgba(255,80,80,0.25);color:rgba(255,120,120,0.85);border-radius:7px;padding:5px 11px;font-size:11px;font-family:'Syne',sans-serif;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
-        .gm-remove:hover{background:rgba(255,80,80,0.1);border-color:rgba(255,80,80,0.4);}
+        .gm-remove{background:none;border:0.5px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:5px 11px;font-size:11px;font-family:'Syne',sans-serif;cursor:pointer;flex-shrink:0;}
+        .gm-remove:hover{border-color:rgba(255,120,120,0.5);color:rgba(255,140,140,0.9);}
         .gm-remove:disabled{opacity:0.4;cursor:default;}
         .gm-empty{font-size:13px;color:rgba(255,255,255,0.3);padding:10px 0;}
-        .hero{position:relative;height:480px;overflow:hidden;}
+
+        .hero{position:relative;height:520px;overflow:hidden;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
-        .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
-        .hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
-        .hero-overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,0.15) 0%,rgba(0,0,0,0.55) 55%,${COLORS.bg} 100%);}
-        .hero-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 20px 36px;max-width:900px;margin:0 auto;}
-        .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(34px,9vw,68px);font-weight:900;line-height:0.92;color:#fff;text-transform:uppercase;margin-bottom:14px;text-shadow:0 4px 30px rgba(0,0,0,0.7);}
-        .ev-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:rgba(255,255,255,0.7);}
-        .meta-item{display:flex;align-items:center;gap:5px;}
-        .content{max-width:900px;margin:0 auto;padding:36px 20px 120px;position:relative;z-index:1;}
-        .two-col{display:grid;gap:36px;}
-        @media(min-width:700px){.two-col{grid-template-columns:1fr 340px;}}
-        .section{margin-bottom:28px;}
-        .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.22);margin-bottom:16px;}
-        .desc{font-size:14px;line-height:1.9;color:rgba(255,255,255,0.58);}
-        .details-compact{display:flex;flex-wrap:wrap;gap:8px;}
-        .detail-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:10px;font-size:13px;color:#ccc;}
-        .detail-chip i{color:${COLORS.primary};font-size:14px;}
-        .detail-chip.warn{background:rgba(255,102,0,0.08);border-color:rgba(255,102,0,0.18);color:${COLORS.accent};}
-        .detail-chip.dress{background:rgba(255,200,80,0.06);border-color:rgba(255,200,80,0.14);color:${COLORS.highlight};}
-        .social-links{display:flex;gap:10px;margin-top:14px;}
-        .social-link{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);color:#ccc;font-size:19px;cursor:pointer;transition:all 0.15s;text-decoration:none;}
-        .social-link:hover{border-color:rgba(255,170,51,0.4);color:${COLORS.primary};transform:translateY(-1px);}
-        .sound-bar{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all 0.15s;}
-        .sound-bar:hover{border-color:rgba(255,170,51,0.3);}
-        .sound-play{width:40px;height:40px;border-radius:50%;background:${COLORS.primary};color:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
-        .sound-info{flex:1;min-width:0;}
-        .sound-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        .sound-sub{font-family:'Syne',sans-serif;font-size:11px;color:#776;margin-top:1px;}
-        .sound-eq{display:flex;align-items:flex-end;gap:2px;height:16px;flex-shrink:0;}
-        .sound-eq span{width:3px;background:${COLORS.primary};border-radius:2px;animation:eq 0.9s ease-in-out infinite;}
-        .sound-eq span:nth-child(2){animation-delay:0.15s}
-        .sound-eq span:nth-child(3){animation-delay:0.3s}
-        .sound-eq span:nth-child(4){animation-delay:0.45s}
-        @keyframes eq{0%,100%{height:4px}50%{height:16px}}
-        .spotify-fallback{border-radius:12px;overflow:hidden;border:0.5px solid rgba(255,255,255,0.08);margin-top:4px;}
+        .hero-img,.hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+        .hero-overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.5) 58%,${COLORS.bg} 100%);}
+        .hero-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 20px 40px;max-width:900px;margin:0 auto;}
+        .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(46px,11vw,86px);font-weight:700;line-height:0.9;color:#fff;letter-spacing:-1px;margin-bottom:18px;}
+        /* One line, no icons. Typography carries it. */
+        .ev-meta{font-family:'Syne',sans-serif;font-size:12px;letter-spacing:1.5px;color:rgba(255,255,255,0.62);padding-top:14px;border-top:0.5px solid rgba(255,255,255,0.18);}
+
+        .content{max-width:900px;margin:0 auto;padding:44px 20px 140px;position:relative;z-index:1;}
+        .two-col{display:grid;gap:44px;}
+        @media(min-width:700px){.two-col{grid-template-columns:1fr 320px;}}
+        .section{margin-bottom:38px;}
+        .sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:500;letter-spacing:3px;color:rgba(255,255,255,0.25);margin-bottom:16px;}
+        .desc{font-size:14px;line-height:1.95;color:rgba(255,255,255,0.6);}
+
+        /* Info rows replace the chip cluster — no icons, no boxes */
+        .info-row{display:flex;justify-content:space-between;gap:20px;padding:11px 0;border-bottom:0.5px solid rgba(255,255,255,0.07);font-size:12px;}
+        .info-row:first-child{border-top:0.5px solid rgba(255,255,255,0.07);}
+        .info-k{color:rgba(255,255,255,0.3);letter-spacing:1.5px;}
+        .info-v{color:rgba(255,255,255,0.72);text-align:right;}
+        .text-links{display:flex;gap:18px;margin-top:20px;}
+        .text-link{font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-decoration:none;border-bottom:0.5px solid rgba(255,255,255,0.18);padding-bottom:2px;transition:color 0.15s;}
+        .text-link:hover{color:#fff;}
+
+        .spotify-wrap{border:0.5px solid rgba(255,255,255,0.09);}
+
         .tickets-panel{position:sticky;top:80px;}
-        .ticket-card{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:12px;transition:border-color 0.2s;}
-        .ticket-card:hover{border-color:rgba(255,170,51,0.15);}
-        .tier-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
-        .tier-name{font-size:15px;font-weight:600;color:#fff;}
-        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;color:#fff;line-height:1;}
-        .tier-price.free{color:${COLORS.highlight};}
-        .qty-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
-        .qty-label{font-size:12px;color:rgba(255,255,255,0.35);}
-        .qty-select{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;color:#f0f0f0;font-size:14px;font-family:'Syne',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
-        .buy-btn{width:100%;background:#ffaa33;color:#000;border:none;border-radius:8px;padding:15px 20px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.2px;transition:background 0.15s;text-align:center;display:block;}
+        .ticket-card{border:0.5px solid rgba(255,255,255,0.12);padding:22px;margin-bottom:12px;}
+        .tier-name{font-size:11px;font-weight:500;letter-spacing:2.5px;color:rgba(255,255,255,0.45);margin-bottom:10px;}
+        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:700;color:#fff;line-height:0.9;letter-spacing:-1px;}
+        .tier-sub{font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:1px;margin:8px 0 18px;}
+        /* Bar only — no remaining count */
+        .avail-bar{height:2px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:18px;}
+        .avail-fill{height:100%;background:rgba(255,255,255,0.4);transition:width 0.5s ease;}
+        .avail-fill.low{background:${COLORS.primary};}
+        .qty-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+        .qty-label{font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:1.5px;}
+        .qty-select{background:transparent;border:0.5px solid rgba(255,255,255,0.18);padding:7px 10px;color:#f0f0f0;font-size:13px;font-family:'Syne',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
+
+        /* The one amber object on the page */
+        .buy-btn{width:100%;background:${COLORS.primary};color:#000;border:none;padding:16px 20px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:1.5px;transition:background 0.15s;text-align:center;display:block;}
         .buy-btn:hover{background:#ffc040;}
-        .buy-btn:active{transform:scale(0.99);}
-        .buy-btn:disabled{opacity:0.3;cursor:not-allowed;}
-        .soldout-btn{width:100%;background:rgba(255,255,255,0.04);color:#554;border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:15px;font-size:15px;font-weight:600;font-family:'Syne',sans-serif;cursor:not-allowed;text-align:center;}
-        @keyframes urgencyPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,80,80,0.3)}50%{opacity:0.85;box-shadow:0 0 0 4px rgba(255,80,80,0)}}
-        @media(max-width:700px){.hero{height:62vh;min-height:380px;}.content{padding:24px 18px 90px;}.two-col{gap:24px;}.ev-meta{gap:10px 14px;}}
-        @media(prefers-reduced-motion:reduce){nav::after,.sound-eq span,.acid-content::before,.acid-content::after{animation:none!important;}}
+        .buy-btn:active{transform:scale(0.995);}
+        .buy-btn:disabled{opacity:0.35;cursor:not-allowed;}
+        .soldout-btn{width:100%;background:none;color:rgba(255,255,255,0.3);border:0.5px solid rgba(255,255,255,0.1);padding:16px;font-size:12px;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:not-allowed;text-align:center;}
+
+        /* Mobile: tickets sit far below the fold. This scrolls to them. */
+        .mobile-buy{display:none;}
+        @media(max-width:699px){
+          .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
+          .mobile-buy-price{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:#fff;line-height:1;}
+          .mobile-buy-btn{background:${COLORS.primary};color:#000;border:none;padding:13px 22px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:pointer;}
+          .hero{height:64vh;min-height:400px;}
+          .content{padding:30px 18px 120px;}
+          .two-col{gap:32px;}
+        }
       `}</style>
 
-      {/* Acid background — behind content, doesn't touch the hero canvas */}
-      <div className="acid-content" aria-hidden="true"/>
-
       <nav>
-        <button className="back-btn" onClick={() => router.back()}>
-          <i className="ti ti-arrow-left" style={{fontSize:'15px'}} aria-hidden="true"/>
-          Back
-        </button>
+        <button className="back-btn" onClick={() => router.back()}>← back</button>
         <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         {isHostOrAdmin ? (
-          <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-            <button className="gl-nav-btn" onClick={generateGuestLink} disabled={genningLink} title="Guest list link" aria-label="Guest list link">
-              <i className="ti ti-list-check" style={{fontSize:'15px'}} aria-hidden="true"/>
-            </button>
-            <button className="gl-nav-btn" onClick={openGuestManager} title="Manage guest list" aria-label="Manage guest list">
-              <i className="ti ti-users" style={{fontSize:'15px'}} aria-hidden="true"/>
-            </button>
-            <button className="edit-event-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>
-              <i className="ti ti-pencil" style={{fontSize:'14px'}} aria-hidden="true"/>
-              Edit
-            </button>
+          <div className="admin-tools">
+            <button className="tool-btn" onClick={generateGuestLink} disabled={genningLink}>link</button>
+            <button className="tool-btn" onClick={openGuestManager}>guests</button>
+            <button className="tool-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>edit</button>
           </div>
-        ) : <div style={{width:'60px'}}/>}
+        ) : <div style={{width:'50px'}}/>}
       </nav>
 
       <div className="hero">
@@ -485,12 +454,8 @@ export default function EventDetail() {
         ) : null}
         <div className="hero-overlay"/>
         <div className="hero-content">
-          <h1 className="ev-title">{event.title}</h1>
-          <div className="ev-meta">
-            <span className="meta-item"><i className="ti ti-calendar" style={{fontSize:'15px',color:COLORS.primary}} aria-hidden="true"/>{date}</span>
-            {time && <span className="meta-item"><i className="ti ti-clock" style={{fontSize:'15px',color:COLORS.primary}} aria-hidden="true"/>{time}</span>}
-            {location && <span className="meta-item"><i className="ti ti-map-pin" style={{fontSize:'15px',color:COLORS.primary}} aria-hidden="true"/>{location}</span>}
-          </div>
+          <h1 className="ev-title">{event.title.toLowerCase()}</h1>
+          <div className="ev-meta">{metaLine}</div>
         </div>
       </div>
 
@@ -499,41 +464,45 @@ export default function EventDetail() {
           <div>
             {event.description && (
               <div className="section">
-                <h2 className="sec-title">About</h2>
+                <h2 className="sec-title">about</h2>
                 <p className="desc">{event.description}</p>
               </div>
             )}
 
             {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
               <div className="section">
-                <h2 className="sec-title">Sound</h2>
-                <div className="spotify-fallback">
-                  <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
+                <h2 className="sec-title">sound</h2>
+                <div className="spotify-wrap">
+                  <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="80" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
                 </div>
               </div>
             )}
 
             <div className="section">
-              <h2 className="sec-title">Details</h2>
-              <div className="details-compact">
-                <div className="detail-chip"><i className="ti ti-calendar-event" aria-hidden="true"/>{date}{time ? ` · ${time}` : ''}</div>
-                {doorsTime && <div className="detail-chip"><i className="ti ti-door" aria-hidden="true"/>Doors open {doorsTime}</div>}
-                {event.venue_name && <div className="detail-chip"><i className="ti ti-building" aria-hidden="true"/>{event.venue_name}</div>}
-                {event.address && <div className="detail-chip"><i className="ti ti-map-pin" aria-hidden="true"/>{event.address}{event.city ? `, ${event.city}` : ''}{event.state ? ` ${event.state}` : ''}</div>}
-                {event.is_21_plus && <div className="detail-chip warn"><i className="ti ti-id" aria-hidden="true"/>21+ · Valid ID required at door</div>}
-                {event.dress_code && <div className="detail-chip dress"><i className="ti ti-hanger" aria-hidden="true"/>{event.dress_code}</div>}
-              </div>
+              <h2 className="sec-title">info</h2>
+              {doorsTime && (
+                <div className="info-row"><span className="info-k">doors</span><span className="info-v">{doorsTime}</span></div>
+              )}
+              {event.is_21_plus && (
+                <div className="info-row"><span className="info-k">age</span><span className="info-v">21+ · valid id at door</span></div>
+              )}
+              {event.dress_code && (
+                <div className="info-row"><span className="info-k">dress</span><span className="info-v">{event.dress_code.toLowerCase()}</span></div>
+              )}
+              {street && (
+                <div className="info-row"><span className="info-k">address</span><span className="info-v">{street.toLowerCase()}{event.state ? ` ${event.state.toLowerCase()}` : ''}</span></div>
+              )}
               {hasSocial && (
-                <div className="social-links">
-                  {event.instagram_handle && <a className="social-link" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i className="ti ti-brand-instagram" aria-hidden="true"/></a>}
-                  {event.tiktok_url && <a className="social-link" href={event.tiktok_url} target="_blank" rel="noopener noreferrer" aria-label="TikTok"><i className="ti ti-brand-tiktok" aria-hidden="true"/></a>}
+                <div className="text-links">
+                  {event.instagram_handle && <a className="text-link" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">instagram</a>}
+                  {event.tiktok_url && <a className="text-link" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">tiktok</a>}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="tickets-panel">
-            <h2 className="sec-title" style={{fontFamily:"'Syne',sans-serif",fontSize:'13px',fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'3px',textTransform:'uppercase',marginBottom:'16px'}}>Tickets</h2>
+          <div className="tickets-panel" id="tickets">
+            <h2 className="sec-title">tickets</h2>
             {event.ticket_tiers && event.ticket_tiers.length > 0 ? (
               [...event.ticket_tiers].sort((a, b) => safePrice(a.price) - safePrice(b.price)).map(tier => {
                 const price = safePrice(tier.price)
@@ -541,50 +510,33 @@ export default function EventDetail() {
                 const soldOut = available <= 0
                 const qty = selectedQty[tier.id] || 1
                 const isBuying = buyingTier === tier.id
-                // Door tier: hide remaining-count scarcity bar (still sells, still goes sold-out)
+                // Door tier: hide the availability bar (still sells, still goes sold-out)
                 const hideAvailability = tier.name.trim().toLowerCase() === 'door'
+                const soldPct = tier.quantity > 0
+                  ? Math.max(2, ((tier.quantity - available) / tier.quantity) * 100)
+                  : 0
                 return (
                   <div key={tier.id} className="ticket-card">
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'4px'}}>
-                      <div className="tier-name">{toRomanTierName(tier.name)}</div>
-                    </div>
-                    <div className={`tier-price ${price === 0 ? 'free' : ''}`}>{displayPrice(price, qty > 1 ? qty : 1)}</div>
-                    <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',margin:'4px 0 12px',fontFamily:"'Syne',sans-serif"}}>
-                      {soldOut ? 'Sold out' : price === 0 ? 'Free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
+                    <div className="tier-name">{toRomanTierName(tier.name).toLowerCase()}</div>
+                    <div className="tier-price">{displayPrice(price, qty > 1 ? qty : 1)}</div>
+                    <div className="tier-sub">
+                      {soldOut ? 'sold out' : price === 0 ? 'free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
                     </div>
                     {!soldOut && !hideAvailability && (
-                      <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
-                        <div style={{flex:1,height:'2px',background:'rgba(255,255,255,0.06)',borderRadius:'1px',overflow:'hidden'}}>
-                          <div style={{
-                            height:'100%',
-                            width:`${Math.max(2, ((tier.quantity - available) / tier.quantity) * 100)}%`,
-                            background: available <= 5 ? '#f87171' : available <= 12 ? '#ffaa33' : 'rgba(255,255,255,0.25)',
-                            borderRadius:'1px',
-                            transition:'width 0.5s ease',
-                          }}/>
-                        </div>
-                        <span style={{
-                          fontFamily:"'Syne',sans-serif",
-                          fontSize:'11px',
-                          fontWeight:600,
-                          color: available <= 5 ? '#f87171' : available <= 12 ? '#ffaa33' : 'rgba(255,255,255,0.35)',
-                          flexShrink:0,
-                          letterSpacing:'0.3px',
-                        }}>
-                          {available} left
-                        </span>
+                      <div className="avail-bar">
+                        <div className={`avail-fill ${available <= 12 ? 'low' : ''}`} style={{width:`${soldPct}%`}}/>
                       </div>
                     )}
                     {!soldOut && (
                       <div className="qty-row">
-                        <span className="qty-label">Qty</span>
+                        <span className="qty-label">qty</span>
                         <select className="qty-select" value={qty} onChange={e => setSelectedQty(prev => ({...prev, [tier.id]: parseInt(e.target.value)}))}>
                           {Array.from({length: Math.min(available, 10)}).map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
                         </select>
                       </div>
                     )}
                     {soldOut ? (
-                      <div className="soldout-btn">Sold out</div>
+                      <div className="soldout-btn">sold out</div>
                     ) : (
                       <BuyButton tier={tier} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
                     )}
@@ -593,13 +545,27 @@ export default function EventDetail() {
               })
             ) : (
               <div className="ticket-card" style={{textAlign:'center',padding:'36px 20px'}}>
-                <div style={{fontSize:'14px',color:'#665',marginBottom:'8px'}}>Tickets not available yet</div>
-                <div style={{fontSize:'12px',color:'#443'}}>Check back soon</div>
+                <div style={{fontSize:'13px',color:'rgba(255,255,255,0.4)',marginBottom:'8px'}}>tickets not available yet</div>
+                <div style={{fontSize:'11px',color:'rgba(255,255,255,0.22)',letterSpacing:'1px'}}>check back soon</div>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {cheapest && !allSoldOut && (
+        <div className="mobile-buy">
+          <div>
+            <div className="mobile-buy-price">{displayPrice(safePrice(cheapest.price), 1)}</div>
+          </div>
+          <button
+            className="mobile-buy-btn"
+            onClick={() => document.getElementById('tickets')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+          >
+            get tickets
+          </button>
+        </div>
+      )}
 
       {event && <EventLounge eventId={event.id} eventTitle={event.title} hostId={event.host_id}/>}
 
@@ -607,15 +573,15 @@ export default function EventDetail() {
         <div className="gl-backdrop" onClick={() => setLinkSheetOpen(false)}>
           <div className="gl-sheet" onClick={e => e.stopPropagation()}>
             <div className="gl-drag"/>
-            <div className="gl-sheet-title">Guest list link</div>
+            <div className="gl-sheet-title">guest list link</div>
             <p className="gl-sheet-desc">Anyone who opens this link gets a free guest ticket. Share it in your story, DMs, or group chat.</p>
             <div className="gl-url-row">
               <input className="gl-url-input" readOnly value={guestLink} onFocus={e => e.currentTarget.select()}/>
               <button className={`gl-copy-btn ${linkCopied ? 'copied' : ''}`} onClick={copyGuestLink}>
-                {linkCopied ? 'Copied' : 'Copy'}
+                {linkCopied ? 'copied' : 'copy'}
               </button>
             </div>
-            <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>Done</button>
+            <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>done</button>
           </div>
         </div>
       )}
@@ -624,7 +590,7 @@ export default function EventDetail() {
         <div className="gl-backdrop" onClick={() => setManageOpen(false)}>
           <div className="gl-sheet" onClick={e => e.stopPropagation()}>
             <div className="gl-drag"/>
-            <div className="gl-sheet-title">Guest list</div>
+            <div className="gl-sheet-title">guest list</div>
             <p className="gl-sheet-desc">
               {loadingGuests
                 ? 'Loading…'
@@ -651,13 +617,13 @@ export default function EventDetail() {
                       </div>
                       {g.is_checked_in && <span className="gm-in">In</span>}
                       <button className="gm-remove" disabled={removingId === g.ticket_id} onClick={() => removeGuest(g.ticket_id)}>
-                        {removingId === g.ticket_id ? '…' : 'Remove'}
+                        {removingId === g.ticket_id ? '…' : 'remove'}
                       </button>
                     </div>
                   ))
               )}
             </div>
-            <button className="gl-close-btn" onClick={() => setManageOpen(false)}>Done</button>
+            <button className="gl-close-btn" onClick={() => setManageOpen(false)}>done</button>
           </div>
         </div>
       )}
