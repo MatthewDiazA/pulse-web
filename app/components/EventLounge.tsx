@@ -19,9 +19,6 @@ type ChatMessage = {
 // into a read-only state. Generous window so it never closes during the night-of.
 const CHAT_OPEN_HOURS_AFTER_START = 12
 
-const initialsOf = (name: string) =>
-  (name || 'G').trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
-
 export default function EventLounge({
   eventId,
   eventTitle,
@@ -121,6 +118,13 @@ export default function EventLounge({
     }
   }, [messages.length, isOpen])
 
+  // Hide the page's mobile buy bar while the chat panel is open so the two
+  // fixed elements can never stack on top of each other.
+  useEffect(() => {
+    document.body.classList.toggle('lounge-open', isOpen)
+    return () => document.body.classList.remove('lounge-open')
+  }, [isOpen])
+
   const handleSend = async () => {
     if (!newMsg.trim() || !user || sending || eventClosed) return
     setSending(true)
@@ -162,84 +166,73 @@ export default function EventLounge({
   const isHost = user?.id === hostId
   const canModerate = isHost || isAdmin
 
-  const ChatIcon = ({ size = 16, color = '#ffaa33', opacity = 1 }: { size?: number; color?: string; opacity?: number }) => (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ opacity }}>
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-    </svg>
-  )
-
   return (
     <>
       <style>{`
-        .lounge-trigger{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:0.5px solid rgba(255,255,255,0.14);border-radius:100px;padding:12px 22px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,0.5);transition:transform 0.2s,border-color 0.2s;font-family:'Syne',sans-serif;}
-        .lounge-trigger:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.26);}
-        .lounge-trigger:active{transform:scale(0.97);}
-        .lounge-trigger.has-unread{border-color:rgba(255,170,51,0.45);}
-        .trigger-text{font-size:12px;font-weight:600;color:rgba(255,255,255,0.62);letter-spacing:1.2px;transition:color 0.2s;}
-        .lounge-trigger.has-unread .trigger-text{color:#ffaa33;}
-        .unread-badge{background:#ffaa33;color:#000;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;padding:0 5px;}
+        /* Trigger — a label, not a bubble. Square, hairline, no glow. */
+        .lounge-trigger{position:fixed;bottom:24px;right:24px;z-index:900;display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,0.8);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:0.5px solid rgba(255,255,255,0.22);padding:11px 18px;cursor:pointer;transition:border-color 0.2s,background 0.2s;font-family:'Syne',sans-serif;}
+        .lounge-trigger:hover{border-color:rgba(255,255,255,0.5);background:rgba(0,0,0,0.92);}
+        .trigger-text{font-size:11px;font-weight:500;color:rgba(255,255,255,0.75);letter-spacing:2.5px;}
+        .lounge-trigger.has-unread .trigger-text{color:#fff;}
+        .unread-badge{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:#ffaa33;letter-spacing:0;line-height:1;}
 
-        .lounge-panel{position:fixed;bottom:0;right:0;width:412px;height:600px;max-height:82vh;max-width:100vw;z-index:1000;display:flex;flex-direction:column;background:#070400;border:0.5px solid rgba(255,255,255,0.08);border-radius:18px 18px 0 0;box-shadow:0 -8px 60px rgba(0,0,0,0.85);transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
+        .lounge-panel{position:fixed;bottom:0;right:0;width:412px;height:620px;max-height:84vh;max-width:100vw;z-index:1000;display:flex;flex-direction:column;background:#000;border-left:0.5px solid rgba(255,255,255,0.12);border-top:0.5px solid rgba(255,255,255,0.12);transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
         .lounge-panel.open{transform:translateY(0);}
 
-        .lounge-header{padding:17px 20px 14px;border-bottom:0.5px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-        .lounge-header-left{display:flex;align-items:center;gap:11px;min-width:0;}
-        .lounge-icon{width:32px;height:32px;border-radius:9px;background:rgba(255,170,51,0.08);border:0.5px solid rgba(255,170,51,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-        .lounge-title{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;line-height:1;}
-        .lounge-subtitle{font-size:11px;color:rgba(255,255,255,0.3);margin-top:3px;font-family:'Syne',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .lounge-close{background:none;border:none;color:rgba(255,255,255,0.3);font-size:22px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:all 0.15s;flex-shrink:0;line-height:1;}
-        .lounge-close:hover{background:rgba(255,255,255,0.05);color:#fff;}
+        .lounge-header{padding:18px 20px 15px;border-bottom:0.5px solid rgba(255,255,255,0.1);display:flex;align-items:flex-end;justify-content:space-between;flex-shrink:0;}
+        .lounge-title{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:#fff;line-height:0.9;letter-spacing:-0.3px;}
+        .lounge-subtitle{font-size:10px;color:rgba(255,255,255,0.3);margin-top:6px;font-family:'Syne',sans-serif;letter-spacing:2px;}
+        .lounge-close{background:none;border:none;color:rgba(255,255,255,0.35);font-size:12px;letter-spacing:2px;cursor:pointer;font-family:'Syne',sans-serif;padding:4px 0 4px 12px;transition:color 0.15s;flex-shrink:0;}
+        .lounge-close:hover{color:#fff;}
 
-        .pinned-bar{padding:10px 20px;background:rgba(255,170,51,0.035);border-bottom:0.5px solid rgba(255,170,51,0.08);flex-shrink:0;}
-        .pinned-label{font-size:9px;color:#ffaa33;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:700;font-family:'Barlow Condensed',sans-serif;}
-        .pinned-text{font-size:12px;color:rgba(255,255,255,0.7);line-height:1.4;font-family:'Syne',sans-serif;}
+        .pinned-bar{padding:11px 20px;border-bottom:0.5px solid rgba(255,255,255,0.08);flex-shrink:0;display:flex;gap:12px;align-items:baseline;}
+        .pinned-label{font-size:9px;color:#ffaa33;letter-spacing:2px;flex-shrink:0;font-family:'Syne',sans-serif;}
+        .pinned-text{font-size:12px;color:rgba(255,255,255,0.7);line-height:1.45;font-family:'Syne',sans-serif;}
 
-        .lounge-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;}
-        .lounge-messages::-webkit-scrollbar{width:4px;}
-        .lounge-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px;}
+        .lounge-messages{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:0;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;}
+        .lounge-messages::-webkit-scrollbar{width:3px;}
+        .lounge-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);}
 
-        .msg{display:flex;gap:9px;padding:6px 0;position:relative;font-family:'Syne',sans-serif;}
+        /* Flush left, no avatars, no bubbles — a transcript */
+        .msg{padding:5px 0;position:relative;font-family:'Syne',sans-serif;}
         .msg:hover .msg-actions{opacity:1;}
-        .msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:2px;background:rgba(255,170,51,0.1);border:0.5px solid rgba(255,170,51,0.2);color:rgba(255,170,51,0.8);letter-spacing:0.3px;}
-        .msg-body{flex:1;min-width:0;}
-        .msg-header{display:flex;align-items:baseline;gap:7px;margin-bottom:2px;}
-        .msg-name{font-size:12px;font-weight:700;color:#f0f0f0;cursor:pointer;transition:color 0.1s;}
-        .msg-name:hover{color:#ffaa33;}
+        .msg-header{display:flex;align-items:baseline;gap:9px;margin-bottom:3px;margin-top:8px;}
+        .msg-name{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.55);cursor:pointer;transition:color 0.1s;}
+        .msg-name:hover{color:#fff;}
         .msg-name.host{color:#ffaa33;}
-        .msg-host-tag{font-size:8px;color:#ffaa33;margin-left:5px;letter-spacing:1.5px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;}
-        .msg-time{font-size:10px;color:rgba(255,255,255,0.18);}
-        .msg-text{font-size:13px;color:rgba(255,255,255,0.72);line-height:1.5;word-wrap:break-word;}
-        .msg-pinned{background:rgba(255,170,51,0.03);border-left:2px solid rgba(255,170,51,0.3);padding-left:11px;margin-left:-11px;}
-        .msg-actions{position:absolute;top:4px;right:0;display:flex;gap:4px;opacity:0;transition:opacity 0.15s;}
-        .msg-action-btn{background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.08);border-radius:5px;padding:2px 7px;font-size:10px;color:rgba(255,255,255,0.4);cursor:pointer;font-family:'Syne',sans-serif;transition:all 0.1s;}
-        .msg-action-btn:hover{color:#f0f0f0;background:rgba(255,255,255,0.08);}
-        .msg-action-btn.del:hover{color:#ff6666;}
+        .msg-host-tag{font-size:9px;color:#ffaa33;margin-left:7px;letter-spacing:1.5px;font-weight:500;}
+        .msg-time{font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;}
+        .msg-text{font-size:14px;color:rgba(255,255,255,0.82);line-height:1.5;word-wrap:break-word;}
+        .msg-pinned{border-left:1px solid rgba(255,170,51,0.5);padding-left:12px;margin-left:-13px;}
+        .msg-actions{position:absolute;top:6px;right:0;display:flex;gap:10px;opacity:0;transition:opacity 0.15s;}
+        .msg-action-btn{background:none;border:none;padding:0;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.1s;}
+        .msg-action-btn:hover{color:#fff;}
+        .msg-action-btn.del:hover{color:#ff7070;}
 
-        .lounge-input-area{padding:12px 16px 16px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.3);flex-shrink:0;display:flex;gap:9px;align-items:flex-end;}
-        .msg-input{flex:1;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.1);border-radius:20px;padding:10px 16px;color:#fff;font-size:13px;font-family:'Syne',sans-serif;outline:none;resize:none;max-height:80px;min-height:38px;line-height:1.4;transition:border-color 0.15s;}
-        .msg-input:focus{border-color:rgba(255,170,51,0.3);}
-        .msg-input::placeholder{color:rgba(255,255,255,0.22);}
-        .send-btn{width:36px;height:36px;border-radius:50%;background:#ffaa33;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform 0.15s;}
-        .send-btn:hover{transform:scale(1.06);}
-        .send-btn:active{transform:scale(0.92);}
-        .send-btn:disabled{opacity:0.3;cursor:not-allowed;}
-        .send-arrow{width:16px;height:16px;fill:none;stroke:#000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+        /* Input — hairline rule, no pill, no circle. Return sends. */
+        .lounge-input-area{padding:14px 20px calc(16px + env(safe-area-inset-bottom));border-top:0.5px solid rgba(255,255,255,0.1);flex-shrink:0;display:flex;gap:14px;align-items:flex-end;}
+        .msg-input{flex:1;background:none;border:none;padding:6px 0;color:#fff;font-size:14px;font-family:'Syne',sans-serif;outline:none;resize:none;max-height:80px;min-height:26px;line-height:1.45;}
+        .msg-input::placeholder{color:rgba(255,255,255,0.25);}
+        .send-btn{background:none;border:none;padding:6px 0;font-size:11px;letter-spacing:2.5px;color:rgba(255,255,255,0.3);cursor:pointer;flex-shrink:0;font-family:'Syne',sans-serif;transition:color 0.15s;}
+        .send-btn:hover:not(:disabled){color:#ffaa33;}
+        .send-btn:disabled{opacity:0.25;cursor:not-allowed;}
 
-        .chat-closed-bar{padding:16px 20px;border-top:0.5px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.3);flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:8px;color:rgba(255,255,255,0.32);font-size:12px;font-family:'Syne',sans-serif;letter-spacing:0.2px;}
+        .chat-closed-bar{padding:18px 20px calc(18px + env(safe-area-inset-bottom));border-top:0.5px solid rgba(255,255,255,0.1);flex-shrink:0;color:rgba(255,255,255,0.3);font-size:11px;font-family:'Syne',sans-serif;letter-spacing:1.5px;}
 
-        .empty-lounge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:rgba(255,255,255,0.25);padding:40px;font-family:'Syne',sans-serif;}
-        .empty-lounge-text{font-size:13px;text-align:center;line-height:1.6;}
+        .empty-lounge{flex:1;display:flex;align-items:center;padding:0;color:rgba(255,255,255,0.22);font-family:'Syne',sans-serif;}
+        .empty-lounge-text{font-size:12px;letter-spacing:1.5px;}
 
-        @media(max-width:480px){
-          .lounge-panel{width:100%;border-radius:14px 14px 0 0;height:72vh;}
-          .lounge-trigger{bottom:16px;right:16px;padding:12px 17px;}
+        @media(max-width:699px){
+          .lounge-panel{width:100%;height:78vh;border-left:none;}
+          /* Sit above the event page's buy bar instead of on top of it */
+          .lounge-trigger{bottom:calc(82px + env(safe-area-inset-bottom));right:16px;padding:10px 16px;}
         }
       `}</style>
 
-      {/* Floating trigger button */}
+      {/* Floating trigger */}
       {!isOpen && (
         <div className={`lounge-trigger ${unread > 0 ? 'has-unread' : ''}`} onClick={() => { setIsOpen(true); setUnread(0) }}>
-          <span className="trigger-text">the Chat</span>
+          <span className="trigger-text">the chat</span>
           {unread > 0 && <span className="unread-badge">{unread}</span>}
         </div>
       )}
@@ -247,21 +240,18 @@ export default function EventLounge({
       {/* Chat panel */}
       <div className={`lounge-panel ${isOpen ? 'open' : ''}`}>
         <div className="lounge-header">
-          <div className="lounge-header-left">
-            <div className="lounge-icon"><ChatIcon size={16}/></div>
-            <div style={{ minWidth: 0 }}>
-              <div className="lounge-title">the Chat</div>
-              <div className="lounge-subtitle">
-                {eventClosed ? 'Closed · read only' : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
-              </div>
+          <div style={{ minWidth: 0 }}>
+            <div className="lounge-title">the chat</div>
+            <div className="lounge-subtitle">
+              {eventClosed ? 'closed · read only' : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
             </div>
           </div>
-          <button className="lounge-close" onClick={() => setIsOpen(false)}>×</button>
+          <button className="lounge-close" onClick={() => setIsOpen(false)}>close</button>
         </div>
 
         {pinnedMessages.length > 0 && (
           <div className="pinned-bar">
-            <div className="pinned-label">Pinned</div>
+            <div className="pinned-label">pinned</div>
             <div className="pinned-text">{pinnedMessages[pinnedMessages.length - 1].content}</div>
           </div>
         )}
@@ -269,10 +259,7 @@ export default function EventLounge({
         <div className="lounge-messages" ref={messagesRef}>
           {messages.length === 0 ? (
             <div className="empty-lounge">
-              <ChatIcon size={30} color="rgba(255,255,255,0.25)"/>
-              <div className="empty-lounge-text">
-                No messages yet.<br/>Say something to the room.
-              </div>
+              <div className="empty-lounge-text">no one has said anything yet.</div>
             </div>
           ) : (
             messages.map((msg, i) => {
@@ -283,40 +270,33 @@ export default function EventLounge({
                 hour: 'numeric',
                 minute: '2-digit',
                 timeZone: 'UTC',
-              })
+              }).toLowerCase()
               return (
                 <div key={msg.id} className={`msg ${msg.is_pinned ? 'msg-pinned' : ''}`}>
-                  {showName ? (
-                    <div className="msg-avatar">{initialsOf(msg.user_name)}</div>
-                  ) : (
-                    <div style={{ width: 28, flexShrink: 0 }}/>
+                  {showName && (
+                    <div className="msg-header">
+                      <span
+                        className={`msg-name ${isMsgHost ? 'host' : ''}`}
+                        onClick={() => {
+                          if (!isMe) router.push(`/connect/whisper/${msg.user_id}?event=${eventId}`)
+                        }}
+                        title={isMe ? '' : `Whisper ${msg.user_name}`}
+                      >
+                        {msg.user_name}
+                        {isMsgHost && <span className="msg-host-tag">host</span>}
+                      </span>
+                      <span className="msg-time">{time}</span>
+                    </div>
                   )}
-                  <div className="msg-body">
-                    {showName && (
-                      <div className="msg-header">
-                        <span
-                          className={`msg-name ${isMsgHost ? 'host' : ''}`}
-                          onClick={() => {
-                            if (!isMe) router.push(`/connect/whisper/${msg.user_id}?event=${eventId}`)
-                          }}
-                          title={isMe ? '' : `Whisper ${msg.user_name}`}
-                        >
-                          {msg.user_name}
-                          {isMsgHost && <span className="msg-host-tag">Host</span>}
-                        </span>
-                        <span className="msg-time">{time}</span>
-                      </div>
-                    )}
-                    <div className="msg-text">{msg.content}</div>
-                  </div>
+                  <div className="msg-text">{msg.content}</div>
                   {(isMe || canModerate) && (
                     <div className="msg-actions">
                       {canModerate && (
                         <button className="msg-action-btn" onClick={() => handlePin(msg)}>
-                          {msg.is_pinned ? 'Unpin' : 'Pin'}
+                          {msg.is_pinned ? 'unpin' : 'pin'}
                         </button>
                       )}
-                      <button className="msg-action-btn del" onClick={() => handleDelete(msg.id)}>×</button>
+                      <button className="msg-action-btn del" onClick={() => handleDelete(msg.id)}>delete</button>
                     </div>
                   )}
                 </div>
@@ -328,13 +308,13 @@ export default function EventLounge({
 
         {eventClosed ? (
           <div className="chat-closed-bar">
-            This chat has closed for {eventTitle}.
+            this chat has closed for {eventTitle.toLowerCase()}.
           </div>
         ) : (
           <div className="lounge-input-area">
             <textarea
               className="msg-input"
-              placeholder="Say something..."
+              placeholder="say something"
               value={newMsg}
               onChange={e => setNewMsg(e.target.value)}
               onKeyDown={e => {
@@ -347,10 +327,7 @@ export default function EventLounge({
               rows={1}
             />
             <button ref={sendBtnRef} className="send-btn" disabled={!newMsg.trim() || sending} onClick={handleSend}>
-              <svg className="send-arrow" viewBox="0 0 24 24">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
+              {sending ? '···' : 'send'}
             </button>
           </div>
         )}
