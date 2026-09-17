@@ -186,7 +186,6 @@ function BlastTab() {
             {tickets.map((t: any) => {
               const isSelected = selected.has(t.email)
               const result = results.find(r => r.email === t.email)
-              const ticketCount = 1 // deduplicated already
               return (
                 <div
                   key={t.id}
@@ -248,10 +247,13 @@ function EventTicketStats({ eventId }: { eventId: string }) {
       const res = await fetch(`/api/admin/blast-tickets?eventId=${eventId}`)
       const { tickets: enriched } = await res.json()
 
-      // Also get check-in status
+      // Also get check-in status.
+      // NOTE: order:orders(total_amount) must be selected here — the revenue
+      // calculation below reads t.order, and without this join it's undefined
+      // and every ticket counts as $0.
       const { data: ticketData } = await supabase
         .from('tickets')
-        .select('id,is_checked_in,order_id,tier:ticket_tiers(name,price)')
+        .select('id,is_checked_in,order_id,tier:ticket_tiers(name,price),order:orders(total_amount,buyer_email,buyer_name)')
         .eq('event_id', eventId)
         .order('created_at', { ascending: true })
 
@@ -279,9 +281,27 @@ function EventTicketStats({ eventId }: { eventId: string }) {
   const paid = tickets.filter(t => !!(t as any).order_id)
   const comped = tickets.filter(t => !(t as any).order_id)
   const checkedIn = tickets.filter(t => t.is_checked_in)
-  const revenue = paid.reduce((s, t) => s + Number((t.order as any)?.total_amount || 0), 0)
+
+  // Revenue is summed per ORDER, not per ticket — one order can cover several
+  // tickets, so adding total_amount per ticket would multiply it.
+  const orderTotals = new Map<string, number>()
+  for (const t of paid) {
+    const oid = (t as any).order_id
+    const amt = Number((t as any).order?.total_amount || 0)
+    if (oid && !orderTotals.has(oid)) orderTotals.set(oid, amt)
+  }
+  const revenue = Array.from(orderTotals.values()).reduce((s, n) => s + n, 0)
+
   const totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0)
   const soldPct = totalCapacity > 0 ? Math.round((tickets.length / totalCapacity) * 100) : 0
+
+  // Actual sold count per tier, derived from ticket rows rather than the
+  // quantity_sold counter, which can drift if the webhook's RPC ever fails.
+  const soldByTier = new Map<string, number>()
+  for (const t of tickets) {
+    const tid = (t as any).tier_id ?? null
+    if (tid) soldByTier.set(tid, (soldByTier.get(tid) ?? 0) + 1)
+  }
 
   return (
     <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.4)' }}>
@@ -306,15 +326,18 @@ function EventTicketStats({ eventId }: { eventId: string }) {
       <div style={{ padding: '16px 20px', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
         <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', marginBottom: '10px' }}>Capacity by tier</div>
         {tiers.map(t => {
-          const sold = t.quantity_sold || 0
+          // Prefer the real ticket count; fall back to the stored counter.
+          const sold = soldByTier.get(t.id) ?? (t.quantity_sold || 0)
           const pct = t.quantity > 0 ? (sold / t.quantity) * 100 : 0
           const tierRevenue = Number(t.price) * sold
+          const drifted = (t.quantity_sold || 0) !== sold
           return (
             <div key={t.id} style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '5px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '12px', color: '#f0f0f0', fontWeight: 600 }}>{t.name}</span>
                   <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>${Number(t.price).toFixed(2)} each</span>
+                  {drifted && <span title={`Stored counter says ${t.quantity_sold}`} style={{ fontSize: '9px', color: '#f87171', letterSpacing: '1px' }}>counter off</span>}
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
                   <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{sold}/{t.quantity} sold</span>
@@ -334,12 +357,13 @@ function EventTicketStats({ eventId }: { eventId: string }) {
       <div style={{ padding: '0 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
         <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.2)', margin: '16px 0 10px' }}>Roster</div>
         {tickets.map(t => {
-          const order = t.order as any
+          const order = (t as any).order
           const isPaid = !!(t as any).order_id
           const email = (t as any).email ?? order?.buyer_email ?? '—'
           const name = (t as any).name ?? order?.buyer_name ?? ''
           const tierName = (t.tier as any)?.name ?? '—'
-          const tierPrice = Number((t.tier as any)?.price || 0)
+          // Tier price when the join worked; otherwise fall back to the order amount.
+          const tierPrice = Number((t.tier as any)?.price ?? 0) || Number(order?.total_amount ?? 0)
           const initials = name ? name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : email !== '—' ? email.slice(0, 2).toUpperCase() : '?'
           return (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: t.is_checked_in ? 'rgba(74,222,128,0.04)' : 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '4px', border: `0.5px solid ${t.is_checked_in ? 'rgba(74,222,128,0.15)' : isPaid ? 'rgba(255,255,255,0.05)' : 'rgba(167,139,250,0.15)'}` }}>
@@ -829,20 +853,42 @@ function ConversionTab() {
     let alive = true
     setLoading(true)
     ;(async () => {
-      const { data: events } = await createClient()
+      const supabase = createClient()
+      const { data: events } = await supabase
         .from('events')
-        .select('id,title,status,ticket_tiers(quantity_sold,price)')
+        .select('id,title,status')
         .order('starts_at', { ascending: false })
       const evs = events ?? []
+
+      // Sold + revenue come from tickets and orders, not the quantity_sold
+      // counter, so a failed webhook RPC can't make a live event read as zero.
+      const { data: allTickets } = await supabase.from('tickets').select('event_id,order_id')
+      const { data: allOrders } = await supabase.from('orders').select('id,event_id,total_amount,status')
+
+      const soldByEvent = new Map<string, number>()
+      for (const t of allTickets ?? []) {
+        soldByEvent.set(t.event_id, (soldByEvent.get(t.event_id) ?? 0) + 1)
+      }
+      const revByEvent = new Map<string, number>()
+      for (const o of allOrders ?? []) {
+        if (o.status !== 'confirmed') continue
+        revByEvent.set(o.event_id, (revByEvent.get(o.event_id) ?? 0) + Number(o.total_amount || 0))
+      }
+
       const withViews = await Promise.all(evs.map(async (e: any) => {
         let views = 0
         try {
           const d = await (await fetch(`/api/pageview?event_id=${e.id}&period=30d`)).json()
           views = d.total ?? 0
         } catch {}
-        const sold = (e.ticket_tiers ?? []).reduce((s: number, t: any) => s + (t.quantity_sold || 0), 0)
-        const revenue = (e.ticket_tiers ?? []).reduce((s: number, t: any) => s + ((t.quantity_sold || 0) * Number(t.price || 0)), 0)
-        return { id: e.id, title: e.title, status: e.status, views, sold, revenue }
+        return {
+          id: e.id,
+          title: e.title,
+          status: e.status,
+          views,
+          sold: soldByEvent.get(e.id) ?? 0,
+          revenue: revByEvent.get(e.id) ?? 0,
+        }
       }))
       if (alive) { setRows(withViews); setLoading(false) }
     })()
@@ -962,7 +1008,7 @@ export default function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '36px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '16px', lineHeight: 0 }}>
-              <img src="/pulse-word-tight.png" alt="pulse" style={{ height: '22px', filter: 'drop-shadow(0 0 8px rgba(255,170,51,0.35))' }}/>
+              <img src="/pulse-word-tight.png" alt="pulse" style={{ height: '22px' }}/>
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '48px', fontWeight: 900, textTransform: 'uppercase', color: '#fff', lineHeight: 1 }}>Admin</div>
