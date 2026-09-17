@@ -7,7 +7,15 @@ import { createClient } from '../../lib/supabase/client'
 import { usePageView } from '../../lib/usePageView'
 import EventLounge from '../../components/EventLounge'
 
-type Tier = { id: string; name: string; price: number; quantity: number; quantity_sold: number }
+type Tier = {
+  id: string
+  name: string
+  price: number
+  quantity: number
+  quantity_sold: number
+  // Optional — only present if you add the column later. Ignored when absent.
+  available_at?: string | null
+}
 type EventData = {
   id: string
   host_id: string
@@ -51,6 +59,10 @@ function igUrl(handle: string): string {
 const COLORS = { primary: '#ffaa33', bg: '#000' } as const
 const FEE_RATE = 0.10
 
+// Tier release rule. 'ladder' = a tier stays locked until every cheaper tier is
+// sold out. Set to false if you ever want all tiers on sale at once.
+const LADDER_RELEASE = true
+
 function safePrice(p: unknown): number {
   const n = Number(p)
   return isNaN(n) || n < 0 ? 0 : n
@@ -85,6 +97,8 @@ function toRomanTierName(name: string): string {
   return name.replace(/\b(\d+)\b/g, n => map[n] ?? n)
 }
 
+const remainingOf = (t: Tier) => t.quantity - (t.quantity_sold || 0)
+
 export default function EventDetail() {
   const router = useRouter()
   const params = useParams()
@@ -100,7 +114,6 @@ export default function EventDetail() {
   const [authReady, setAuthReady] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined)
   const [soundMeta, setSoundMeta] = useState<{ title: string; artist: string } | null>(null)
-  const [playing, setPlaying] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -323,11 +336,29 @@ export default function EventDetail() {
   // One flyer line: everything a poster would print, in poster order
   const metaLine = [date, time, event.venue_name?.toLowerCase(), street?.toLowerCase()].filter(Boolean).join('  ·  ')
 
-  const cheapest = event.ticket_tiers?.length
-    ? [...event.ticket_tiers].sort((a, b) => safePrice(a.price) - safePrice(b.price))[0]
-    : null
-  const allSoldOut = !!event.ticket_tiers?.length &&
-    event.ticket_tiers.every(t => t.quantity - (t.quantity_sold || 0) <= 0)
+  const sortedTiers = [...(event.ticket_tiers ?? [])].sort((a, b) => safePrice(a.price) - safePrice(b.price))
+
+  // A tier is locked when a scheduled release hasn't arrived, or — under the
+  // ladder rule — when any cheaper tier still has inventory left.
+  const lockInfoFor = (tier: Tier, index: number): { locked: boolean; reason: string } => {
+    if (tier.available_at) {
+      const opensAt = new Date(tier.available_at).getTime()
+      if (!isNaN(opensAt) && Date.now() < opensAt) {
+        const d = new Date(opensAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase()
+        return { locked: true, reason: `opens ${d}` }
+      }
+    }
+    if (LADDER_RELEASE && index > 0) {
+      const blocker = sortedTiers.slice(0, index).find(t => remainingOf(t) > 0)
+      if (blocker) {
+        return { locked: true, reason: `opens when ${toRomanTierName(blocker.name).toLowerCase()} sells out` }
+      }
+    }
+    return { locked: false, reason: '' }
+  }
+
+  // Mobile bar should quote the cheapest tier someone can actually buy
+  const buyableTier = sortedTiers.find((t, i) => remainingOf(t) > 0 && !lockInfoFor(t, i).locked) ?? null
 
   return (
     <>
@@ -378,7 +409,6 @@ export default function EventDetail() {
         .hero-overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.5) 58%,${COLORS.bg} 100%);}
         .hero-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 20px 40px;max-width:900px;margin:0 auto;}
         .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(46px,11vw,86px);font-weight:700;line-height:0.9;color:#fff;letter-spacing:-1px;margin-bottom:18px;}
-        /* One line, no icons. Typography carries it. */
         .ev-meta{font-family:'Syne',sans-serif;font-size:12px;letter-spacing:1.5px;color:rgba(255,255,255,0.62);padding-top:14px;border-top:0.5px solid rgba(255,255,255,0.18);}
 
         .content{max-width:900px;margin:0 auto;padding:44px 20px 140px;position:relative;z-index:1;}
@@ -388,7 +418,6 @@ export default function EventDetail() {
         .sec-title{font-family:'Syne',sans-serif;font-size:10px;font-weight:500;letter-spacing:3px;color:rgba(255,255,255,0.25);margin-bottom:16px;}
         .desc{font-size:14px;line-height:1.95;color:rgba(255,255,255,0.6);}
 
-        /* Info rows replace the chip cluster — no icons, no boxes */
         .info-row{display:flex;justify-content:space-between;gap:20px;padding:11px 0;border-bottom:0.5px solid rgba(255,255,255,0.07);font-size:12px;}
         .info-row:first-child{border-top:0.5px solid rgba(255,255,255,0.07);}
         .info-k{color:rgba(255,255,255,0.3);letter-spacing:1.5px;}
@@ -401,16 +430,22 @@ export default function EventDetail() {
 
         .tickets-panel{position:sticky;top:80px;}
         .ticket-card{border:0.5px solid rgba(255,255,255,0.12);padding:22px;margin-bottom:12px;}
-        .tier-name{font-size:11px;font-weight:500;letter-spacing:2.5px;color:rgba(255,255,255,0.45);margin-bottom:10px;}
+        .tier-name{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;margin-bottom:8px;line-height:1;}
         .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:700;color:#fff;line-height:0.9;letter-spacing:-1px;}
         .tier-sub{font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:1px;margin:8px 0 18px;}
-        /* Bar only — no remaining count */
         .avail-bar{height:2px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:18px;}
         .avail-fill{height:100%;background:rgba(255,255,255,0.4);transition:width 0.5s ease;}
         .avail-fill.low{background:${COLORS.primary};}
         .qty-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
         .qty-label{font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:1.5px;}
         .qty-select{background:transparent;border:0.5px solid rgba(255,255,255,0.18);padding:7px 10px;color:#f0f0f0;font-size:13px;font-family:'Syne',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
+
+        /* Not released yet — visible, priced, and plainly not for sale */
+        .ticket-card.locked{border-color:rgba(255,255,255,0.07);}
+        .ticket-card.locked .tier-name{color:rgba(255,255,255,0.3);}
+        .ticket-card.locked .tier-price{color:rgba(255,255,255,0.22);}
+        .ticket-card.locked .tier-sub{color:rgba(255,255,255,0.18);}
+        .locked-btn{width:100%;background:none;color:rgba(255,255,255,0.32);border:0.5px solid rgba(255,255,255,0.09);padding:16px;font-size:11px;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:not-allowed;text-align:center;}
 
         /* The one amber object on the page */
         .buy-btn{width:100%;background:${COLORS.primary};color:#000;border:none;padding:16px 20px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:1.5px;transition:background 0.15s;text-align:center;display:block;}
@@ -423,6 +458,8 @@ export default function EventDetail() {
         .mobile-buy{display:none;}
         @media(max-width:699px){
           .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
+          /* EventLounge adds this class to <body> while the chat panel is open */
+          body.lounge-open .mobile-buy{display:none;}
           .mobile-buy-price{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:#fff;line-height:1;}
           .mobile-buy-btn{background:${COLORS.primary};color:#000;border:none;padding:13px 22px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:pointer;}
           .hero{height:64vh;min-height:400px;}
@@ -473,7 +510,7 @@ export default function EventDetail() {
               <div className="section">
                 <h2 className="sec-title">sound</h2>
                 <div className="spotify-wrap">
-                  <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="80" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
+                  <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
                 </div>
               </div>
             )}
@@ -503,11 +540,12 @@ export default function EventDetail() {
 
           <div className="tickets-panel" id="tickets">
             <h2 className="sec-title">tickets</h2>
-            {event.ticket_tiers && event.ticket_tiers.length > 0 ? (
-              [...event.ticket_tiers].sort((a, b) => safePrice(a.price) - safePrice(b.price)).map(tier => {
+            {sortedTiers.length > 0 ? (
+              sortedTiers.map((tier, index) => {
                 const price = safePrice(tier.price)
-                const available = tier.quantity - (tier.quantity_sold || 0)
+                const available = remainingOf(tier)
                 const soldOut = available <= 0
+                const { locked, reason } = lockInfoFor(tier, index)
                 const qty = selectedQty[tier.id] || 1
                 const isBuying = buyingTier === tier.id
                 // Door tier: hide the availability bar (still sells, still goes sold-out)
@@ -516,18 +554,18 @@ export default function EventDetail() {
                   ? Math.max(2, ((tier.quantity - available) / tier.quantity) * 100)
                   : 0
                 return (
-                  <div key={tier.id} className="ticket-card">
-                    <div className="tier-name">{toRomanTierName(tier.name).toLowerCase()}</div>
-                    <div className="tier-price">{displayPrice(price, qty > 1 ? qty : 1)}</div>
+                  <div key={tier.id} className={`ticket-card ${locked && !soldOut ? 'locked' : ''}`}>
+                    <div className="tier-name">{toRomanTierName(tier.name)}</div>
+                    <div className="tier-price">{displayPrice(price, !locked && qty > 1 ? qty : 1)}</div>
                     <div className="tier-sub">
-                      {soldOut ? 'sold out' : price === 0 ? 'free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
+                      {soldOut ? 'sold out' : locked ? reason : price === 0 ? 'free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
                     </div>
-                    {!soldOut && !hideAvailability && (
+                    {!soldOut && !locked && !hideAvailability && (
                       <div className="avail-bar">
                         <div className={`avail-fill ${available <= 12 ? 'low' : ''}`} style={{width:`${soldPct}%`}}/>
                       </div>
                     )}
-                    {!soldOut && (
+                    {!soldOut && !locked && (
                       <div className="qty-row">
                         <span className="qty-label">qty</span>
                         <select className="qty-select" value={qty} onChange={e => setSelectedQty(prev => ({...prev, [tier.id]: parseInt(e.target.value)}))}>
@@ -537,6 +575,8 @@ export default function EventDetail() {
                     )}
                     {soldOut ? (
                       <div className="soldout-btn">sold out</div>
+                    ) : locked ? (
+                      <div className="locked-btn">not yet released</div>
                     ) : (
                       <BuyButton tier={tier} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
                     )}
@@ -553,10 +593,10 @@ export default function EventDetail() {
         </div>
       </div>
 
-      {cheapest && !allSoldOut && (
+      {buyableTier && (
         <div className="mobile-buy">
           <div>
-            <div className="mobile-buy-price">{displayPrice(safePrice(cheapest.price), 1)}</div>
+            <div className="mobile-buy-price">{displayPrice(safePrice(buyableTier.price), 1)}</div>
           </div>
           <button
             className="mobile-buy-btn"
