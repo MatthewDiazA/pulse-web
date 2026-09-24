@@ -545,7 +545,7 @@ export default function EventDetail() {
         .cal-opt{font-size:13px;color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
         .lineup-row{padding:14px 0;}
 
-        .socials{display:flex;gap:22px;flex-wrap:wrap;}
+        .socials{display:flex;gap:22px;flex-wrap:wrap;margin-top:18px;}
         .social{font-size:14px;color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
         .social:hover{text-decoration-color:#fff;}
 
