@@ -37,8 +37,16 @@ export async function POST(request: Request) {
         const userIds = Array.from(new Set((tickets ?? []).map(t => t.user_id).filter(Boolean))) as string[]
         const nameMap: Record<string, { name: string; email: string }> = {}
         if (userIds.length) {
-          const { data: profs } = await supabase.from('profiles').select('id, full_name, username, email').in('id', userIds)
-          for (const p of profs ?? []) nameMap[p.id] = { name: p.full_name ?? p.username ?? 'Guest', email: p.email ?? '' }
+          // Names live on profiles; emails live on the auth user (profiles has no email column)
+          const [{ data: profs }, authUsers] = await Promise.all([
+            supabase.from('profiles').select('id, full_name, username').in('id', userIds),
+            Promise.all(userIds.map(id => supabase.auth.admin.getUserById(id).then(r => r.data.user).catch(() => null))),
+          ])
+          for (const u of authUsers) if (u) nameMap[u.id] = { name: (u.user_metadata?.full_name as string | undefined) || u.email?.split('@')[0] || 'Guest', email: u.email ?? '' }
+          for (const p of profs ?? []) {
+            const name = p.full_name || p.username
+            if (name) nameMap[p.id] = { name, email: nameMap[p.id]?.email ?? '' }
+          }
         }
         const guests = (tickets ?? []).map(t => ({
           ticket_id: t.id,

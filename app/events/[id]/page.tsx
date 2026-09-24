@@ -6,7 +6,6 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import { usePageView } from '../../lib/usePageView'
 import FlipCounter from '../../components/FlipCounter'
-import EventLounge from '../../components/EventLounge'
 import { loadFlyerPalette, NEUTRAL_PALETTE, type FlyerPalette } from '../../lib/flyerColor'
 
 type Tier = {
@@ -550,8 +549,6 @@ export default function EventDetail() {
         .mobile-buy{display:none;}
         @media(max-width:899px){
           .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
-          /* EventLounge adds this class to <body> while the chat panel is open */
-          body.lounge-open .mobile-buy{display:none;}
           .mobile-buy-k{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:3px;}
           .mobile-buy-price{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff;line-height:1;}
           .mobile-buy-btn{background:var(--accent);color:var(--ink);border:none;border-radius:8px;padding:13px 22px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:pointer;transition:background 0.8s;}
@@ -753,8 +750,6 @@ export default function EventDetail() {
           </button>
         </div>
       )}
-
-      {event && <EventLounge eventId={event.id} eventTitle={event.title} hostId={event.host_id} accent={palette.accent}/>}
 
       {linkSheetOpen && (
         <div className="gl-backdrop" onClick={() => setLinkSheetOpen(false)}>
