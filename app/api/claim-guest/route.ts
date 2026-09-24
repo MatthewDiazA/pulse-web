@@ -67,10 +67,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing token or userId' }, { status: 400 })
     }
 
-    // 1. Resolve the invite -> event. (Broadcast: the link is reusable, not single-use.)
+    // 1. Look up the invite. Links are single-use: one claim, then dead.
     const { data: invite, error: inviteErr } = await supabase
       .from('guest_invites')
-      .select('id, event_id, tier_id')
+      .select('id, event_id, tier_id, claimed_by')
       .eq('token', token)
       .limit(1)
       .maybeSingle()
@@ -79,7 +79,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This invite link is invalid.' }, { status: 404 })
     }
 
-    // 2. Already has a guest ticket for this event? Idempotent success (handles refreshes / re-clicks).
+    // 2. Already claimed? Same user = idempotent success (refreshes); anyone else is blocked.
+    if (invite.claimed_by) {
+      if (invite.claimed_by === userId) {
+        return NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id })
+      }
+      return NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
+    }
+
+    // 3. Already has a guest ticket for this event (via another link)? Don't burn this link.
     const { data: existing } = await supabase
       .from('tickets')
       .select('id')
@@ -92,7 +100,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id })
     }
 
-    // 3. Mint one guest ticket. The link is NOT consumed - anyone else can still claim.
+    // 4. Atomically claim the token — only succeeds if still unclaimed (race-safe)
+    const { data: claimed, error: claimErr } = await supabase
+      .from('guest_invites')
+      .update({ claimed_by: userId, claimed_at: new Date().toISOString() })
+      .eq('id', invite.id)
+      .is('claimed_by', null)
+      .select('id')
+      .maybeSingle()
+
+    if (claimErr || !claimed) {
+      return NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
+    }
+
+    // 5. Mint one guest ticket
     const qr = `PULSE-GL-${invite.event_id.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const { error: ticketErr } = await supabase.from('tickets').insert({
       event_id: invite.event_id,
@@ -104,6 +125,11 @@ export async function POST(request: Request) {
     })
 
     if (ticketErr) {
+      // Roll back the claim so the link still works
+      await supabase
+        .from('guest_invites')
+        .update({ claimed_by: null, claimed_at: null })
+        .eq('id', invite.id)
       console.error('GL ticket insert failed:', ticketErr)
       return NextResponse.json({ error: 'Could not create your guest list ticket. Try again.' }, { status: 500 })
     }

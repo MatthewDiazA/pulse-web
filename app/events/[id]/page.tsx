@@ -239,28 +239,20 @@ export default function EventDetail() {
   const trackable = authReady && !loading && !isHostOrAdmin
   usePageView(`/events/${eventId}`, eventId, trackable)
 
+  // Each tap mints a fresh single-use link — one link = one guest
   const generateGuestLink = async () => {
     if (!event || !currentUser) return
-    if (guestLink) { setLinkSheetOpen(true); return }
     setGenningLink(true)
+    setLinkCopied(false)
     try {
       const supabase = createClient()
-      // Reuse the existing broadcast link for this event if one exists
-      const { data: existing } = await supabase
-        .from('guest_invites')
-        .select('token')
-        .eq('event_id', event.id)
-        .limit(1)
-      let token = existing?.[0]?.token as string | undefined
-      if (!token) {
-        token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
-        const { error } = await supabase.from('guest_invites').insert({
-          event_id: event.id,
-          token,
-          created_by: currentUser.id,
-        })
-        if (error) { alert('Could not generate link: ' + error.message); setGenningLink(false); return }
-      }
+      const token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+      const { error } = await supabase.from('guest_invites').insert({
+        event_id: event.id,
+        token,
+        created_by: currentUser.id,
+      })
+      if (error) { alert('Could not generate link: ' + error.message); setGenningLink(false); return }
       setGuestLink(`${window.location.origin}/gl/${token}`)
       setLinkSheetOpen(true)
     } catch {
@@ -614,13 +606,14 @@ export default function EventDetail() {
           <div className="gl-sheet" onClick={e => e.stopPropagation()}>
             <div className="gl-drag"/>
             <div className="gl-sheet-title">guest list link</div>
-            <p className="gl-sheet-desc">Anyone who opens this link gets a free guest ticket. Share it in your story, DMs, or group chat.</p>
+            <p className="gl-sheet-desc">This link works once — the first person to claim it gets a free guest ticket. Send it to one guest, then generate a new link for the next.</p>
             <div className="gl-url-row">
               <input className="gl-url-input" readOnly value={guestLink} onFocus={e => e.currentTarget.select()}/>
               <button className={`gl-copy-btn ${linkCopied ? 'copied' : ''}`} onClick={copyGuestLink}>
                 {linkCopied ? 'copied' : 'copy'}
               </button>
             </div>
+            <button className="gl-close-btn" onClick={generateGuestLink} disabled={genningLink}>{genningLink ? 'generating…' : 'new link'}</button>
             <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>done</button>
           </div>
         </div>

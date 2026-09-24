@@ -512,17 +512,13 @@ function UsersTab() {
     }
   }
 
-  // Get-or-create the broadcast guest link for an event (reuses the existing token)
+  // Create a fresh single-use guest link for an event (one per recipient)
   const getEventGuestLink = async (eventId: string): Promise<string | null> => {
     const supabase = createClient()
-    const { data: existing } = await supabase.from('guest_invites').select('token').eq('event_id', eventId).limit(1)
-    let token = existing?.[0]?.token as string | undefined
-    if (!token) {
-      const { data: { user: me } } = await supabase.auth.getUser()
-      token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
-      const { error } = await supabase.from('guest_invites').insert({ event_id: eventId, token, created_by: me?.id })
-      if (error) return null
-    }
+    const { data: { user: me } } = await supabase.auth.getUser()
+    const token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+    const { error } = await supabase.from('guest_invites').insert({ event_id: eventId, token, created_by: me?.id })
+    if (error) return null
     return `${window.location.origin}/gl/${token}`
   }
 

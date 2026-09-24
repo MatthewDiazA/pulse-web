@@ -137,31 +137,21 @@ export default function HostDashboard() {
     setLoadingBuyers(null)
   }
 
-  // Generate (or retrieve) the persistent broadcast guest link for an event
+  // Generate a fresh single-use guest link for an event (one link = one guest)
   const generateGuestLink = async (eventId: string) => {
     setGenningFor(eventId)
     try {
       const supabase = createClient()
-      // Reuse the existing link for this event if there is one, so it stays a single
-      // shareable broadcast link. Falls back to creating one the first time.
-      const { data: existing } = await supabase
-        .from('guest_invites')
-        .select('token')
-        .eq('event_id', eventId)
-        .limit(1)
-      let token = existing?.[0]?.token as string | undefined
-      if (!token) {
-        token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
-        const { error } = await supabase.from('guest_invites').insert({
-          event_id: eventId,
-          token,
-          created_by: user.id,
-        })
-        if (error) {
-          alert('Could not generate link: ' + error.message)
-          setGenningFor(null)
-          return
-        }
+      const token = `${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`
+      const { error } = await supabase.from('guest_invites').insert({
+        event_id: eventId,
+        token,
+        created_by: user.id,
+      })
+      if (error) {
+        alert('Could not generate link: ' + error.message)
+        setGenningFor(null)
+        return
       }
       const link = `${window.location.origin}/gl/${token}`
       setGenLink(link)
@@ -355,7 +345,7 @@ export default function HostDashboard() {
                         </div>
                       )}
                       <div className="guest-hint">
-                        {genLink ? 'anyone who opens this link gets a free guest ticket — share it anywhere.' : 'tap "guest link" to create one shareable invite link for this event.'}
+                        {genLink ? 'this link works once — the first person to claim it gets a free guest ticket. generate a new one for each guest.' : 'tap "guest link" to create a single-use invite link for one guest.'}
                       </div>
                       {loadingBuyers === e.id ? (
                         <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',padding:'8px 0'}}>loading guests…</div>
