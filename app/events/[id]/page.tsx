@@ -397,12 +397,13 @@ export default function EventDetail() {
         /* Film grain over the whole page so it reads printed, not rendered */
         body::after{content:'';position:fixed;inset:0;z-index:95;pointer-events:none;opacity:0.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
 
-        nav{padding:14px 20px;background:rgba(0,0,0,0.85);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.08);}
-        .back-btn{background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;letter-spacing:0.5px;transition:color 0.15s;}
+        /* Equal side columns keep the logo on the true center, whatever sits left or right of it */
+        nav{padding:14px 20px;background:rgba(0,0,0,0.85);position:sticky;top:0;z-index:100;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.08);}
+        .back-btn{justify-self:start;background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;letter-spacing:0.5px;transition:color 0.15s;}
         .back-btn:hover{color:#fff;}
-        .nav-logo{cursor:pointer;background:none;border:none;padding:0;flex:1;display:flex;justify-content:center;line-height:0;}
+        .nav-logo{cursor:pointer;background:none;border:none;padding:0;display:flex;justify-content:center;line-height:0;}
         .nav-logo .logo-img{height:19px;width:auto;}
-        .admin-tools{display:flex;gap:8px;align-items:center;}
+        .admin-tools{justify-self:end;display:flex;gap:8px;align-items:center;}
         .tool-btn{background:none;border:0.5px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.55);font-size:11px;font-family:'Syne',sans-serif;letter-spacing:0.5px;padding:6px 11px;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
         .tool-btn:hover{border-color:rgba(255,255,255,0.4);color:#fff;}
         .tool-btn:disabled{opacity:0.3;cursor:not-allowed;}
