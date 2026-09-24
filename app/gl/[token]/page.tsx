@@ -23,6 +23,7 @@ export default function ClaimGuestPage() {
   const [phase, setPhase] = useState<Phase>('checking')
   const [message, setMessage] = useState('')
   const [eventTitle, setEventTitle] = useState<string>('')
+  const [ticketCount, setTicketCount] = useState(1)
 
   useEffect(() => {
     const run = async () => {
@@ -46,6 +47,7 @@ export default function ClaimGuestPage() {
         const data = await res.json()
 
         if (res.ok && data.success) {
+          setTicketCount(data.ticketCount ?? 1)
           // Fetch the event title for the success screen
           if (data.eventId) {
             const { data: ev } = await supabase
@@ -119,7 +121,7 @@ export default function ClaimGuestPage() {
               <div className="gl-mark">GL</div>
               <div className="eyebrow">You're on the list</div>
               <div className="title">{eventTitle || 'You\'re in'}</div>
-              <div className="sub">Your guest list ticket is ready. Find it in your account with your QR code for the door.</div>
+              <div className="sub">{ticketCount > 1 ? `Your ${ticketCount} guest list tickets are ready. Find them in your account — each has its own QR code for the door.` : 'Your guest list ticket is ready. Find it in your account with your QR code for the door.'}</div>
               <button ref={claimBtnRef} className="btn" onClick={() => router.push('/account')}>
                 <i className="ti ti-ticket" aria-hidden="true" />
                 View my ticket

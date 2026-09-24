@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useNavLogo } from '../lib/animations'
 import { createClient } from '../lib/supabase/client'
+import FlipCounter from '../components/FlipCounter'
 
 type Buyer = {
   ticket_id: string
@@ -30,6 +31,7 @@ export default function HostDashboard() {
   const [genLink, setGenLink] = useState<string | null>(null)
   const [genningFor, setGenningFor] = useState<string | null>(null)
   const [copiedToken, setCopiedToken] = useState(false)
+  const [glCount, setGlCount] = useState(1)
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -137,7 +139,7 @@ export default function HostDashboard() {
     setLoadingBuyers(null)
   }
 
-  // Generate a fresh single-use guest link for an event (one link = one guest)
+  // Generate a fresh single-use guest link; whoever claims it gets glCount tickets
   const generateGuestLink = async (eventId: string) => {
     setGenningFor(eventId)
     try {
@@ -147,6 +149,7 @@ export default function HostDashboard() {
         event_id: eventId,
         token,
         created_by: user.id,
+        ticket_count: glCount,
       })
       if (error) {
         alert('Could not generate link: ' + error.message)
@@ -328,25 +331,36 @@ export default function HostDashboard() {
                       <button className="action-btn" onClick={() => window.location.href=`/events/${e.id}`}>view</button>
                       <button className="action-btn" onClick={() => window.location.href=`/host/edit/${e.id}`}>edit</button>
                       <button className="action-btn" onClick={() => toggleGuests(e.id)}>{isOpen ? 'hide' : 'guests'}</button>
-                      <button className="action-btn" onClick={() => generateGuestLink(e.id)}>
-                        {genningFor === e.id ? 'generating…' : 'guest link'}
-                      </button>
+                      <button className="action-btn" onClick={() => {
+                        setGenLink(null); setGlCount(1)
+                        if (openGuests !== e.id) toggleGuests(e.id)
+                      }}>guest link</button>
                     </div>
                   </div>
 
                   {isOpen && (
                     <div className="guest-panel">
-                      {genLink && (
-                        <div className="gl-linkbox">
-                          <input readOnly value={genLink} onFocus={ev => ev.currentTarget.select()} />
-                          <button className="gl-copy" onClick={async () => {
-                            try { await navigator.clipboard.writeText(genLink); setCopiedToken(true); setTimeout(()=>setCopiedToken(false),2000) } catch {}
-                          }}>{copiedToken ? 'copied' : 'copy'}</button>
+                      {genLink ? (
+                        <>
+                          <div className="gl-linkbox">
+                            <input readOnly value={genLink} onFocus={ev => ev.currentTarget.select()} />
+                            <button className="gl-copy" onClick={async () => {
+                              try { await navigator.clipboard.writeText(genLink); setCopiedToken(true); setTimeout(()=>setCopiedToken(false),2000) } catch {}
+                            }}>{copiedToken ? 'copied' : 'copy'}</button>
+                            <button className="gl-copy" onClick={() => setGenLink(null)}>new</button>
+                          </div>
+                          <div className="guest-hint">
+                            this link works once — whoever claims it gets {glCount} free guest {glCount === 1 ? 'ticket' : 'tickets'}. make a new link for the next person.
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:'14px'}}>
+                          <FlipCounter value={glCount} onChange={setGlCount} label="tickets on this link" />
+                          <button className="gl-copy" onClick={() => generateGuestLink(e.id)} disabled={genningFor === e.id}>
+                            {genningFor === e.id ? 'generating…' : 'generate guest link'}
+                          </button>
                         </div>
                       )}
-                      <div className="guest-hint">
-                        {genLink ? 'this link works once — the first person to claim it gets a free guest ticket. generate a new one for each guest.' : 'tap "guest link" to create a single-use invite link for one guest.'}
-                      </div>
                       {loadingBuyers === e.id ? (
                         <div style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',padding:'8px 0'}}>loading guests…</div>
                       ) : list.length === 0 ? (

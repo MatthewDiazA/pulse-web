@@ -5,6 +5,7 @@ import TouchBlot from '../../components/TouchBlot'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import { usePageView } from '../../lib/usePageView'
+import FlipCounter from '../../components/FlipCounter'
 import EventLounge from '../../components/EventLounge'
 
 type Tier = {
@@ -122,6 +123,7 @@ export default function EventDetail() {
   const [genningLink, setGenningLink] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [linkSheetOpen, setLinkSheetOpen] = useState(false)
+  const [glCount, setGlCount] = useState(1)
 
   // Guest list manager — host/admin only
   const [manageOpen, setManageOpen] = useState(false)
@@ -239,7 +241,7 @@ export default function EventDetail() {
   const trackable = authReady && !loading && !isHostOrAdmin
   usePageView(`/events/${eventId}`, eventId, trackable)
 
-  // Each tap mints a fresh single-use link — one link = one guest
+  // Each tap mints a fresh single-use link; whoever claims it gets glCount tickets
   const generateGuestLink = async () => {
     if (!event || !currentUser) return
     setGenningLink(true)
@@ -251,10 +253,10 @@ export default function EventDetail() {
         event_id: event.id,
         token,
         created_by: currentUser.id,
+        ticket_count: glCount,
       })
       if (error) { alert('Could not generate link: ' + error.message); setGenningLink(false); return }
       setGuestLink(`${window.location.origin}/gl/${token}`)
-      setLinkSheetOpen(true)
     } catch {
       alert('Something went wrong')
     }
@@ -467,7 +469,7 @@ export default function EventDetail() {
         </button>
         {isHostOrAdmin ? (
           <div className="admin-tools">
-            <button className="tool-btn" onClick={generateGuestLink} disabled={genningLink}>link</button>
+            <button className="tool-btn" onClick={() => { setGuestLink(null); setGlCount(1); setLinkSheetOpen(true) }}>link</button>
             <button className="tool-btn" onClick={openGuestManager}>guests</button>
             <button className="tool-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>edit</button>
           </div>
@@ -601,19 +603,28 @@ export default function EventDetail() {
 
       {event && <EventLounge eventId={event.id} eventTitle={event.title} hostId={event.host_id}/>}
 
-      {linkSheetOpen && guestLink && (
+      {linkSheetOpen && (
         <div className="gl-backdrop" onClick={() => setLinkSheetOpen(false)}>
           <div className="gl-sheet" onClick={e => e.stopPropagation()}>
             <div className="gl-drag"/>
             <div className="gl-sheet-title">guest list link</div>
-            <p className="gl-sheet-desc">This link works once — the first person to claim it gets a free guest ticket. Send it to one guest, then generate a new link for the next.</p>
-            <div className="gl-url-row">
-              <input className="gl-url-input" readOnly value={guestLink} onFocus={e => e.currentTarget.select()}/>
-              <button className={`gl-copy-btn ${linkCopied ? 'copied' : ''}`} onClick={copyGuestLink}>
-                {linkCopied ? 'copied' : 'copy'}
-              </button>
-            </div>
-            <button className="gl-close-btn" onClick={generateGuestLink} disabled={genningLink}>{genningLink ? 'generating…' : 'new link'}</button>
+            <p className="gl-sheet-desc">
+              {guestLink
+                ? `This link works once — whoever claims it gets ${glCount} free guest ${glCount === 1 ? 'ticket' : 'tickets'} in their account. Generate a new link for the next person.`
+                : 'Pick how many guest tickets the person who claims this link gets, then generate it.'}
+            </p>
+            {!guestLink && <FlipCounter value={glCount} onChange={setGlCount} label="tickets on this link"/>}
+            {guestLink && (
+              <div className="gl-url-row">
+                <input className="gl-url-input" readOnly value={guestLink} onFocus={e => e.currentTarget.select()}/>
+                <button className={`gl-copy-btn ${linkCopied ? 'copied' : ''}`} onClick={copyGuestLink}>
+                  {linkCopied ? 'copied' : 'copy'}
+                </button>
+              </div>
+            )}
+            {guestLink
+              ? <button className="gl-close-btn" onClick={() => { setGuestLink(null); setLinkCopied(false) }}>new link</button>
+              : <button className="gl-copy-btn" style={{width:'100%',marginBottom:'4px'}} onClick={generateGuestLink} disabled={genningLink}>{genningLink ? 'generating…' : 'generate link'}</button>}
             <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>done</button>
           </div>
         </div>
