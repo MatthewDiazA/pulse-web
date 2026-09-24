@@ -5,6 +5,7 @@ import { createClient } from './lib/supabase/client'
 import { usePageView } from './lib/usePageView'
 import { useMagneticButton, useStaggerReveal, useNavLogo } from './lib/animations'
 import TouchBlot from './components/TouchBlot'
+import { openEventWithFlyer } from './lib/flyerTransition'
 
 type Tier = { id: string; price: number; quantity: number; name: string }
 type Event = {
@@ -192,7 +193,7 @@ function EventCard({ event, index, tilt, past, onOpen }: {
     >
       <div className="frame">
         {event.cover_image_url
-          ? <img src={event.cover_image_url} className="frame-img" alt="" loading="lazy"/>
+          ? <img src={event.cover_image_url} className="frame-img" alt="" loading="lazy" data-flyer-src={event.id}/>
           : <CardPlaceholder index={index}/>
         }
       </div>
@@ -384,7 +385,7 @@ export default function Home() {
                     index={index}
                     tilt={tiltOn}
                     past={!isUpcoming(event, cutoff)}
-                    onOpen={() => router.push(`/events/${event.id}`)}
+                    onOpen={() => openEventWithFlyer(router, event.id)}
                   />
                 ))}
               </div>

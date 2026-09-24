@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 import { usePageView } from '../lib/usePageView'
+import { openEventWithFlyer } from '../lib/flyerTransition'
 
 // Module-level singleton — persists across navigations, never duplicated
 let _globalAudio: HTMLAudioElement | null = null
@@ -338,12 +339,12 @@ export default function Discover() {
                   className="card"
                   data-index={i}
                   ref={el => { cardRefs.current[i] = el }}
-                  onClick={() => router.push(`/events/${ev.id}`)}
+                  onClick={() => openEventWithFlyer(router, ev.id)}
                 >
                   {ev.feed_video_url ? (
-                    <video className="card-media-video" src={ev.feed_video_url} autoPlay muted loop playsInline poster={ev.cover_image_url ?? undefined}/>
+                    <video className="card-media-video" data-flyer-src={ev.id} src={ev.feed_video_url} autoPlay muted loop playsInline poster={ev.cover_image_url ?? undefined}/>
                   ) : ev.cover_image_url ? (
-                    <img className="card-media" src={ev.cover_image_url} alt={ev.title} loading={i < 2 ? 'eager' : 'lazy'}/>
+                    <img className="card-media" data-flyer-src={ev.id} src={ev.cover_image_url} alt={ev.title} loading={i < 2 ? 'eager' : 'lazy'}/>
                   ) : (
                     <div className="card-fallback"/>
                   )}
@@ -371,7 +372,7 @@ export default function Discover() {
                           <i className="ti ti-brand-tiktok" aria-hidden="true"/>
                         </button>
                       )}
-                      <button className="bubble tickets" onClick={() => router.push(`/events/${ev.id}`)} aria-label="Tickets">
+                      <button className="bubble tickets" onClick={() => openEventWithFlyer(router, ev.id)} aria-label="Tickets">
                         <i className="ti ti-ticket" aria-hidden="true"/>
                       </button>
                     </div>

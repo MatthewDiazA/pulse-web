@@ -17,6 +17,7 @@ type Tier = {
   // Optional — only present if you add the column later. Ignored when absent.
   available_at?: string | null
 }
+type Act = { name: string; role?: string; time?: string }
 type EventData = {
   id: string
   host_id: string
@@ -37,6 +38,8 @@ type EventData = {
   instagram_handle: string | null
   tiktok_url: string | null
   spotify_playlist_url: string | null
+  ends_at: string | null
+  lineup: string | Act[] | null
   ticket_tiers: Tier[]
 }
 
@@ -85,10 +88,10 @@ function displayPrice(price: number, qty: number): string {
 function shortTime(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
-  const h = d.toLocaleTimeString('en-US', { hour: 'numeric', timeZone: 'UTC' }).replace(/\s?(AM|PM)/i, '')
-  const m = d.toLocaleTimeString('en-US', { minute: '2-digit', timeZone: 'UTC' })
-  const suffix = d.toLocaleTimeString('en-US', { hour: 'numeric', timeZone: 'UTC' }).slice(-2).toLowerCase()
-  return m === '00' ? `${h}${suffix}` : `${h}:${m}${suffix}`
+  const m = d.getUTCMinutes()
+  const suffix = d.getUTCHours() >= 12 ? 'pm' : 'am'
+  const h = d.getUTCHours() % 12 || 12
+  return m === 0 ? `${h}${suffix}` : `${h}:${String(m).padStart(2, '0')}${suffix}`
 }
 
 function toRomanTierName(name: string): string {
@@ -101,12 +104,45 @@ function toRomanTierName(name: string): string {
 
 const remainingOf = (t: Tier) => t.quantity - (t.quantity_sold || 0)
 
-// Small line icons for the details list
-const svgProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
-const IcPin = () => <svg {...svgProps}><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
-const IcClock = () => <svg {...svgProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-const IcId = () => <svg {...svgProps}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2M14 10h4M14 13h3"/></svg>
-const IcShirt = () => <svg {...svgProps}><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg>
+// Times are stored as wall-clock in UTC fields (the page renders with timeZone UTC),
+// so "today/tomorrow" compares the event's UTC calendar day to the viewer's local day.
+function relativeDay(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000)
+  if (diff === 0) return 'Tonight'
+  if (diff === 1) return 'Tomorrow'
+  if (diff > 1 && diff < 7) return `This ${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}`
+  return null
+}
+
+// Floating (no timezone) calendar stamp, matching how times are stored: 20260605T210000
+function calStamp(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}T${p(d.getUTCHours())}${p(d.getUTCMinutes())}00`
+}
+
+function parseLineup(raw: EventData['lineup']): Act[] {
+  try {
+    const list = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(list) ? list.filter((a: Act) => a?.name?.trim()) : []
+  } catch { return [] }
+}
+
+// "12AM - 1AM" -> minutes after 8am-ish, so 1am sorts after 11pm
+function setStart(time?: string): { label: string; order: number } | null {
+  const m = time?.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+  if (!m) return null
+  let h = parseInt(m[1]) % 12
+  if (m[3]?.toLowerCase() === 'pm') h += 12
+  if (h < 8) h += 24
+  const label = `${parseInt(m[1])}${m[2] && m[2] !== '00' ? `:${m[2]}` : ''}${m[3] ? m[3].toUpperCase() : ''}`
+  return { label, order: h * 60 + (m[2] ? parseInt(m[2]) : 0) }
+}
+
+const isHeadliner = (a: Act) => /headlin/i.test(a.role ?? '')
+
 
 export default function EventDetail() {
   const router = useRouter()
@@ -128,6 +164,7 @@ export default function EventDetail() {
   const [palette, setPalette] = useState<FlyerPalette>(NEUTRAL_PALETTE)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shared, setShared] = useState(false)
+  const [calOpen, setCalOpen] = useState(false)
 
   // Guest list link — host/admin only
   const [guestLink, setGuestLink] = useState<string | null>(null)
@@ -350,15 +387,33 @@ export default function EventDetail() {
   )
 
   const date = event.starts_at
-    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' }).toLowerCase()
-    : 'tba'
+    ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'UTC' })
+    : 'TBA'
   const time = shortTime(event.starts_at)
   const doorsTime = shortTime(event.doors_at)
-  const street = [event.address, event.city].filter(Boolean).join(', ')
+  const street = [event.address, event.city].map(x => x?.trim()).filter(Boolean).join(', ')
   const hasSocial = event.instagram_handle || event.tiktok_url
 
+  // Airport-code style city tag for the location tile: Austin -> AUS
+  const cityCode = event.city ? event.city.replace(/[^a-z]/gi, '').slice(0, 3).toUpperCase() : 'MAP'
   const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent([event.venue_name, street, event.state].filter(Boolean).join(' '))}`
   const longAbout = (event.description ?? '').length > 260
+  const rel = relativeDay(event.starts_at)
+
+  // Calendar: .ics for Apple/Outlook, template link for Google
+  const calStart = event.starts_at ? new Date(event.starts_at) : null
+  const calEnd = event.ends_at ? new Date(event.ends_at) : calStart ? new Date(calStart.getTime() + 5 * 3600000) : null
+  const googleCalUrl = calStart && calEnd
+    ? `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${calStamp(calStart)}/${calStamp(calEnd)}&location=${encodeURIComponent([event.venue_name, street, event.state].filter(Boolean).join(', '))}&details=${encodeURIComponent(`Tickets: ${typeof window !== 'undefined' ? window.location.href : ''}`)}`
+    : null
+
+  const lineup = parseLineup(event.lineup)
+  const hasSetTimes = lineup.some(a => setStart(a.time))
+  const timetable = hasSetTimes
+    ? [...lineup].sort((a, b) => (setStart(a.time)?.order ?? 9999) - (setStart(b.time)?.order ?? 9999))
+    : []
+  const headliners = lineup.filter(isHeadliner)
+  const support = lineup.filter(a => !isHeadliner(a))
 
   const sortedTiers = [...(event.ticket_tiers ?? [])].sort((a, b) => safePrice(a.price) - safePrice(b.price))
 
@@ -475,11 +530,28 @@ export default function EventDetail() {
         .details{display:flex;flex-direction:column;border-radius:14px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.07);}
         .detail{display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06);text-decoration:none;color:inherit;}
         .detail:first-child{border-top:none;}
-        .detail-ic{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:rgba(255,255,255,0.8);}
+        /* Typographic tiles: the info itself, set like a flyer, in the flyer's color */
+        .detail-ic{width:64px;height:40px;border-radius:10px;background:rgba(var(--accent-rgb),0.13);border:1px solid rgba(var(--accent-rgb),0.28);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;line-height:1;white-space:nowrap;transition:color 0.8s,background 0.8s,border-color 0.8s;}
         .detail-txt{flex:1;min-width:0;}
         .detail-k{font-size:14px;font-weight:600;color:#fff;}
         .detail-v{font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;}
         .detail-go{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;}
+
+        button.detail{width:100%;background:none;border:none;border-top:1px solid rgba(255,255,255,0.06);font:inherit;text-align:left;cursor:pointer;}
+        button.detail:first-child{border-top:none;}
+        button.detail:disabled{cursor:default;}
+        .cal-opts{display:flex;gap:8px;padding:0 16px 14px 82px;flex-wrap:wrap;}
+        .cal-opt{padding:9px 14px;border-radius:999px;background:rgba(var(--accent-rgb),0.13);border:1px solid rgba(var(--accent-rgb),0.28);color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;}
+
+        /* LINEUP — poster billing, or a timetable when the host gave set times */
+        .billing{display:flex;flex-direction:column;gap:8px;}
+        .bill-head{font-family:'Barlow Condensed',sans-serif;font-size:clamp(32px,9vw,44px);font-weight:900;text-transform:uppercase;line-height:0.92;color:#fff;letter-spacing:-0.3px;}
+        .bill-rest{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;text-transform:uppercase;line-height:1.3;color:rgba(255,255,255,0.72);}
+        .bill-rest.solo{font-size:26px;color:#fff;}
+        .bill-sep{color:var(--accent);}
+        .lineup-name{text-transform:uppercase;}
+        .lineup-name.head{color:var(--accent);}
+        .head-chip{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink);background:var(--accent);padding:4px 8px;border-radius:999px;}
 
         .socials{display:flex;gap:10px;flex-wrap:wrap;}
         .social{padding:10px 16px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);color:#fff;text-decoration:none;font-size:13px;font-weight:600;transition:border-color 0.15s;}
@@ -513,6 +585,8 @@ export default function EventDetail() {
         .stepper button{width:36px;height:100%;min-height:48px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;font-family:'Syne',sans-serif;}
         .stepper button:disabled{color:rgba(255,255,255,0.2);cursor:default;}
         .stepper span{min-width:20px;text-align:center;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;}
+        .tier-next{margin-top:12px;font-size:11px;color:rgba(255,255,255,0.5);}
+        .tier-next b{color:#fff;font-weight:700;}
         .state-pill{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);}
 
         /* Not released yet / sold out — visible, priced, and plainly not for sale */
@@ -563,7 +637,7 @@ export default function EventDetail() {
 
       <main className="page">
         <div className="poster-col">
-          <div className="poster">
+          <div className="poster" data-flyer style={{viewTransitionName:'flyer'}}>
             {event.feed_video_url ? (
               <video src={event.feed_video_url} autoPlay muted loop playsInline poster={event.cover_image_url ?? undefined}/>
             ) : event.cover_image_url ? (
@@ -583,10 +657,41 @@ export default function EventDetail() {
           </header>
 
           <div className="fact-bar">
-            <div className="fact"><div className="fact-k">date</div><div className="fact-v">{date}</div></div>
+            <div className="fact"><div className="fact-k">{rel ? date : 'date'}</div><div className="fact-v">{rel ?? date}</div></div>
             {time && <div className="fact"><div className="fact-k">{doorsTime ? 'doors' : 'time'}</div><div className="fact-v">{doorsTime || time}</div></div>}
             {event.venue_name && <div className="fact"><div className="fact-k">venue</div><div className="fact-v">{event.venue_name}</div></div>}
           </div>
+
+          {lineup.length > 0 && (
+            <section className="section">
+              <h2 className="sec-title">Lineup</h2>
+              {hasSetTimes ? (
+                <div className="details">
+                  {timetable.map((a, i) => (
+                    <div key={i} className="detail">
+                      <span className="detail-ic">{setStart(a.time)?.label ?? 'TBA'}</span>
+                      <span className="detail-txt">
+                        <div className={`detail-k lineup-name ${isHeadliner(a) ? 'head' : ''}`}>{a.name}</div>
+                        {a.time && <div className="detail-v">{a.time.toLowerCase()}</div>}
+                      </span>
+                      {isHeadliner(a) && <span className="head-chip">Headliner</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="billing">
+                  {headliners.map((a, i) => <div key={i} className="bill-head">{a.name}</div>)}
+                  {support.length > 0 && (
+                    <div className={`bill-rest ${headliners.length ? '' : 'solo'}`}>
+                      {support.map((a, i) => (
+                        <span key={i}>{i > 0 && <span className="bill-sep"> · </span>}{a.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
 
           {event.description && (
             <section className="section">
@@ -605,6 +710,8 @@ export default function EventDetail() {
                 const available = remainingOf(tier)
                 const soldOut = available <= 0
                 const { locked, reason } = lockInfoFor(tier, index)
+                // The price the buyer faces once this tier is gone
+                const nextTier = !soldOut && !locked ? sortedTiers.slice(index + 1).find(t => remainingOf(t) > 0 && safePrice(t.price) > price) : undefined
                 const maxQty = Math.min(available, 10)
                 const qty = Math.min(selectedQty[tier.id] || 1, Math.max(1, maxQty))
                 const setQty = (n: number) => setSelectedQty(prev => ({ ...prev, [tier.id]: n }))
@@ -631,6 +738,9 @@ export default function EventDetail() {
                       </div>
                       {!soldOut && !locked && !hideAvailability && (
                         <div className="avail-bar"><div className="avail-fill" style={{width:`${soldPct}%`}}/></div>
+                      )}
+                      {nextTier && (
+                        <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
                       )}
                     </div>
                     <div className="ticket-bottom">
@@ -668,7 +778,7 @@ export default function EventDetail() {
             <div className="details">
               {(event.venue_name || street) && (
                 <a className="detail" href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                  <span className="detail-ic"><IcPin/></span>
+                  <span className="detail-ic">{cityCode}</span>
                   <span className="detail-txt">
                     <div className="detail-k">{event.venue_name || street}</div>
                     {street && <div className="detail-v">{street}{event.state ? `, ${event.state}` : ''}</div>}
@@ -676,22 +786,29 @@ export default function EventDetail() {
                   <span className="detail-go">Maps ↗</span>
                 </a>
               )}
-              <div className="detail">
-                <span className="detail-ic"><IcClock/></span>
+              <button type="button" className="detail" onClick={() => setCalOpen(o => !o)} disabled={!calStart} aria-expanded={calOpen}>
+                <span className="detail-ic">{(time || 'TBA').toUpperCase()}</span>
                 <span className="detail-txt">
-                  <div className="detail-k">{date}{time ? ` · ${time}` : ''}</div>
+                  <div className="detail-k">{rel ? `${rel} · ` : ''}{date}{time ? ` · ${time}` : ''}</div>
                   {doorsTime && <div className="detail-v">Doors open {doorsTime}</div>}
                 </span>
-              </div>
+                {calStart && <span className="detail-go">{calOpen ? 'Close' : 'Add to cal'}</span>}
+              </button>
+              {calOpen && calStart && (
+                <div className="cal-opts">
+                  <a className="cal-opt" href={`/api/ics?id=${event.id}`}>Apple / Outlook</a>
+                  {googleCalUrl && <a className="cal-opt" href={googleCalUrl} target="_blank" rel="noopener noreferrer">Google Calendar</a>}
+                </div>
+              )}
               {event.is_21_plus && (
                 <div className="detail">
-                  <span className="detail-ic"><IcId/></span>
+                  <span className="detail-ic">21+</span>
                   <span className="detail-txt"><div className="detail-k">21+</div><div className="detail-v">Valid ID required at the door</div></span>
                 </div>
               )}
               {event.dress_code && (
                 <div className="detail">
-                  <span className="detail-ic"><IcShirt/></span>
+                  <span className="detail-ic">FIT</span>
                   <span className="detail-txt"><div className="detail-k">Dress code</div><div className="detail-v">{event.dress_code}</div></span>
                 </div>
               )}

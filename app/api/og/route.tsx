@@ -2,8 +2,19 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
+// Brand condensed face for the title. Google serves TTF to non-browser clients, which is what satori needs.
+async function loadFont(weight: number): Promise<ArrayBuffer | null> {
+  try {
+    const css = await (await fetch(`https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@${weight}`)).text()
+    const url = css.match(/src: url\((.+?)\) format\('(?:truetype|opentype)'\)/)?.[1]
+    return url ? await (await fetch(url)).arrayBuffer() : null
+  } catch { return null }
+}
+
+// Link-preview card (iMessage, IG, X). The flyer is the design: shown crisp on the right,
+// and stretched dim across the background so its colors fill the card.
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
+  const { searchParams, origin } = new URL(request.url)
   const eventId = searchParams.get('id')
 
   let title = 'Pulse Event'
@@ -26,62 +37,62 @@ export async function GET(request: Request) {
       const event = rows?.[0]
 
       if (event) {
-        title = event.title ?? 'Pulse Event'
+        title = (event.title ?? 'Pulse Event').trim()
         venue = [event.venue_name, event.city].filter(Boolean).join(' · ')
         date = event.starts_at
-          ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          ? new Date(event.starts_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
           : ''
         coverUrl = event.cover_image_url ?? ''
-        const prices = (event.ticket_tiers ?? []).map((t: any) => Number(t.price)).filter((p: number) => p > 0)
+        const prices = (event.ticket_tiers ?? []).map((t: { price: unknown }) => Number(t.price)).filter((p: number) => p > 0)
         if (prices.length > 0) price = `From $${Math.min(...prices)}`
       }
     } catch {}
   }
 
+  const titleSize = title.length > 22 ? 76 : title.length > 14 ? 96 : 116
+  const [bold, semi] = await Promise.all([loadFont(800), loadFont(600)])
+  const fonts = [bold && { name: 'Barlow', data: bold, weight: 800 as const }, semi && { name: 'Barlow', data: semi, weight: 600 as const }].filter(Boolean) as { name: string; data: ArrayBuffer; weight: 800 | 600 }[]
+  const face = fonts.length ? 'Barlow' : 'sans-serif'
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: '1200px',
-          height: '630px',
-          display: 'flex',
-          position: 'relative',
-          background: '#000',
-          fontFamily: 'sans-serif',
-        }}
-      >
+      <div style={{ width: '1200px', height: '630px', display: 'flex', position: 'relative', background: '#000', fontFamily: face }}>
         {coverUrl && (
-          <img
-            src={coverUrl}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }}
-          />
+          <img src={coverUrl} style={{ position: 'absolute', top: 0, left: 0, width: '1200px', height: '630px', objectFit: 'cover', opacity: 0.35 }}/>
         )}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 100%)',
-          display: 'flex',
-        }}/>
-        <div style={{ position: 'relative', padding: '60px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: '100%' }}>
-          <div style={{ fontSize: '36px', fontWeight: 900, color: '#ffaa33', letterSpacing: '4px', display: 'flex' }}>
-            pulse
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {date && (
-              <div style={{ fontSize: '18px', color: 'rgba(255,170,51,0.8)', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '16px', display: 'flex' }}>
-                {date}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '1200px', height: '630px', display: 'flex', backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.85) 55%, rgba(0,0,0,0.4) 100%)' }}/>
+
+        <div style={{ position: 'relative', display: 'flex', width: '100%', padding: '60px', gap: '56px', alignItems: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
+            <img src={`${origin}/pulse-word-tight.png`} width={151} height={40} style={{ width: '151px', height: '40px' }}/>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {date && (
+                <div style={{ fontSize: '26px', fontWeight: 600, color: 'rgba(255,255,255,0.7)', letterSpacing: '5px', textTransform: 'uppercase', marginBottom: '18px', display: 'flex' }}>
+                  {date}
+                </div>
+              )}
+              <div style={{ fontSize: `${titleSize}px`, fontWeight: 800, color: '#fff', textTransform: 'uppercase', lineHeight: 0.9, marginBottom: '28px', display: 'flex' }}>
+                {title}
               </div>
-            )}
-            <div style={{ fontSize: '96px', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', lineHeight: 0.9, marginBottom: '24px', display: 'flex' }}>
-              {title}
-            </div>
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-              {venue && <div style={{ fontSize: '22px', color: 'rgba(255,255,255,0.6)', display: 'flex' }}>{venue}</div>}
-              {price && <div style={{ fontSize: '22px', color: '#ffaa33', fontWeight: 700, display: 'flex' }}>{price}</div>}
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                {price && (
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#000', background: '#fff', padding: '10px 22px', borderRadius: '999px', display: 'flex' }}>
+                    {price}
+                  </div>
+                )}
+                {venue && <div style={{ fontSize: '28px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex' }}>{venue}</div>}
+              </div>
             </div>
           </div>
+
+          {coverUrl && (
+            <div style={{ display: 'flex', width: '384px', height: '480px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>
+              <img src={coverUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+            </div>
+          )}
         </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    { width: 1200, height: 630, fonts }
   )
 }
