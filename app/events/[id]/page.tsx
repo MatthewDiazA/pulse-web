@@ -131,17 +131,23 @@ function parseLineup(raw: EventData['lineup']): Act[] {
 }
 
 // "12AM - 1AM" -> minutes after 8am-ish, so 1am sorts after 11pm
-function setStart(time?: string): { label: string; order: number } | null {
+function setStart(time?: string): { order: number } | null {
   const m = time?.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
   if (!m) return null
   let h = parseInt(m[1]) % 12
   if (m[3]?.toLowerCase() === 'pm') h += 12
   if (h < 8) h += 24
-  const label = `${parseInt(m[1])}${m[2] && m[2] !== '00' ? `:${m[2]}` : ''}${m[3] ? m[3].toUpperCase() : ''}`
-  return { label, order: h * 60 + (m[2] ? parseInt(m[2]) : 0) }
+  return { order: h * 60 + (m[2] ? parseInt(m[2]) : 0) }
 }
 
 const isHeadliner = (a: Act) => /headlin/i.test(a.role ?? '')
+
+// Small line icons for the details list
+const svgProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+const IcPin = () => <svg {...svgProps}><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+const IcClock = () => <svg {...svgProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+const IcId = () => <svg {...svgProps}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2M14 10h4M14 13h3"/></svg>
+const IcShirt = () => <svg {...svgProps}><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg>
 
 
 export default function EventDetail() {
@@ -394,8 +400,6 @@ export default function EventDetail() {
   const street = [event.address, event.city].map(x => x?.trim()).filter(Boolean).join(', ')
   const hasSocial = event.instagram_handle || event.tiktok_url
 
-  // Airport-code style city tag for the location tile: Austin -> AUS
-  const cityCode = event.city ? event.city.replace(/[^a-z]/gi, '').slice(0, 3).toUpperCase() : 'MAP'
   const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent([event.venue_name, street, event.state].filter(Boolean).join(' '))}`
   const longAbout = (event.description ?? '').length > 260
   const rel = relativeDay(event.starts_at)
@@ -409,11 +413,9 @@ export default function EventDetail() {
 
   const lineup = parseLineup(event.lineup)
   const hasSetTimes = lineup.some(a => setStart(a.time))
-  const timetable = hasSetTimes
+  const lineupRows = hasSetTimes
     ? [...lineup].sort((a, b) => (setStart(a.time)?.order ?? 9999) - (setStart(b.time)?.order ?? 9999))
-    : []
-  const headliners = lineup.filter(isHeadliner)
-  const support = lineup.filter(a => !isHeadliner(a))
+    : [...lineup.filter(isHeadliner), ...lineup.filter(a => !isHeadliner(a))]
 
   const sortedTiers = [...(event.ticket_tiers ?? [])].sort((a, b) => safePrice(a.price) - safePrice(b.price))
 
@@ -527,35 +529,25 @@ export default function EventDetail() {
         .desc.clamped{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
         .more-btn{align-self:flex-start;background:none;border:none;padding:0;color:#fff;font-size:13px;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.3);}
 
-        .details{display:flex;flex-direction:column;border-radius:14px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.07);}
-        .detail{display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06);text-decoration:none;color:inherit;}
-        .detail:first-child{border-top:none;}
-        /* Typographic tiles: the info itself, set like a flyer, in the flyer's color */
-        .detail-ic{width:64px;height:40px;border-radius:10px;background:rgba(var(--accent-rgb),0.13);border:1px solid rgba(var(--accent-rgb),0.28);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;line-height:1;white-space:nowrap;transition:color 0.8s,background 0.8s,border-color 0.8s;}
+        /* Plain list with hairlines, like a printed program — no cards, no chips */
+        .details{display:flex;flex-direction:column;border-top:1px solid rgba(255,255,255,0.09);}
+        .detail{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.09);text-decoration:none;color:inherit;}
+        .detail-ic{flex-shrink:0;display:flex;padding-top:1px;color:rgba(255,255,255,0.5);}
         .detail-txt{flex:1;min-width:0;}
-        .detail-k{font-size:14px;font-weight:600;color:#fff;}
-        .detail-v{font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;}
-        .detail-go{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;}
-
-        button.detail{width:100%;background:none;border:none;border-top:1px solid rgba(255,255,255,0.06);font:inherit;text-align:left;cursor:pointer;}
-        button.detail:first-child{border-top:none;}
+        .detail-k{font-size:15px;font-weight:500;color:#fff;line-height:1.35;}
+        .detail-v{font-size:13px;color:rgba(255,255,255,0.5);margin-top:3px;line-height:1.4;}
+        .detail-go{font-size:13px;color:rgba(255,255,255,0.7);white-space:nowrap;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;padding-top:1px;}
+        .detail-meta{font-size:13px;color:rgba(255,255,255,0.5);white-space:nowrap;padding-top:1px;font-variant-numeric:tabular-nums;}
+        button.detail{width:100%;background:none;border:none;border-bottom:1px solid rgba(255,255,255,0.09);font:inherit;text-align:left;cursor:pointer;}
         button.detail:disabled{cursor:default;}
-        .cal-opts{display:flex;gap:8px;padding:0 16px 14px 82px;flex-wrap:wrap;}
-        .cal-opt{padding:9px 14px;border-radius:999px;background:rgba(var(--accent-rgb),0.13);border:1px solid rgba(var(--accent-rgb),0.28);color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;}
+        button.detail[aria-expanded="true"]{border-bottom:none;padding-bottom:10px;}
+        .cal-opts{display:flex;gap:20px;padding:0 0 16px 32px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.09);}
+        .cal-opt{font-size:13px;color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
+        .lineup-row{padding:14px 0;}
 
-        /* LINEUP — poster billing, or a timetable when the host gave set times */
-        .billing{display:flex;flex-direction:column;gap:8px;}
-        .bill-head{font-family:'Barlow Condensed',sans-serif;font-size:clamp(32px,9vw,44px);font-weight:900;text-transform:uppercase;line-height:0.92;color:#fff;letter-spacing:-0.3px;}
-        .bill-rest{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;text-transform:uppercase;line-height:1.3;color:rgba(255,255,255,0.72);}
-        .bill-rest.solo{font-size:26px;color:#fff;}
-        .bill-sep{color:var(--accent);}
-        .lineup-name{text-transform:uppercase;}
-        .lineup-name.head{color:var(--accent);}
-        .head-chip{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink);background:var(--accent);padding:4px 8px;border-radius:999px;}
-
-        .socials{display:flex;gap:10px;flex-wrap:wrap;}
-        .social{padding:10px 16px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);color:#fff;text-decoration:none;font-size:13px;font-weight:600;transition:border-color 0.15s;}
-        .social:hover{border-color:rgba(255,255,255,0.4);}
+        .socials{display:flex;gap:22px;flex-wrap:wrap;}
+        .social{font-size:14px;color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
+        .social:hover{text-decoration-color:#fff;}
 
         .spotify-wrap{border-radius:12px;overflow:hidden;}
 
@@ -662,37 +654,6 @@ export default function EventDetail() {
             {event.venue_name && <div className="fact"><div className="fact-k">venue</div><div className="fact-v">{event.venue_name}</div></div>}
           </div>
 
-          {lineup.length > 0 && (
-            <section className="section">
-              <h2 className="sec-title">Lineup</h2>
-              {hasSetTimes ? (
-                <div className="details">
-                  {timetable.map((a, i) => (
-                    <div key={i} className="detail">
-                      <span className="detail-ic">{setStart(a.time)?.label ?? 'TBA'}</span>
-                      <span className="detail-txt">
-                        <div className={`detail-k lineup-name ${isHeadliner(a) ? 'head' : ''}`}>{a.name}</div>
-                        {a.time && <div className="detail-v">{a.time.toLowerCase()}</div>}
-                      </span>
-                      {isHeadliner(a) && <span className="head-chip">Headliner</span>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="billing">
-                  {headliners.map((a, i) => <div key={i} className="bill-head">{a.name}</div>)}
-                  {support.length > 0 && (
-                    <div className={`bill-rest ${headliners.length ? '' : 'solo'}`}>
-                      {support.map((a, i) => (
-                        <span key={i}>{i > 0 && <span className="bill-sep"> · </span>}{a.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
-
           {event.description && (
             <section className="section">
               <h2 className="sec-title">About</h2>
@@ -778,37 +739,38 @@ export default function EventDetail() {
             <div className="details">
               {(event.venue_name || street) && (
                 <a className="detail" href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                  <span className="detail-ic">{cityCode}</span>
+                  <span className="detail-ic"><IcPin/></span>
                   <span className="detail-txt">
                     <div className="detail-k">{event.venue_name || street}</div>
                     {street && <div className="detail-v">{street}{event.state ? `, ${event.state}` : ''}</div>}
                   </span>
-                  <span className="detail-go">Maps ↗</span>
+                  <span className="detail-go">Directions</span>
                 </a>
               )}
               <button type="button" className="detail" onClick={() => setCalOpen(o => !o)} disabled={!calStart} aria-expanded={calOpen}>
-                <span className="detail-ic">{(time || 'TBA').toUpperCase()}</span>
+                <span className="detail-ic"><IcClock/></span>
                 <span className="detail-txt">
                   <div className="detail-k">{rel ? `${rel} · ` : ''}{date}{time ? ` · ${time}` : ''}</div>
                   {doorsTime && <div className="detail-v">Doors open {doorsTime}</div>}
                 </span>
-                {calStart && <span className="detail-go">{calOpen ? 'Close' : 'Add to cal'}</span>}
+                {calStart && <span className="detail-go">{calOpen ? 'Close' : 'Add to calendar'}</span>}
               </button>
               {calOpen && calStart && (
                 <div className="cal-opts">
-                  <a className="cal-opt" href={`/api/ics?id=${event.id}`}>Apple / Outlook</a>
+                  <a className="cal-opt" href={`/api/ics?id=${event.id}`}>Apple Calendar</a>
                   {googleCalUrl && <a className="cal-opt" href={googleCalUrl} target="_blank" rel="noopener noreferrer">Google Calendar</a>}
+                  <a className="cal-opt" href={`/api/ics?id=${event.id}`}>Outlook</a>
                 </div>
               )}
               {event.is_21_plus && (
                 <div className="detail">
-                  <span className="detail-ic">21+</span>
+                  <span className="detail-ic"><IcId/></span>
                   <span className="detail-txt"><div className="detail-k">21+</div><div className="detail-v">Valid ID required at the door</div></span>
                 </div>
               )}
               {event.dress_code && (
                 <div className="detail">
-                  <span className="detail-ic">FIT</span>
+                  <span className="detail-ic"><IcShirt/></span>
                   <span className="detail-txt"><div className="detail-k">Dress code</div><div className="detail-v">{event.dress_code}</div></span>
                 </div>
               )}
@@ -820,6 +782,23 @@ export default function EventDetail() {
               <h2 className="sec-title">Sound</h2>
               <div className="spotify-wrap">
                 <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
+              </div>
+            </section>
+          )}
+
+          {lineup.length > 0 && (
+            <section className="section">
+              <h2 className="sec-title">Lineup</h2>
+              <div className="details">
+                {lineupRows.map((a, i) => (
+                  <div key={i} className="detail lineup-row">
+                    <span className="detail-txt">
+                      <div className="detail-k">{a.name}</div>
+                      {isHeadliner(a) && <div className="detail-v">Headliner</div>}
+                    </span>
+                    {a.time && <span className="detail-meta">{a.time.toLowerCase()}</span>}
+                  </div>
+                ))}
               </div>
             </section>
           )}
