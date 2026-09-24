@@ -59,7 +59,7 @@ function igUrl(handle: string): string {
 }
 
 // Page ground. The accent is not fixed — it's pulled from each event's flyer (see flyerColor.ts)
-const BG = '#050505'
+const BG = '#000'
 const FEE_RATE = 0.10
 
 // Tier release rule. 'ladder' = a tier stays locked until every cheaper tier is
@@ -102,12 +102,19 @@ function toRomanTierName(name: string): string {
 
 const remainingOf = (t: Tier) => t.quantity - (t.quantity_sold || 0)
 
+// Small line icons for the details list
+const svgProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+const IcPin = () => <svg {...svgProps}><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+const IcClock = () => <svg {...svgProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+const IcId = () => <svg {...svgProps}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2M14 10h4M14 13h3"/></svg>
+const IcShirt = () => <svg {...svgProps}><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg>
+
 export default function EventDetail() {
   const router = useRouter()
   const params = useParams()
   const eventId = params.id as string
   const logoRef = useNavLogo<HTMLButtonElement>()
-  usePageReveal({ selectors: ['.ev-title', '.ev-meta', '.section', '.tickets-panel'], delay: 0.2 })
+  usePageReveal({ selectors: ['.poster', '.ev-head', '.fact-bar', '.section'], delay: 0.15 })
   const [event, setEvent] = useState<EventData | null>(null)
   const [loading, setLoading] = useState(true)
   const [buyingTier, setBuyingTier] = useState<string | null>(null)
@@ -120,6 +127,9 @@ export default function EventDetail() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [palette, setPalette] = useState<FlyerPalette>(NEUTRAL_PALETTE)
+  const [hostName, setHostName] = useState<string | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [shared, setShared] = useState(false)
 
   // Guest list link — host/admin only
   const [guestLink, setGuestLink] = useState<string | null>(null)
@@ -136,10 +146,10 @@ export default function EventDetail() {
   const [removingId, setRemovingId] = useState<string | null>(null)
 
   // Per-button magnetic effect via useMagneticButton applied individually
-  const BuyButton = ({ tier, isBuying, onClick }: { tier: Tier; isBuying: boolean; onClick: () => void }) => {
+  const BuyButton = ({ tier, qty, isBuying, onClick }: { tier: Tier; qty: number; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
     const price = safePrice(tier.price)
-    const label = isBuying ? 'processing…' : price === 0 ? 'rsvp · free' : 'get tickets'
+    const label = isBuying ? 'processing…' : price === 0 ? 'rsvp · free' : `get tickets · ${money(price * qty)}`
     return (
       <button ref={ref} className="buy-btn" disabled={isBuying} onClick={onClick}>
         {label}
@@ -154,6 +164,15 @@ export default function EventDetail() {
       .then(({ data }) => { if (!alive) return; if (data) setEvent(data as EventData); setLoading(false) })
     return () => { alive = false }
   }, [params.id])
+
+  // "Presented by" — profiles are publicly readable
+  useEffect(() => {
+    if (!event?.host_id) return
+    let alive = true
+    createClient().from('profiles').select('full_name, username').eq('id', event.host_id).single()
+      .then(({ data }) => { if (alive && data) setHostName(data.full_name || data.username || null) })
+    return () => { alive = false }
+  }, [event?.host_id])
 
   // Tint the page with the flyer's own colors
   useEffect(() => {
@@ -274,6 +293,17 @@ export default function EventDetail() {
     setGenningLink(false)
   }
 
+  // Native share sheet on phones; copy the link everywhere else
+  const shareEvent = async () => {
+    if (!event) return
+    const url = window.location.href
+    try {
+      if (navigator.share) { await navigator.share({ title: event.title, url }); return }
+      await navigator.clipboard.writeText(url)
+      setShared(true); setTimeout(() => setShared(false), 2000)
+    } catch {}
+  }
+
   const copyGuestLink = async () => {
     if (!guestLink) return
     try { await navigator.clipboard.writeText(guestLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2200) } catch {}
@@ -339,12 +369,8 @@ export default function EventDetail() {
   const hasSocial = event.instagram_handle || event.tiktok_url
 
   const eyebrow = [event.category && event.category !== 'other' ? event.category : null, event.is_21_plus ? '21+' : null, event.city].filter(Boolean).join('  ·  ')
-  // Ticker under the hero: the flyer's headline info, repeated
-  const marqueeText = [event.title, date, event.venue_name].filter(Boolean).map(x => x!.toUpperCase()).join('  ✦  ') + '  ✦  '
-
-  // Sections are numbered in the order they appear, like a flyer's running order
-  let secN = 0
-  const secNum = () => String(++secN).padStart(2, '0')
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent([event.venue_name, street, event.state].filter(Boolean).join(' '))}`
+  const longAbout = (event.description ?? '').length > 260
 
   const sortedTiers = [...(event.ticket_tiers ?? [])].sort((a, b) => safePrice(a.price) - safePrice(b.price))
 
@@ -369,6 +395,8 @@ export default function EventDetail() {
 
   // Mobile bar should quote the cheapest tier someone can actually buy
   const buyableTier = sortedTiers.find((t, i) => remainingOf(t) > 0 && !lockInfoFor(t, i).locked) ?? null
+  // Social proof only once it's real
+  const going = sortedTiers.reduce((n, t) => n + (t.quantity_sold || 0), 0)
 
   return (
     <>
@@ -379,9 +407,9 @@ export default function EventDetail() {
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:${BG};color:#f0f0f0;font-family:'Syne',sans-serif;overflow-x:hidden;}
         /* Film grain over the whole page so it reads printed, not rendered */
-        body::after{content:'';position:fixed;inset:0;z-index:95;pointer-events:none;opacity:0.07;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+        body::after{content:'';position:fixed;inset:0;z-index:95;pointer-events:none;opacity:0.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
 
-        nav{padding:14px 20px;background:rgba(5,5,5,0.85);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.08);}
+        nav{padding:14px 20px;background:rgba(0,0,0,0.85);position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.08);}
         .back-btn{background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;letter-spacing:0.5px;transition:color 0.15s;}
         .back-btn:hover{color:#fff;}
         .nav-logo{cursor:pointer;background:none;border:none;padding:0;flex:1;display:flex;justify-content:center;line-height:0;}
@@ -415,101 +443,118 @@ export default function EventDetail() {
         .gm-remove:disabled{opacity:0.4;cursor:default;}
         .gm-empty{font-size:13px;color:rgba(255,255,255,0.3);padding:10px 0;}
 
-        /* HERO — the flyer, full bleed, with poster type over it */
-        .hero{position:relative;height:640px;overflow:hidden;}
-        .hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;}
-        .hero-img,.hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
-        .hero-overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(to bottom,rgba(5,5,5,0.15) 0%,rgba(5,5,5,0.5) 45%,rgba(5,5,5,0.9) 76%,${BG} 100%);}
-        .hero-tint{position:absolute;inset:0;z-index:2;background:radial-gradient(90% 70% at 0% 100%,rgba(var(--accent-rgb),0.34),transparent 65%);transition:background 0.8s;}
-        .hero-content{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 20px 56px;max-width:1000px;margin:0 auto;}
-        .ev-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.85);margin-bottom:14px;}
+        /* AMBIENT — the flyer, blurred huge behind the page, so every event has its own room */
+        .ambient{position:absolute;top:0;left:0;right:0;height:900px;z-index:0;overflow:hidden;pointer-events:none;-webkit-mask-image:linear-gradient(#000 30%,transparent);mask-image:linear-gradient(#000 30%,transparent);}
+        .ambient-img{position:absolute;inset:-80px;background-size:cover;background-position:center;filter:blur(70px) saturate(1.35) brightness(0.55);transform:scale(1.1);}
+        .ambient-tint{position:absolute;inset:0;background:radial-gradient(80% 60% at 50% 0%,rgba(var(--accent-rgb),0.22),transparent 70%);transition:background 0.8s;}
+
+        .page{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:20px 20px 150px;display:grid;grid-template-columns:minmax(0,1fr);gap:26px;}
+        @media(min-width:900px){
+          .page{grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:56px;padding:48px 32px 120px;align-items:start;}
+          .poster-col{position:sticky;top:88px;}
+        }
+
+        /* POSTER — the flyer shown whole, as printed */
+        .poster{position:relative;width:100%;max-width:440px;margin:0 auto;border-radius:16px;overflow:hidden;background:#111;box-shadow:0 30px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.08);}
+        .poster img,.poster video{display:block;width:100%;height:auto;max-height:72vh;object-fit:cover;}
+        .poster-empty{aspect-ratio:4/5;position:relative;}
+        .hero-canvas{position:absolute;inset:0;width:100%;height:100%;}
+
+        /* HEAD */
+        .ev-head{display:flex;flex-direction:column;gap:12px;}
+        .ev-eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.7);}
         .ev-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:evPulse 2s ease-in-out infinite;}
         @keyframes evPulse{50%{opacity:0.35;}}
-        .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(58px,14vw,132px);font-weight:900;text-transform:uppercase;line-height:0.84;color:#fff;letter-spacing:-1.5px;margin-bottom:24px;text-wrap:balance;text-shadow:0 4px 40px rgba(0,0,0,0.45);}
-        .ev-meta{display:flex;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.22);}
-        .meta-cell{padding:12px 26px 0 0;margin-right:26px;border-right:1px solid rgba(255,255,255,0.12);}
-        .meta-cell:last-child{border-right:none;margin-right:0;}
-        .meta-k{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:4px;}
-        .meta-v{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;text-transform:uppercase;color:#fff;line-height:1;letter-spacing:0.5px;}
+        @media (prefers-reduced-motion: reduce){.ev-dot{animation:none;}}
+        .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(44px,12vw,80px);font-weight:900;text-transform:uppercase;line-height:0.88;color:#fff;letter-spacing:-0.5px;text-wrap:balance;}
+        .ev-sub{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px;color:rgba(255,255,255,0.55);}
+        .ev-sub a{color:#fff;text-decoration:none;font-weight:600;}
+        .ev-sub a:hover{color:var(--accent);}
+        .going{display:inline-flex;align-items:center;gap:7px;color:rgba(255,255,255,0.8);font-weight:600;}
+        .going::before{content:'';width:6px;height:6px;border-radius:50%;background:#5ec888;box-shadow:0 0 8px #5ec888;}
 
-        /* Ticker strip in the flyer color, slightly off-axis like a paste-up */
-        .marquee{position:relative;z-index:4;margin-top:-20px;background:var(--accent);color:var(--ink);overflow:hidden;white-space:nowrap;transform:rotate(-1.4deg) scale(1.03);box-shadow:0 10px 40px rgba(var(--accent-rgb),0.25);transition:background 0.8s;}
-        .marquee-track{display:inline-flex;animation:marq 32s linear infinite;}
-        .marquee-track span{white-space:pre;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:22px;letter-spacing:2px;padding:9px 0;}
-        @keyframes marq{to{transform:translateX(-50%);}}
-        @media (prefers-reduced-motion: reduce){.marquee-track,.ev-dot{animation:none;}}
+        /* THE BAR — the night's key facts, in the flyer's color */
+        .fact-bar{display:flex;align-items:stretch;background:var(--accent);color:var(--ink);border-radius:12px;overflow:hidden;transition:background 0.8s;}
+        .fact{flex:1;min-width:0;padding:12px 14px;border-left:1px solid color-mix(in srgb,var(--ink) 18%,transparent);}
+        .fact:first-child{border-left:none;}
+        .fact-k{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0.65;margin-bottom:3px;}
+        .fact-v{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        @media(max-width:899px){.fact-bar{margin:0 -20px;border-radius:0;}.fact{padding:13px 16px;}}
 
-        .content{max-width:1000px;margin:0 auto;padding:64px 20px 140px;position:relative;z-index:1;}
-        .content::before{content:'';position:absolute;top:0;right:-10%;width:60%;height:420px;background:radial-gradient(closest-side,rgba(var(--accent-rgb),0.10),transparent);pointer-events:none;z-index:-1;}
-        .two-col{display:grid;gap:48px;}
-        @media(min-width:760px){.two-col{grid-template-columns:1fr 340px;}}
-        .section{margin-bottom:44px;}
-        .sec-title{display:flex;align-items:baseline;gap:12px;font-family:'Syne',sans-serif;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:18px;}
-        .sec-title::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.09);align-self:center;}
-        .sec-num{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:var(--accent);}
-        .desc{font-size:15px;line-height:1.85;color:rgba(255,255,255,0.7);white-space:pre-line;}
+        /* SECTIONS */
+        .info-col{display:flex;flex-direction:column;gap:26px;min-width:0;}
+        .section{display:flex;flex-direction:column;gap:14px;}
+        .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#fff;line-height:1;}
+        .desc{font-size:15px;line-height:1.75;color:rgba(255,255,255,0.72);white-space:pre-line;}
+        .desc.clamped{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
+        .more-btn{align-self:flex-start;background:none;border:none;padding:0;color:#fff;font-size:13px;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.3);}
 
-        .info-row{display:flex;justify-content:space-between;gap:20px;padding:12px 0;border-bottom:0.5px solid rgba(255,255,255,0.08);font-size:12px;}
-        .info-row:first-child{border-top:0.5px solid rgba(255,255,255,0.08);}
-        .info-k{color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;font-size:10px;}
-        .info-v{color:rgba(255,255,255,0.8);text-align:right;}
-        .text-links{display:flex;gap:18px;margin-top:20px;}
-        .text-link{font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,0.45);text-decoration:none;border-bottom:0.5px solid rgba(255,255,255,0.18);padding-bottom:2px;transition:color 0.15s,border-color 0.15s;}
-        .text-link:hover{color:var(--accent);border-color:var(--accent);}
+        .details{display:flex;flex-direction:column;border-radius:14px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.07);}
+        .detail{display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06);text-decoration:none;color:inherit;}
+        .detail:first-child{border-top:none;}
+        .detail-ic{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:rgba(255,255,255,0.8);}
+        .detail-txt{flex:1;min-width:0;}
+        .detail-k{font-size:14px;font-weight:600;color:#fff;}
+        .detail-v{font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;}
+        .detail-go{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;}
 
-        .spotify-wrap{border:0.5px solid rgba(255,255,255,0.09);border-radius:12px;overflow:hidden;}
+        .socials{display:flex;gap:10px;flex-wrap:wrap;}
+        .social{padding:10px 16px;border-radius:999px;border:1px solid rgba(255,255,255,0.14);color:#fff;text-decoration:none;font-size:13px;font-weight:600;transition:border-color 0.15s;}
+        .social:hover{border-color:rgba(255,255,255,0.4);}
 
-        /* TICKETS — tear-off stubs */
-        .tickets-panel{position:sticky;top:80px;}
-        .ticket{position:relative;display:grid;grid-template-columns:1fr 54px;margin-bottom:14px;border-radius:10px;overflow:hidden;background:linear-gradient(140deg,rgba(var(--accent-rgb),0.13) 0%,#0e0e0e 55%);border:1px solid rgba(255,255,255,0.09);}
-        .ticket-body{padding:20px 20px 20px 22px;min-width:0;}
-        .stub{position:relative;border-left:2px dashed rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center;}
-        .stub::before,.stub::after{content:'';position:absolute;left:-10px;width:18px;height:18px;border-radius:50%;background:${BG};border:1px solid rgba(255,255,255,0.09);}
-        .stub::before{top:-10px;}
-        .stub::after{bottom:-10px;}
-        .stub-text{writing-mode:vertical-rl;transform:rotate(180deg);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.35);white-space:nowrap;}
-        .tier-name{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
-        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:58px;font-weight:900;color:#fff;line-height:0.88;letter-spacing:-1px;}
-        .tier-sub{font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:1px;margin:8px 0 16px;}
-        .tier-sub.low{color:var(--accent);}
-        .avail-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:16px;}
-        .avail-fill{height:100%;background:var(--accent);transition:width 0.5s ease;}
-        .avail-fill.low{box-shadow:0 0 10px var(--accent);}
-        .qty-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-        .qty-label{font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;}
-        .qty-select{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.18);border-radius:6px;padding:7px 12px;color:#f0f0f0;font-size:13px;font-family:'Syne',sans-serif;outline:none;cursor:pointer;-webkit-appearance:none;}
+        .spotify-wrap{border-radius:12px;overflow:hidden;}
 
-        /* Not released yet — visible, priced, and plainly not for sale */
-        .ticket.locked{background:#0b0b0b;}
-        .ticket.locked .tier-name{color:rgba(255,255,255,0.3);}
-        .ticket.locked .tier-price{color:rgba(255,255,255,0.22);}
-        .ticket.locked .tier-sub{color:rgba(255,255,255,0.2);}
-        .locked-btn{width:100%;background:none;color:rgba(255,255,255,0.32);border:0.5px solid rgba(255,255,255,0.09);border-radius:8px;padding:15px;font-size:11px;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:not-allowed;text-align:center;}
-        .ticket.soldout{background:#0b0b0b;}
-        .ticket.soldout .tier-name,.ticket.soldout .tier-price{color:rgba(255,255,255,0.2);}
-        .stamp{position:absolute;top:50%;left:44%;transform:translate(-50%,-50%) rotate(-12deg);border:2px solid rgba(255,255,255,0.45);border-radius:4px;padding:3px 12px;font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,0.5);pointer-events:none;}
+        .share-btn{background:none;border:0.5px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.75);font-size:11px;font-family:'Syne',sans-serif;padding:6px 11px;cursor:pointer;white-space:nowrap;}
+
+        /* TICKETS — a real ticket: header with price, perforated tear line with notches, footer with checkout */
+        .ticket{filter:drop-shadow(0 18px 40px rgba(0,0,0,0.55));}
+        /* The notches are true cutouts (masks), so they show whatever is behind the card */
+        .tickets{display:flex;flex-direction:column;gap:14px;}
+        .ticket-top,.ticket-bottom{--notch:11px;position:relative;background:#141414;}
+        .ticket-top{border-radius:14px 14px 0 0;padding:22px 22px 20px;background:linear-gradient(160deg,rgba(var(--accent-rgb),0.16) 0%,#141414 60%);border-bottom:2px dashed rgba(255,255,255,0.12);
+          -webkit-mask:radial-gradient(circle var(--notch) at 0 100%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 100%,#0000 98%,#000) right/51% 100% no-repeat;
+                  mask:radial-gradient(circle var(--notch) at 0 100%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 100%,#0000 98%,#000) right/51% 100% no-repeat;}
+        .ticket-top::before{content:'';position:absolute;top:0;left:22px;right:22px;height:3px;border-radius:0 0 3px 3px;background:var(--accent);transition:background 0.8s;}
+        .ticket-bottom{border-radius:0 0 14px 14px;padding:18px 22px 22px;
+          -webkit-mask:radial-gradient(circle var(--notch) at 0 0,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 0,#0000 98%,#000) right/51% 100% no-repeat;
+                  mask:radial-gradient(circle var(--notch) at 0 0,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 0,#0000 98%,#000) right/51% 100% no-repeat;}
+        .tier-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;}
+        .tier-name{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#fff;margin-bottom:6px;}
+        .tier-sub{font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:0.5px;}
+        .tier-sub.low{color:var(--accent);font-weight:600;}
+        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:700;color:#fff;line-height:0.85;letter-spacing:-0.5px;white-space:nowrap;}
+        .avail-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:18px;}
+        .avail-fill{height:100%;background:var(--accent);transition:width 0.5s ease,background 0.8s;}
+        .checkout-row{display:flex;gap:10px;align-items:stretch;}
+        .stepper{display:flex;align-items:center;border:1px solid rgba(255,255,255,0.14);border-radius:10px;flex-shrink:0;}
+        .stepper button{width:36px;height:100%;min-height:48px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;font-family:'Syne',sans-serif;}
+        .stepper button:disabled{color:rgba(255,255,255,0.2);cursor:default;}
+        .stepper span{min-width:20px;text-align:center;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;}
+        .state-pill{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);}
+
+        /* Not released yet / sold out — visible, priced, and plainly not for sale */
+        .ticket.dim .ticket-top{background:#101010;}
+        .ticket.dim .ticket-top::before{background:rgba(255,255,255,0.12);}
+        .ticket.dim .ticket-bottom{background:#101010;}
+        .ticket.dim .tier-name{color:rgba(255,255,255,0.45);}
+        .ticket.dim .tier-price{color:rgba(255,255,255,0.25);}
+        .ticket.soldout .tier-price{text-decoration:line-through;text-decoration-thickness:2px;}
 
         /* The buy button wears the flyer color */
-        .buy-btn{width:100%;background:var(--accent);color:var(--ink);border:none;border-radius:8px;padding:16px 20px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:1.5px;transition:background 0.8s,filter 0.15s,box-shadow 0.15s;text-align:center;display:block;}
+        .buy-btn{flex:1;min-height:48px;background:var(--accent);color:var(--ink);border:none;border-radius:10px;padding:14px 18px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:1px;transition:background 0.8s,filter 0.15s,box-shadow 0.15s;text-align:center;white-space:nowrap;}
         .buy-btn:hover{filter:brightness(1.08);box-shadow:0 0 24px rgba(var(--accent-rgb),0.35);}
         .buy-btn:active{transform:scale(0.995);}
         .buy-btn:disabled{opacity:0.35;cursor:not-allowed;}
 
         /* Mobile: tickets sit far below the fold. This scrolls to them. */
         .mobile-buy{display:none;}
-        @media(max-width:759px){
-          .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(5,5,5,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
+        @media(max-width:899px){
+          .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
           /* EventLounge adds this class to <body> while the chat panel is open */
           body.lounge-open .mobile-buy{display:none;}
           .mobile-buy-k{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:3px;}
           .mobile-buy-price{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff;line-height:1;}
           .mobile-buy-btn{background:var(--accent);color:var(--ink);border:none;border-radius:8px;padding:13px 22px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:pointer;transition:background 0.8s;}
-          .hero{height:78vh;min-height:460px;}
-          .hero-content{padding-bottom:48px;}
-          .meta-cell{padding-right:16px;margin-right:16px;}
-          .meta-v{font-size:20px;}
-          .content{padding:52px 18px 120px;}
-          .two-col{gap:36px;}
         }
       `}</style>
 
@@ -518,92 +563,74 @@ export default function EventDetail() {
         <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
-        {isHostOrAdmin ? (
-          <div className="admin-tools">
+        <div className="admin-tools">
+          {isHostOrAdmin && <>
             <button className="tool-btn" onClick={() => { setGuestLink(null); setGlCount(1); setLinkSheetOpen(true) }}>link</button>
             <button className="tool-btn" onClick={openGuestManager}>guests</button>
             <button className="tool-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>edit</button>
-          </div>
-        ) : <div style={{width:'50px'}}/>}
+          </>}
+          <button className="share-btn" onClick={shareEvent}>{shared ? 'copied' : 'share'}</button>
+        </div>
       </nav>
 
-      <div className="hero">
-        <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/>
-        {event.feed_video_url ? (
-          <video className="hero-video" src={event.feed_video_url} autoPlay muted loop playsInline poster={event.cover_image_url ?? undefined}/>
-        ) : event.cover_image_url ? (
-          <img src={event.cover_image_url} className="hero-img" alt={event.title}/>
-        ) : null}
-        <div className="hero-overlay"/>
-        <div className="hero-tint"/>
-        <div className="hero-content">
-          {eyebrow && <div className="ev-eyebrow"><span className="ev-dot"/>{eyebrow}</div>}
-          <h1 className="ev-title">{event.title}</h1>
-          <div className="ev-meta">
-            <div className="meta-cell"><div className="meta-k">date</div><div className="meta-v">{date}</div></div>
-            {time && <div className="meta-cell"><div className="meta-k">{doorsTime ? `doors ${doorsTime}` : 'time'}</div><div className="meta-v">{time}</div></div>}
-            {event.venue_name && <div className="meta-cell"><div className="meta-k">venue</div><div className="meta-v">{event.venue_name}</div></div>}
+      {event.cover_image_url && (
+        <div className="ambient" aria-hidden="true">
+          <div className="ambient-img" style={{backgroundImage:`url(${event.cover_image_url})`}}/>
+          <div className="ambient-tint"/>
+        </div>
+      )}
+
+      <main className="page">
+        <div className="poster-col">
+          <div className="poster">
+            {event.feed_video_url ? (
+              <video src={event.feed_video_url} autoPlay muted loop playsInline poster={event.cover_image_url ?? undefined}/>
+            ) : event.cover_image_url ? (
+              <img src={event.cover_image_url} alt={`${event.title} flyer`}/>
+            ) : (
+              <div className="poster-empty"><canvas ref={canvasRef} className="hero-canvas" aria-hidden="true"/></div>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="marquee" aria-hidden="true">
-        <div className="marquee-track">
-          {[0, 1].map(half => <span key={half}>{marqueeText.repeat(4)}</span>)}
-        </div>
-      </div>
-
-      <div className="content">
-        <div className="two-col">
-          <div>
-            {event.description && (
-              <div className="section">
-                <h2 className="sec-title"><span className="sec-num">{secNum()}</span>about</h2>
-                <p className="desc">{event.description}</p>
+        <div className="info-col">
+          <header className="ev-head">
+            {eyebrow && <div className="ev-eyebrow"><span className="ev-dot"/>{eyebrow}</div>}
+            <h1 className="ev-title">{event.title}</h1>
+            {(hostName || going >= 10) && (
+              <div className="ev-sub">
+                {hostName && <span>Presented by <a href={`/profile/${event.host_id}`}>{hostName}</a></span>}
+                {going >= 10 && <span className="going">{going} going</span>}
               </div>
             )}
+          </header>
 
-            {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
-              <div className="section">
-                <h2 className="sec-title"><span className="sec-num">{secNum()}</span>sound</h2>
-                <div className="spotify-wrap">
-                  <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
-                </div>
-              </div>
-            )}
-
-            <div className="section">
-              <h2 className="sec-title"><span className="sec-num">{secNum()}</span>info</h2>
-              {doorsTime && (
-                <div className="info-row"><span className="info-k">doors</span><span className="info-v">{doorsTime}</span></div>
-              )}
-              {event.is_21_plus && (
-                <div className="info-row"><span className="info-k">age</span><span className="info-v">21+ · valid id at door</span></div>
-              )}
-              {event.dress_code && (
-                <div className="info-row"><span className="info-k">dress</span><span className="info-v">{event.dress_code.toLowerCase()}</span></div>
-              )}
-              {street && (
-                <div className="info-row"><span className="info-k">address</span><span className="info-v">{street.toLowerCase()}{event.state ? ` ${event.state.toLowerCase()}` : ''}</span></div>
-              )}
-              {hasSocial && (
-                <div className="text-links">
-                  {event.instagram_handle && <a className="text-link" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">instagram</a>}
-                  {event.tiktok_url && <a className="text-link" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">tiktok</a>}
-                </div>
-              )}
-            </div>
+          <div className="fact-bar">
+            <div className="fact"><div className="fact-k">date</div><div className="fact-v">{date}</div></div>
+            {time && <div className="fact"><div className="fact-k">{doorsTime ? 'doors' : 'time'}</div><div className="fact-v">{doorsTime || time}</div></div>}
+            {event.venue_name && <div className="fact"><div className="fact-k">venue</div><div className="fact-v">{event.venue_name}</div></div>}
           </div>
 
-          <div className="tickets-panel" id="tickets">
-            <h2 className="sec-title"><span className="sec-num">{secNum()}</span>tickets</h2>
+          {event.description && (
+            <section className="section">
+              <h2 className="sec-title">About</h2>
+              <p className={`desc ${longAbout && !aboutOpen ? 'clamped' : ''}`}>{event.description}</p>
+              {longAbout && <button className="more-btn" onClick={() => setAboutOpen(o => !o)}>{aboutOpen ? 'Show less' : 'Read more'}</button>}
+            </section>
+          )}
+
+          <section className="section" id="tickets">
+            <h2 className="sec-title">Tickets</h2>
+            <div className="tickets">
             {sortedTiers.length > 0 ? (
               sortedTiers.map((tier, index) => {
                 const price = safePrice(tier.price)
                 const available = remainingOf(tier)
                 const soldOut = available <= 0
                 const { locked, reason } = lockInfoFor(tier, index)
-                const qty = selectedQty[tier.id] || 1
+                const maxQty = Math.min(available, 10)
+                const qty = Math.min(selectedQty[tier.id] || 1, Math.max(1, maxQty))
+                const setQty = (n: number) => setSelectedQty(prev => ({ ...prev, [tier.id]: n }))
                 const isBuying = buyingTier === tier.id
                 // Door tier: hide the availability bar (still sells, still goes sold-out)
                 const hideAvailability = tier.name.trim().toLowerCase() === 'door'
@@ -612,50 +639,105 @@ export default function EventDetail() {
                   ? Math.max(2, ((tier.quantity - available) / tier.quantity) * 100)
                   : 0
                 return (
-                  <div key={tier.id} className={`ticket ${soldOut ? 'soldout' : locked ? 'locked' : ''}`}>
-                    <div className="ticket-body">
-                      <div className="tier-name">{toRomanTierName(tier.name)}</div>
-                      <div className="tier-price">{displayPrice(price, !locked && qty > 1 ? qty : 1)}</div>
-                      <div className={`tier-sub ${low ? 'low' : ''}`}>
-                        {soldOut ? 'sold out' : locked ? reason : low ? `only ${available} left` : price === 0 ? 'free admission' : `per ticket${qty > 1 ? ` · ${qty} tickets` : ''}`}
+                  <div key={tier.id} className={`ticket ${soldOut ? 'dim soldout' : locked ? 'dim' : ''}`}>
+                    <div className="ticket-top">
+                      <div className="tier-row">
+                        <div>
+                          <div className="tier-name">{toRomanTierName(tier.name)}</div>
+                          <div className={`tier-sub ${low ? 'low' : ''}`}>
+                            {soldOut ? 'sold out' : locked ? reason : low ? `only ${available} left` : price === 0 ? 'free admission' : 'general admission'}
+                          </div>
+                        </div>
+                        <div className="tier-price">
+                          {displayPrice(price, 1)}
+                        </div>
                       </div>
                       {!soldOut && !locked && !hideAvailability && (
-                        <div className="avail-bar">
-                          <div className={`avail-fill ${low ? 'low' : ''}`} style={{width:`${soldPct}%`}}/>
-                        </div>
+                        <div className="avail-bar"><div className="avail-fill" style={{width:`${soldPct}%`}}/></div>
                       )}
-                      {!soldOut && !locked && (
-                        <div className="qty-row">
-                          <span className="qty-label">qty</span>
-                          <select className="qty-select" value={qty} onChange={e => setSelectedQty(prev => ({...prev, [tier.id]: parseInt(e.target.value)}))}>
-                            {Array.from({length: Math.min(available, 10)}).map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-                          </select>
-                        </div>
-                      )}
-                      {soldOut ? null : locked ? (
-                        <div className="locked-btn">not yet released</div>
+                    </div>
+                    <div className="ticket-bottom">
+                      {soldOut ? (
+                        <div className="state-pill">sold out</div>
+                      ) : locked ? (
+                        <div className="state-pill">not yet released</div>
                       ) : (
-                        <BuyButton tier={tier} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
+                        <div className="checkout-row">
+                          <div className="stepper">
+                            <button type="button" aria-label="Fewer tickets" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
+                            <span aria-live="polite">{qty}</span>
+                            <button type="button" aria-label="More tickets" disabled={qty >= maxQty} onClick={() => setQty(qty + 1)}>+</button>
+                          </div>
+                          <BuyButton tier={tier} qty={qty} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
+                        </div>
                       )}
                     </div>
-                    <div className="stub" aria-hidden="true">
-                      <span className="stub-text">admit one · № {String(index + 1).padStart(3, '0')}</span>
-                    </div>
-                    {soldOut && <div className="stamp">sold out</div>}
                   </div>
                 )
               })
             ) : (
-              <div className="ticket" style={{gridTemplateColumns:'1fr'}}>
-                <div className="ticket-body" style={{textAlign:'center',padding:'36px 20px'}}>
-                  <div style={{fontSize:'13px',color:'rgba(255,255,255,0.45)',marginBottom:'8px'}}>tickets not available yet</div>
-                  <div style={{fontSize:'11px',color:'rgba(255,255,255,0.25)',letterSpacing:'1px'}}>check back soon</div>
+              <div className="ticket dim">
+                <div className="ticket-top" style={{textAlign:'center'}}>
+                  <div className="tier-name">tickets not available yet</div>
                 </div>
+                <div className="ticket-bottom"><div className="state-pill">check back soon</div></div>
               </div>
             )}
-          </div>
+            </div>
+          </section>
+
+          <section className="section">
+            <h2 className="sec-title">Details</h2>
+            <div className="details">
+              {(event.venue_name || street) && (
+                <a className="detail" href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                  <span className="detail-ic"><IcPin/></span>
+                  <span className="detail-txt">
+                    <div className="detail-k">{event.venue_name || street}</div>
+                    {street && <div className="detail-v">{street}{event.state ? `, ${event.state}` : ''}</div>}
+                  </span>
+                  <span className="detail-go">Maps ↗</span>
+                </a>
+              )}
+              <div className="detail">
+                <span className="detail-ic"><IcClock/></span>
+                <span className="detail-txt">
+                  <div className="detail-k">{date}{time ? ` · ${time}` : ''}</div>
+                  {doorsTime && <div className="detail-v">Doors open {doorsTime}</div>}
+                </span>
+              </div>
+              {event.is_21_plus && (
+                <div className="detail">
+                  <span className="detail-ic"><IcId/></span>
+                  <span className="detail-txt"><div className="detail-k">21+</div><div className="detail-v">Valid ID required at the door</div></span>
+                </div>
+              )}
+              {event.dress_code && (
+                <div className="detail">
+                  <span className="detail-ic"><IcShirt/></span>
+                  <span className="detail-txt"><div className="detail-k">Dress code</div><div className="detail-v">{event.dress_code}</div></span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
+            <section className="section">
+              <h2 className="sec-title">Sound</h2>
+              <div className="spotify-wrap">
+                <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
+              </div>
+            </section>
+          )}
+
+          {hasSocial && (
+            <div className="socials">
+              {event.instagram_handle && <a className="social" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">Instagram</a>}
+              {event.tiktok_url && <a className="social" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">TikTok</a>}
+            </div>
+          )}
         </div>
-      </div>
+      </main>
 
       {buyableTier && (
         <div className="mobile-buy">
