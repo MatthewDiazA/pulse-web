@@ -75,10 +75,16 @@ function hexToRgba(hex: string, alpha: number): string {
 
 interface TouchBlotProps {
   intensity?: number
+  // Optional override for the time-of-day palette (e.g. an event's flyer colors), first color first
+  palette?: string[]
 }
 
-export default function TouchBlot({ intensity = 1.0 }: TouchBlotProps) {
-  const HOLD_COLORS = getTimeColors()
+const PALETTE_STEPS = [0, 400, 900, 1500, 2500]
+
+export default function TouchBlot({ intensity = 1.0, palette }: TouchBlotProps) {
+  const HOLD_COLORS = palette?.length
+    ? PALETTE_STEPS.map((ms, i) => ({ ms, color: palette[i % palette.length] }))
+    : getTimeColors()
   const blots = useRef<Map<number, Blot>>(new Map())
   const holdTimers = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map())
   const pointerToBlot = useRef<Map<number, number>>(new Map())

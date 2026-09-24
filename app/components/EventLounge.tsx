@@ -23,10 +23,12 @@ export default function EventLounge({
   eventId,
   eventTitle,
   hostId,
+  accent = '#ffaa33',
 }: {
   eventId: string
   eventTitle: string
   hostId: string
+  accent?: string // highlight color (host name, pins, unread) — event pages pass their flyer color
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [newMsg, setNewMsg] = useState('')
@@ -174,7 +176,7 @@ export default function EventLounge({
         .lounge-trigger:hover{border-color:rgba(255,255,255,0.5);background:rgba(0,0,0,0.92);}
         .trigger-text{font-size:11px;font-weight:500;color:rgba(255,255,255,0.75);letter-spacing:2.5px;}
         .lounge-trigger.has-unread .trigger-text{color:#fff;}
-        .unread-badge{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:#ffaa33;letter-spacing:0;line-height:1;}
+        .unread-badge{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:${accent};letter-spacing:0;line-height:1;}
 
         .lounge-panel{position:fixed;bottom:0;right:0;width:412px;height:620px;max-height:84vh;max-width:100vw;z-index:1000;display:flex;flex-direction:column;background:#000;border-left:0.5px solid rgba(255,255,255,0.12);border-top:0.5px solid rgba(255,255,255,0.12);transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
         .lounge-panel.open{transform:translateY(0);}
@@ -186,7 +188,7 @@ export default function EventLounge({
         .lounge-close:hover{color:#fff;}
 
         .pinned-bar{padding:11px 20px;border-bottom:0.5px solid rgba(255,255,255,0.08);flex-shrink:0;display:flex;gap:12px;align-items:baseline;}
-        .pinned-label{font-size:9px;color:#ffaa33;letter-spacing:2px;flex-shrink:0;font-family:'Syne',sans-serif;}
+        .pinned-label{font-size:9px;color:${accent};letter-spacing:2px;flex-shrink:0;font-family:'Syne',sans-serif;}
         .pinned-text{font-size:12px;color:rgba(255,255,255,0.7);line-height:1.45;font-family:'Syne',sans-serif;}
 
         .lounge-messages{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:0;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;}
@@ -199,11 +201,11 @@ export default function EventLounge({
         .msg-header{display:flex;align-items:baseline;gap:9px;margin-bottom:3px;margin-top:8px;}
         .msg-name{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.55);cursor:pointer;transition:color 0.1s;}
         .msg-name:hover{color:#fff;}
-        .msg-name.host{color:#ffaa33;}
-        .msg-host-tag{font-size:9px;color:#ffaa33;margin-left:7px;letter-spacing:1.5px;font-weight:500;}
+        .msg-name.host{color:${accent};}
+        .msg-host-tag{font-size:9px;color:${accent};margin-left:7px;letter-spacing:1.5px;font-weight:500;}
         .msg-time{font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;}
         .msg-text{font-size:14px;color:rgba(255,255,255,0.82);line-height:1.5;word-wrap:break-word;}
-        .msg-pinned{border-left:1px solid rgba(255,170,51,0.5);padding-left:12px;margin-left:-13px;}
+        .msg-pinned{border-left:1px solid ${accent}80;padding-left:12px;margin-left:-13px;}
         .msg-actions{position:absolute;top:6px;right:0;display:flex;gap:10px;opacity:0;transition:opacity 0.15s;}
         .msg-action-btn{background:none;border:none;padding:0;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);cursor:pointer;font-family:'Syne',sans-serif;transition:color 0.1s;}
         .msg-action-btn:hover{color:#fff;}
@@ -214,7 +216,7 @@ export default function EventLounge({
         .msg-input{flex:1;background:none;border:none;padding:6px 0;color:#fff;font-size:14px;font-family:'Syne',sans-serif;outline:none;resize:none;max-height:80px;min-height:26px;line-height:1.45;}
         .msg-input::placeholder{color:rgba(255,255,255,0.25);}
         .send-btn{background:none;border:none;padding:6px 0;font-size:11px;letter-spacing:2.5px;color:rgba(255,255,255,0.3);cursor:pointer;flex-shrink:0;font-family:'Syne',sans-serif;transition:color 0.15s;}
-        .send-btn:hover:not(:disabled){color:#ffaa33;}
+        .send-btn:hover:not(:disabled){color:${accent};}
         .send-btn:disabled{opacity:0.25;cursor:not-allowed;}
 
         .chat-closed-bar{padding:18px 20px calc(18px + env(safe-area-inset-bottom));border-top:0.5px solid rgba(255,255,255,0.1);flex-shrink:0;color:rgba(255,255,255,0.3);font-size:11px;font-family:'Syne',sans-serif;letter-spacing:1.5px;}
