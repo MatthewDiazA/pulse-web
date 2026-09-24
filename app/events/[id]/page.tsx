@@ -126,7 +126,6 @@ export default function EventDetail() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [palette, setPalette] = useState<FlyerPalette>(NEUTRAL_PALETTE)
-  const [hostName, setHostName] = useState<string | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shared, setShared] = useState(false)
 
@@ -163,15 +162,6 @@ export default function EventDetail() {
       .then(({ data }) => { if (!alive) return; if (data) setEvent(data as EventData); setLoading(false) })
     return () => { alive = false }
   }, [params.id])
-
-  // "Presented by" — profiles are publicly readable
-  useEffect(() => {
-    if (!event?.host_id) return
-    let alive = true
-    createClient().from('profiles').select('full_name, username').eq('id', event.host_id).single()
-      .then(({ data }) => { if (alive && data) setHostName(data.full_name || data.username || null) })
-    return () => { alive = false }
-  }, [event?.host_id])
 
   // Tint the page with the flyer's own colors
   useEffect(() => {
@@ -367,7 +357,6 @@ export default function EventDetail() {
   const street = [event.address, event.city].filter(Boolean).join(', ')
   const hasSocial = event.instagram_handle || event.tiktok_url
 
-  const eyebrow = [event.category && event.category !== 'other' ? event.category : null, event.is_21_plus ? '21+' : null, event.city].filter(Boolean).join('  ·  ')
   const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent([event.venue_name, street, event.state].filter(Boolean).join(' '))}`
   const longAbout = (event.description ?? '').length > 260
 
@@ -461,14 +450,8 @@ export default function EventDetail() {
 
         /* HEAD */
         .ev-head{display:flex;flex-direction:column;gap:12px;}
-        .ev-eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.7);}
-        .ev-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:evPulse 2s ease-in-out infinite;}
-        @keyframes evPulse{50%{opacity:0.35;}}
-        @media (prefers-reduced-motion: reduce){.ev-dot{animation:none;}}
         .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(44px,12vw,80px);font-weight:900;text-transform:uppercase;line-height:0.88;color:#fff;letter-spacing:-0.5px;text-wrap:balance;}
         .ev-sub{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px;color:rgba(255,255,255,0.55);}
-        .ev-sub a{color:#fff;text-decoration:none;font-weight:600;}
-        .ev-sub a:hover{color:var(--accent);}
         .going{display:inline-flex;align-items:center;gap:7px;color:rgba(255,255,255,0.8);font-weight:600;}
         .going::before{content:'';width:6px;height:6px;border-radius:50%;background:#5ec888;box-shadow:0 0 8px #5ec888;}
 
@@ -592,13 +575,9 @@ export default function EventDetail() {
 
         <div className="info-col">
           <header className="ev-head">
-            {eyebrow && <div className="ev-eyebrow"><span className="ev-dot"/>{eyebrow}</div>}
             <h1 className="ev-title">{event.title}</h1>
-            {(hostName || going >= 10) && (
-              <div className="ev-sub">
-                {hostName && <span>Presented by <a href={`/profile/${event.host_id}`}>{hostName}</a></span>}
-                {going >= 10 && <span className="going">{going} going</span>}
-              </div>
+            {going >= 10 && (
+              <div className="ev-sub"><span className="going">{going} going</span></div>
             )}
           </header>
 
