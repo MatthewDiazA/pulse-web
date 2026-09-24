@@ -24,6 +24,7 @@ export default function ClaimGuestPage() {
   const [message, setMessage] = useState('')
   const [eventTitle, setEventTitle] = useState<string>('')
   const [ticketCount, setTicketCount] = useState(1)
+  const [ownLink, setOwnLink] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -59,6 +60,7 @@ export default function ClaimGuestPage() {
           }
           setPhase('success')
         } else {
+          setOwnLink(!!data.ownLink)
           setMessage(data.error ?? 'This invite link could not be used.')
           setPhase('error')
         }
@@ -131,7 +133,7 @@ export default function ClaimGuestPage() {
             <>
               <i className="ti ti-alert-circle err-icon" aria-hidden="true" />
               <div className="eyebrow">Guest List</div>
-              <div className="title">Can't use this link</div>
+              <div className="title">{ownLink ? 'This is your link' : "Can't use this link"}</div>
               <div className="sub">{message}</div>
               <button className="btn ghost" onClick={() => router.push('/')}>Go home</button>
             </>

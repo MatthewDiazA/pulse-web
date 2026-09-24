@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     // 1. Look up the invite. Links are single-use: one person claims it and gets ticket_count tickets.
     const { data: invite, error: inviteErr } = await supabase
       .from('guest_invites')
-      .select('id, event_id, tier_id, claimed_by, ticket_count')
+      .select('id, event_id, tier_id, created_by, claimed_by, ticket_count')
       .eq('token', token)
       .limit(1)
       .maybeSingle()
@@ -81,7 +81,12 @@ export async function POST(request: Request) {
 
     const ticketCount = Math.max(1, invite.ticket_count ?? 1)
 
-    // 2. Already claimed? Same user = idempotent success (refreshes); anyone else is blocked.
+    // 2. The host opening their own link (to test it, or to share it from the browser) must not burn it
+    if (invite.created_by === userId) {
+      return NextResponse.json({ error: "This is your own guest link — opening it yourself doesn't use it up. Send it to your guest.", ownLink: true }, { status: 409 })
+    }
+
+    // 3. Already claimed? Same user = idempotent success (refreshes); anyone else is blocked.
     if (invite.claimed_by) {
       if (invite.claimed_by === userId) {
         return NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id, ticketCount })
@@ -89,7 +94,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
     }
 
-    // 3. Atomically claim the token — only succeeds if still unclaimed (race-safe)
+    // 4. Atomically claim the token — only succeeds if still unclaimed (race-safe)
     const { data: claimed, error: claimErr } = await supabase
       .from('guest_invites')
       .update({ claimed_by: userId, claimed_at: new Date().toISOString() })
@@ -99,10 +104,15 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (claimErr || !claimed) {
+      // Lost a race — if it was this same user (double request), that's still a success
+      const { data: now } = await supabase.from('guest_invites').select('claimed_by').eq('id', invite.id).single()
+      if (now?.claimed_by === userId) {
+        return NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id, ticketCount })
+      }
       return NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
     }
 
-    // 4. Mint ticket_count guest tickets for this person (single insert, all-or-nothing)
+    // 5. Mint ticket_count guest tickets for this person (single insert, all-or-nothing)
     const rows = Array.from({ length: ticketCount }, () => ({
       event_id: invite.event_id,
       tier_id: invite.tier_id ?? null,
