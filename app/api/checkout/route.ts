@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { isEmail, orderUrl, sendOrderEmail } from '../../lib/guestTickets'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -19,23 +20,32 @@ export async function POST(request: Request) {
     const tierId = body.tierId ?? body.tier_id
     const eventId = body.eventId ?? body.event_id
     const quantity = parseInt(String(body.quantity)) || 1
-    const userId = body.userId ?? body.user_id
+    // No account needed: guests are identified by email (collected here for free
+    // tickets, by Stripe for paid ones) and can link the tickets to an account later.
+    const userId: string | null = body.userId ?? body.user_id ?? null
+    const buyerEmail: string | null = isEmail(body.buyerEmail) ? body.buyerEmail.trim() : null
+    const buyerName: string = typeof body.buyerName === 'string' ? body.buyerName.trim().slice(0, 80) : ''
 
-    if (!tierId || !eventId || !userId) {
+    if (!tierId || !eventId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+    if (quantity < 1 || quantity > MAX_TICKETS_PER_USER_PER_EVENT) {
+      return NextResponse.json({ error: `You can buy up to ${MAX_TICKETS_PER_USER_PER_EVENT} tickets at once.` }, { status: 400 })
+    }
 
-    // Rate limit: max tickets per user per event
-    const { count } = await supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('event_id', eventId)
+    // Rate limit: max tickets per user per event (account holders)
+    if (userId) {
+      const { count } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('event_id', eventId)
 
-    if ((count ?? 0) + quantity > MAX_TICKETS_PER_USER_PER_EVENT) {
-      return NextResponse.json({
-        error: `Limit ${MAX_TICKETS_PER_USER_PER_EVENT} tickets per event. You already have ${count ?? 0}.`,
-      }, { status: 400 })
+      if ((count ?? 0) + quantity > MAX_TICKETS_PER_USER_PER_EVENT) {
+        return NextResponse.json({
+          error: `Limit ${MAX_TICKETS_PER_USER_PER_EVENT} tickets per event. You already have ${count ?? 0}.`,
+        }, { status: 400 })
+      }
     }
 
     // Fetch tier and event from DB (never trust client)
@@ -68,6 +78,41 @@ export async function POST(request: Request) {
     }
 
     const basePrice = Number(tier.price) || 0
+
+    // Free ticket, no account — record an order under their email and send the tickets there
+    if (basePrice === 0 && !userId) {
+      if (!buyerEmail || !buyerName) {
+        return NextResponse.json({ error: 'Add your name and email so we can send your tickets.' }, { status: 400 })
+      }
+      const { data: order, error: orderErr } = await supabase
+        .from('orders')
+        .insert({ event_id: eventId, user_id: null, status: 'confirmed', total_amount: 0, buyer_email: buyerEmail, buyer_name: buyerName })
+        .select('id')
+        .single()
+      if (orderErr || !order) {
+        console.error('Guest order insert failed:', orderErr)
+        return NextResponse.json({ error: 'Could not reserve your tickets. Try again.' }, { status: 500 })
+      }
+      const { error: insertErr } = await supabase.from('tickets').insert(
+        Array.from({ length: quantity }, () => ({
+          order_id: order.id,
+          user_id: null,
+          event_id: eventId,
+          tier_id: tierId,
+          holder_name: buyerName,
+          qr_code: `PULSE-${crypto.randomUUID()}`,
+          status: 'active',
+        })),
+      )
+      if (insertErr) {
+        await supabase.from('orders').delete().eq('id', order.id)
+        console.error('Guest ticket insert failed:', insertErr)
+        return NextResponse.json({ error: 'Could not reserve your tickets. Try again.' }, { status: 500 })
+      }
+      await supabase.rpc('increment_tickets_sold', { p_tier_id: tierId, p_qty: quantity })
+      try { await sendOrderEmail(order.id, { guest: true }) } catch (e) { console.error('Guest ticket email failed:', e) }
+      return NextResponse.json({ url: orderUrl(order.id) })
+    }
 
     // Free ticket — skip Stripe, create ticket directly
     if (basePrice === 0) {
@@ -114,12 +159,16 @@ export async function POST(request: Request) {
           },
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/account?order=success&session_id={CHECKOUT_SESSION_ID}`,
+      // Guests land on a confirmation page that opens their tickets once the webhook has issued them
+      success_url: userId
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/account?order=success&session_id={CHECKOUT_SESSION_ID}`
+        : `${process.env.NEXT_PUBLIC_APP_URL}/order/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/events/${eventId}`,
+      ...(buyerEmail ? { customer_email: buyerEmail } : {}),
       metadata: {
         event_id: eventId,
         tier_id: tierId,
-        user_id: userId,
+        ...(userId ? { user_id: userId } : {}),
         quantity: String(quantity),
       },
     })

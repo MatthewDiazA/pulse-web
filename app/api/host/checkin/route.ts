@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
     const { data: ticket, error } = await supabase
       .from('tickets')
-      .select('id, event_id, is_checked_in, checked_in_at, is_guestlist, tier:ticket_tiers(name), holder:profiles(full_name, username)')
+      .select('id, event_id, is_checked_in, checked_in_at, is_guestlist, holder_name, tier:ticket_tiers(name), holder:profiles(full_name, username)')
       .eq('qr_code', qr_code)
       .eq('event_id', event_id)
       .single()
@@ -33,7 +33,8 @@ export async function POST(request: Request) {
       ticket_id: ticket.id,
       is_guestlist: ticket.is_guestlist,
       tier_name: (ticket.tier as any)?.name ?? 'Ticket',
-      holder_name: (ticket.holder as any)?.full_name ?? (ticket.holder as any)?.username ?? null,
+      // Account name if they have one, else the name given at guest checkout / claim
+      holder_name: (ticket.holder as any)?.full_name ?? (ticket.holder as any)?.username ?? ticket.holder_name ?? null,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

@@ -207,6 +207,9 @@ export default function AccountPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser(user)
+      // Pull in anything bought or claimed as a guest with this email before loading tickets
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) await fetch('/api/link-tickets', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => {})
       const { data: admin } = await supabase.from('admins').select('user_id').eq('user_id', user.id).single()
       if (admin || user.email === 'mad2288@columbia.edu') setIsAdmin(true)
       const { data } = await supabase

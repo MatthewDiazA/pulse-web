@@ -171,6 +171,11 @@ export default function EventDetail() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shared, setShared] = useState(false)
   const [calOpen, setCalOpen] = useState(false)
+  // Free tickets without an account: where to send them
+  const [guestSheet, setGuestSheet] = useState<Tier | null>(null)
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestError, setGuestError] = useState('')
 
   // Guest list link — host/admin only
   const [guestLink, setGuestLink] = useState<string | null>(null)
@@ -283,16 +288,17 @@ export default function EventDetail() {
     return () => { window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf) }
   }, [])
 
-  const handleBuyTicket = async (tier: Tier) => {
-    setBuyingTier(tier.id)
+  // No account needed. Paid: Stripe collects the email. Free: we ask for name + email first.
+  const handleBuyTicket = async (tier: Tier, guest?: { buyerName: string; buyerEmail: string }) => {
     const qty = selectedQty[tier.id] || 1
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    const { data: { user } } = await createClient().auth.getUser()
+    if (!user && !guest && safePrice(tier.price) === 0) { setGuestError(''); setGuestSheet(tier); return }
+    setBuyingTier(tier.id)
     try {
-      const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tierId: tier.id, eventId: event?.id, quantity: qty, userId: user.id }) })
+      const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tierId: tier.id, eventId: event?.id, quantity: qty, ...(user ? { userId: user.id } : guest) }) })
       const data = await res.json()
       if (data.url) window.location.href = data.url
+      else if (guest) setGuestError(data.error ?? 'Something went wrong')
       else alert(data.error ?? 'Something went wrong')
     } catch { alert('Failed to start checkout. Please try again.') }
     finally { setBuyingTier(null) }
@@ -476,6 +482,9 @@ export default function EventDetail() {
         .gl-copy-btn.copied{background:#5ec888;}
         .gl-close-btn{width:100%;padding:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);font-size:12px;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;}
         .gm-search{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);padding:10px 12px;font-size:13px;color:#fff;font-family:'Syne',sans-serif;outline:none;margin-bottom:12px;}
+        .guest-in{font-size:16px;padding:13px 12px;border-radius:10px;}
+        .guest-err{font-size:12px;color:#ff8a8a;margin:-4px 0 10px;}
+        .guest-go{width:100%;margin-bottom:4px;}
         .gm-search::placeholder{color:rgba(255,255,255,0.25);}
         .gm-list{max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
         .gm-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border:0.5px solid rgba(255,255,255,0.07);}
@@ -824,6 +833,28 @@ export default function EventDetail() {
           >
             get tickets
           </button>
+        </div>
+      )}
+
+      {guestSheet && (
+        <div className="gl-backdrop" onClick={() => setGuestSheet(null)}>
+          <form className="gl-sheet" onClick={e => e.stopPropagation()} noValidate onSubmit={e => {
+            e.preventDefault()
+            if (!guestName.trim()) { setGuestError('Add your name so the door can find you.'); return }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) { setGuestError('Enter a valid email — your tickets go there.'); return }
+            handleBuyTicket(guestSheet, { buyerName: guestName.trim(), buyerEmail: guestEmail.trim() })
+          }}>
+            <div className="gl-drag"/>
+            <div className="gl-sheet-title">where should we send them?</div>
+            <p className="gl-sheet-desc">Your tickets go straight to your inbox. No account needed.</p>
+            <input className="gm-search guest-in" placeholder="Full name" autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)}/>
+            <input className="gm-search guest-in" type="email" inputMode="email" placeholder="Email" autoComplete="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)}/>
+            {guestError && <p className="guest-err">{guestError}</p>}
+            <button type="submit" className="buy-btn guest-go" disabled={buyingTier === guestSheet.id}>
+              {buyingTier === guestSheet.id ? 'sending…' : `get ${(selectedQty[guestSheet.id] || 1) > 1 ? `${selectedQty[guestSheet.id]} tickets` : 'ticket'}`}
+            </button>
+            <button type="button" className="gl-close-btn" onClick={() => { try { sessionStorage.setItem('pulse_redirect', `/events/${eventId}`) } catch {}; router.push('/login') }}>have an account? sign in</button>
+          </form>
         </div>
       )}
 

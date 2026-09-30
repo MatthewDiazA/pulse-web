@@ -25,52 +25,71 @@ export default function ClaimGuestPage() {
   const [eventTitle, setEventTitle] = useState<string>('')
   const [ticketCount, setTicketCount] = useState(1)
   const [ownLink, setOwnLink] = useState(false)
+  // No account needed: guests claim with name + email
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
+  const [formError, setFormError] = useState('')
+  const [orderId, setOrderId] = useState<string | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
+
+  // Shared by the signed-in auto-claim and the guest form
+  const claim = async (payload: { userId: string } | { guestName: string; guestEmail: string }) => {
+    setPhase('claiming')
+    try {
+      const res = await fetch('/api/claim-guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, ...payload }),
+      })
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setTicketCount(data.ticketCount ?? 1)
+        setOrderId(data.orderId ?? null)
+        if ('guestEmail' in payload) setSentTo(payload.guestEmail)
+        // Fetch the event title for the success screen
+        if (data.eventId) {
+          const { data: ev } = await createClient().from('events').select('title').eq('id', data.eventId).single()
+          if (ev?.title) setEventTitle(ev.title)
+        }
+        setPhase('success')
+      } else if (res.status === 400 && 'guestEmail' in payload) {
+        // Form problem — keep them on the form
+        setFormError(data.error ?? 'Check your name and email.')
+        setPhase('need-login')
+      } else {
+        setOwnLink(!!data.ownLink)
+        setMessage(data.error ?? 'This invite link could not be used.')
+        setPhase('error')
+      }
+    } catch {
+      setMessage('Something went wrong. Please try again.')
+      setPhase('error')
+    }
+  }
 
   useEffect(() => {
     const run = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
+      const { data: { user } } = await createClient().auth.getUser()
       if (!user) {
-        // Stash where to return after login
+        // Signing in stays optional; if they choose to, come back here afterwards
         try { sessionStorage.setItem('pulse_redirect', `/gl/${token}`) } catch {}
         setPhase('need-login')
         return
       }
-
-      setPhase('claiming')
-      try {
-        const res = await fetch('/api/claim-guest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, userId: user.id }),
-        })
-        const data = await res.json()
-
-        if (res.ok && data.success) {
-          setTicketCount(data.ticketCount ?? 1)
-          // Fetch the event title for the success screen
-          if (data.eventId) {
-            const { data: ev } = await supabase
-              .from('events')
-              .select('title')
-              .eq('id', data.eventId)
-              .single()
-            if (ev?.title) setEventTitle(ev.title)
-          }
-          setPhase('success')
-        } else {
-          setOwnLink(!!data.ownLink)
-          setMessage(data.error ?? 'This invite link could not be used.')
-          setPhase('error')
-        }
-      } catch {
-        setMessage('Something went wrong. Please try again.')
-        setPhase('error')
-      }
+      claim({ userId: user.id })
     }
     run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
+
+  const submitGuest = (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormError('')
+    if (!guestName.trim()) { setFormError('Add your name so the door can find you.'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) { setFormError('Enter a valid email — your ticket goes there.'); return }
+    claim({ guestName: guestName.trim(), guestEmail: guestEmail.trim() })
+  }
 
   const goLogin = () => {
     router.push('/login')
@@ -90,6 +109,13 @@ export default function ClaimGuestPage() {
         .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#776;margin-bottom:18px;}
         .title{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;text-transform:uppercase;color:#fff;line-height:1;margin-bottom:10px;}
         .sub{font-size:14px;color:#998;line-height:1.6;margin-bottom:24px;}
+        .gl-form{display:flex;flex-direction:column;gap:10px;text-align:left;}
+        .gl-input{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:14px 14px;font-size:16px;color:#fff;font-family:'Syne',sans-serif;outline:none;}
+        .gl-input:focus{border-color:rgba(255,255,255,0.35);}
+        .gl-input::placeholder{color:rgba(255,255,255,0.3);}
+        .gl-form .btn{justify-content:center;margin-top:6px;}
+        .gl-err{font-size:12px;color:#ff8a8a;}
+        .gl-signin{margin-top:16px;background:none;border:none;color:rgba(255,255,255,0.55);font-size:13px;font-family:'Syne',sans-serif;cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.25);text-underline-offset:3px;}
         .btn{background:${COLORS.primary};color:#000;border:none;border-radius:100px;padding:14px 28px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;box-shadow:0 0 20px rgba(255,170,51,0.3);transition:all 0.15s;display:inline-flex;align-items:center;gap:8px;}
         .btn:hover{box-shadow:0 0 30px rgba(255,170,51,0.45);}
         .btn:active{transform:scale(0.97);}
@@ -112,19 +138,28 @@ export default function ClaimGuestPage() {
               <div className="gl-mark">GL</div>
               <div className="eyebrow">You've been invited</div>
               <div className="title">Guest List Access</div>
-              <div className="sub">Sign in or create a free account to claim your spot on the guest list. It only takes a moment.</div>
-              <button ref={claimBtnRef} className="btn" onClick={goLogin}>
-                <i className="ti ti-login" aria-hidden="true" />
-                Sign in to claim
-              </button>
+              <div className="sub">Add your name and email — we&apos;ll send your ticket straight there. No account needed.</div>
+              <form className="gl-form" onSubmit={submitGuest} noValidate>
+                <input className="gl-input" placeholder="Full name" autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)}/>
+                <input className="gl-input" type="email" inputMode="email" placeholder="Email" autoComplete="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)}/>
+                {formError && <div className="gl-err">{formError}</div>}
+                <button ref={claimBtnRef} className="btn" type="submit">
+                  <i className="ti ti-ticket" aria-hidden="true" />
+                  Claim my spot
+                </button>
+              </form>
+              <button className="gl-signin" onClick={goLogin}>Have an account? Sign in instead</button>
             </>
           ) : phase === 'success' ? (
             <>
               <div className="gl-mark">GL</div>
               <div className="eyebrow">You're on the list</div>
               <div className="title">{eventTitle || 'You\'re in'}</div>
-              <div className="sub">{ticketCount > 1 ? `Your ${ticketCount} guest list tickets are ready. Find them in your account — each has its own QR code for the door.` : 'Your guest list ticket is ready. Find it in your account with your QR code for the door.'}</div>
-              <button ref={claimBtnRef} className="btn" onClick={() => router.push('/account')}>
+              <div className="sub">
+                {ticketCount > 1 ? `Your ${ticketCount} guest list tickets are ready` : 'Your guest list ticket is ready'}
+                {sentTo ? <> — we also sent {ticketCount > 1 ? 'them' : 'it'} to <b style={{color:'#fff'}}>{sentTo}</b>.</> : '. Find it in your account with your QR code for the door.'}
+              </div>
+              <button ref={claimBtnRef} className="btn" onClick={() => router.push(orderId ? `/tickets/${orderId}` : '/account')}>
                 <i className="ti ti-ticket" aria-hidden="true" />
                 View my ticket
               </button>

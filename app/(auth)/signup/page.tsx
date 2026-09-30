@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 
 export default function SignupPage() {
@@ -9,6 +9,13 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  // Arriving from a ticket page: prefill the email the tickets were sent to, so they link up
+  useEffect(() => {
+    const e = new URLSearchParams(window.location.search).get('email')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after hydration
+    if (e) setEmail(e)
+  }, [])
 
   const handleSignup = async () => {
     if (!name || !email || !password) { setError('Please fill in all fields'); return }

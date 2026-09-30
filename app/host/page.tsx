@@ -106,7 +106,7 @@ export default function HostDashboard() {
 
     const { data: tickets } = await supabase
       .from('tickets')
-      .select('id, user_id, is_checked_in, is_guestlist')
+      .select('id, user_id, is_checked_in, is_guestlist, holder_name')
       .eq('event_id', eventId)
       .order('created_at', { ascending: true })
 
@@ -131,7 +131,7 @@ export default function HostDashboard() {
         user_id: t.user_id,
         is_checked_in: !!t.is_checked_in,
         is_guestlist: !!t.is_guestlist,
-        name: t.user_id ? (nameMap[t.user_id] || 'Guest') : 'Guest',
+        name: t.user_id ? (nameMap[t.user_id] || 'Guest') : (t.holder_name || 'Guest'),
       })
     }
 

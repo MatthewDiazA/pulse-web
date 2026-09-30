@@ -1,6 +1,7 @@
 // app/api/claim-guest/route.ts
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isEmail, sendOrderEmail } from '../../lib/guestTickets'
 
 // Service-role client — bypasses RLS so we can mint the ticket reliably
 const supabase = createClient(
@@ -11,7 +12,7 @@ const supabase = createClient(
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { token, userId, action, eventId, requesterId, ticketId } = body
+    const { token, userId, action, eventId, requesterId, ticketId } = body as { token?: string; userId?: string; action?: string; eventId?: string; requesterId?: string; ticketId?: string }
 
     // ── Guest-list management (host/admin only): list + remove ──────────────
     if (action === 'list' || action === 'remove') {
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       if (action === 'list') {
         const { data: tickets } = await supabase
           .from('tickets')
-          .select('id, user_id, is_checked_in, created_at')
+          .select('id, user_id, is_checked_in, created_at, holder_name, order:orders(buyer_email)')
           .eq('event_id', eventId)
           .eq('is_guestlist', true)
           .order('created_at', { ascending: false })
@@ -51,8 +52,9 @@ export async function POST(request: Request) {
         const guests = (tickets ?? []).map(t => ({
           ticket_id: t.id,
           user_id: t.user_id,
-          name: t.user_id ? (nameMap[t.user_id]?.name ?? 'Guest') : 'Guest',
-          email: t.user_id ? (nameMap[t.user_id]?.email ?? '') : '',
+          // No account: name/email come from the claim form (holder_name + the order's email)
+          name: t.user_id ? (nameMap[t.user_id]?.name ?? 'Guest') : (t.holder_name || 'Guest'),
+          email: t.user_id ? (nameMap[t.user_id]?.email ?? '') : ((t.order as unknown as { buyer_email: string } | null)?.buyer_email ?? ''),
           is_checked_in: !!t.is_checked_in,
         }))
         return NextResponse.json({ guests })
@@ -71,14 +73,22 @@ export async function POST(request: Request) {
     }
 
     // ── Default: claim a guest ticket from a /gl/ link ──────────────────────
-    if (!token || !userId) {
-      return NextResponse.json({ error: 'Missing token or userId' }, { status: 400 })
+    // Signed in (userId) or not (name + email). Guests get an order under their email,
+    // so the tickets land in their account if they ever sign up with it.
+    const guestEmail: string | null = !userId && isEmail(body.guestEmail) ? body.guestEmail.trim() : null
+    const guestName: string = typeof body.guestName === 'string' ? body.guestName.trim().slice(0, 80) : ''
+    if (!token || (!userId && !guestEmail)) {
+      return NextResponse.json({ error: 'Add your name and email to claim your spot.' }, { status: 400 })
     }
+    if (!userId && !guestName) {
+      return NextResponse.json({ error: 'Add your name so the door can find you.' }, { status: 400 })
+    }
+    const sameEmail = (a?: string | null) => !!a && !!guestEmail && a.toLowerCase() === guestEmail.toLowerCase()
 
     // 1. Look up the invite. Links are single-use: one person claims it and gets ticket_count tickets.
     const { data: invite, error: inviteErr } = await supabase
       .from('guest_invites')
-      .select('id, event_id, tier_id, created_by, claimed_by, ticket_count')
+      .select('id, event_id, tier_id, created_by, claimed_by, claimed_email, ticket_count')
       .eq('token', token)
       .limit(1)
       .maybeSingle()
@@ -88,60 +98,81 @@ export async function POST(request: Request) {
     }
 
     const ticketCount = Math.max(1, invite.ticket_count ?? 1)
+    const used = NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
+    const again = () => NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id, ticketCount })
 
     // 2. The host opening their own link (to test it, or to share it from the browser) must not burn it
-    if (invite.created_by === userId) {
+    if (userId && invite.created_by === userId) {
       return NextResponse.json({ error: "This is your own guest link — opening it yourself doesn't use it up. Send it to your guest.", ownLink: true }, { status: 409 })
     }
 
-    // 3. Already claimed? Same user = idempotent success (refreshes); anyone else is blocked.
-    if (invite.claimed_by) {
-      if (invite.claimed_by === userId) {
-        return NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id, ticketCount })
-      }
-      return NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
+    // 3. Already claimed? Same person = idempotent success (refreshes); anyone else is blocked.
+    if (invite.claimed_by || invite.claimed_email) {
+      if ((userId && invite.claimed_by === userId) || sameEmail(invite.claimed_email)) return again()
+      return used
     }
 
-    // 4. Atomically claim the token — only succeeds if still unclaimed (race-safe)
+    // 4. Atomically claim the token — only succeeds if still unclaimed by anyone (race-safe)
     const { data: claimed, error: claimErr } = await supabase
       .from('guest_invites')
-      .update({ claimed_by: userId, claimed_at: new Date().toISOString() })
+      .update({ ...(userId ? { claimed_by: userId } : { claimed_email: guestEmail }), claimed_at: new Date().toISOString() })
       .eq('id', invite.id)
       .is('claimed_by', null)
+      .is('claimed_email', null)
       .select('id')
       .maybeSingle()
 
     if (claimErr || !claimed) {
-      // Lost a race — if it was this same user (double request), that's still a success
-      const { data: now } = await supabase.from('guest_invites').select('claimed_by').eq('id', invite.id).single()
-      if (now?.claimed_by === userId) {
-        return NextResponse.json({ success: true, alreadyClaimed: true, eventId: invite.event_id, ticketCount })
-      }
-      return NextResponse.json({ error: 'This invite link has already been used. Ask the host for a new one.' }, { status: 409 })
+      // Lost a race — if it was this same person (double request), that's still a success
+      const { data: now } = await supabase.from('guest_invites').select('claimed_by, claimed_email').eq('id', invite.id).single()
+      if ((userId && now?.claimed_by === userId) || sameEmail(now?.claimed_email)) return again()
+      return used
     }
 
-    // 5. Mint ticket_count guest tickets for this person (single insert, all-or-nothing)
+    const releaseClaim = () => supabase.from('guest_invites').update({ claimed_by: null, claimed_email: null, claimed_at: null }).eq('id', invite.id)
+
+    // 5. Guests: an order carries their email (for the ticket email and later account linking)
+    let orderId: string | null = null
+    if (!userId) {
+      const { data: order, error: orderErr } = await supabase
+        .from('orders')
+        .insert({ event_id: invite.event_id, user_id: null, status: 'confirmed', total_amount: 0, buyer_email: guestEmail, buyer_name: guestName })
+        .select('id')
+        .single()
+      if (orderErr || !order) {
+        await releaseClaim()
+        console.error('GL guest order insert failed:', orderErr)
+        return NextResponse.json({ error: 'Could not create your guest list tickets. Try again.' }, { status: 500 })
+      }
+      orderId = order.id
+    }
+
+    // 6. Mint ticket_count guest tickets for this person (single insert, all-or-nothing)
     const rows = Array.from({ length: ticketCount }, () => ({
       event_id: invite.event_id,
       tier_id: invite.tier_id ?? null,
-      user_id: userId,
-      qr_code: `PULSE-GL-${invite.event_id.slice(0, 8)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      user_id: userId ?? null,
+      order_id: orderId,
+      holder_name: userId ? null : guestName,
+      qr_code: `PULSE-GL-${crypto.randomUUID()}`,
       status: 'active',
       is_guestlist: true,
     }))
     const { error: ticketErr } = await supabase.from('tickets').insert(rows)
 
     if (ticketErr) {
-      // Roll back the claim so the link still works
-      await supabase
-        .from('guest_invites')
-        .update({ claimed_by: null, claimed_at: null })
-        .eq('id', invite.id)
+      // Roll back so the link still works
+      if (orderId) await supabase.from('orders').delete().eq('id', orderId)
+      await releaseClaim()
       console.error('GL ticket insert failed:', ticketErr)
       return NextResponse.json({ error: 'Could not create your guest list tickets. Try again.' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, eventId: invite.event_id, ticketCount })
+    if (orderId) {
+      try { await sendOrderEmail(orderId, { guest: true }) } catch (e) { console.error('GL guest email failed:', e) }
+    }
+
+    return NextResponse.json({ success: true, eventId: invite.event_id, ticketCount, orderId })
   } catch (error: any) {
     console.error('claim-guest error:', error)
     return NextResponse.json({ error: error.message ?? 'Something went wrong' }, { status: 500 })

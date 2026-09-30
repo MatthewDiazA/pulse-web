@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { sendOrderEmail } from '../../../lib/guestTickets'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -71,6 +72,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
       event_id,
       tier_id,
       user_id: user_id ?? null,
+      holder_name: buyerName || null,
       qr_code: `PULSE-${crypto.randomUUID()}`,
     }))
 
@@ -105,20 +107,8 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
         const eventTitle = eventData?.title ?? 'Event'
         const tierName = tier?.name ?? 'Ticket'
 
-        // Send via /api/email — single canonical template
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://pulsetx.vercel.app'
-        await fetch(`${appUrl}/api/email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: buyerEmail,
-            event_title: eventTitle,
-            event_date: eventDate,
-            venue: eventData?.venue_name ?? '',
-            buyer_name: buyerName,
-            tickets: ticketRows.map((t: any) => ({ qr_code: t.qr_code, tier_name: tierName })),
-          }),
-        })
+        // Tickets + "View your tickets" link; guests also get nudged to make an account with this email
+        await sendOrderEmail(order.id, { guest: !user_id })
 
         console.log('Paid ticket email sent to:', buyerEmail)
 
