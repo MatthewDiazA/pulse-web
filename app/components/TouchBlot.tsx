@@ -206,7 +206,14 @@ export default function TouchBlot({ intensity = 1.0, palette }: TouchBlotProps) 
   }, [])
 
   useEffect(() => {
-    const onDown = (e: PointerEvent) => { e.preventDefault(); startBlot(e.pointerId, e.clientX, e.clientY) }
+    const onDown = (e: PointerEvent) => {
+      // Never swallow taps on form fields — preventDefault here stops inputs from focusing,
+      // so nobody could type into them on pages that use this effect
+      const t = e.target as Element | null
+      if (t?.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      e.preventDefault()
+      startBlot(e.pointerId, e.clientX, e.clientY)
+    }
     const onUp = (e: PointerEvent) => endBlot(e.pointerId)
     const onCancel = (e: PointerEvent) => endBlot(e.pointerId)
     window.addEventListener('pointerdown', onDown, { passive: false })
