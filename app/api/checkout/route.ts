@@ -170,6 +170,8 @@ export async function POST(request: Request) {
         tier_id: tierId,
         ...(userId ? { user_id: userId } : {}),
         quantity: String(quantity),
+        // Name typed on our page (Stripe's is the cardholder's) — goes on the tickets for the door
+        ...(buyerName ? { buyer_name: buyerName } : {}),
       },
     })
 

@@ -288,11 +288,12 @@ export default function EventDetail() {
     return () => { window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', onVis); cancelAnimationFrame(raf) }
   }, [])
 
-  // No account needed. Paid: Stripe collects the email. Free: we ask for name + email first.
+  // No account needed: signed-out buyers give a name + email first (free tickets are emailed
+  // right away; paid ones continue to Stripe with that email prefilled).
   const handleBuyTicket = async (tier: Tier, guest?: { buyerName: string; buyerEmail: string }) => {
     const qty = selectedQty[tier.id] || 1
     const { data: { user } } = await createClient().auth.getUser()
-    if (!user && !guest && safePrice(tier.price) === 0) { setGuestError(''); setGuestSheet(tier); return }
+    if (!user && !guest) { setGuestError(''); setGuestSheet(tier); return }
     setBuyingTier(tier.id)
     try {
       const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tierId: tier.id, eventId: event?.id, quantity: qty, ...(user ? { userId: user.id } : guest) }) })
@@ -846,12 +847,16 @@ export default function EventDetail() {
           }}>
             <div className="gl-drag"/>
             <div className="gl-sheet-title">where should we send them?</div>
-            <p className="gl-sheet-desc">Your tickets go straight to your inbox. No account needed.</p>
+            <p className="gl-sheet-desc">No account needed — your tickets go straight to your inbox{safePrice(guestSheet.price) > 0 ? ' after payment' : ''}.</p>
             <input className="gm-search guest-in" placeholder="Full name" autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)}/>
             <input className="gm-search guest-in" type="email" inputMode="email" placeholder="Email" autoComplete="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)}/>
             {guestError && <p className="guest-err">{guestError}</p>}
             <button type="submit" className="buy-btn guest-go" disabled={buyingTier === guestSheet.id}>
-              {buyingTier === guestSheet.id ? 'sending…' : `get ${(selectedQty[guestSheet.id] || 1) > 1 ? `${selectedQty[guestSheet.id]} tickets` : 'ticket'}`}
+              {buyingTier === guestSheet.id
+                ? (safePrice(guestSheet.price) > 0 ? 'opening checkout…' : 'sending…')
+                : safePrice(guestSheet.price) > 0
+                  ? `continue to payment · ${money(safePrice(guestSheet.price) * (selectedQty[guestSheet.id] || 1))}`
+                  : `get ${(selectedQty[guestSheet.id] || 1) > 1 ? `${selectedQty[guestSheet.id]} tickets` : 'ticket'}`}
             </button>
             <button type="button" className="gl-close-btn" onClick={() => { try { sessionStorage.setItem('pulse_redirect', `/events/${eventId}`) } catch {}; router.push('/login') }}>have an account? sign in</button>
           </form>

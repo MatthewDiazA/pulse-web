@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 }
 
 async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
-  const { event_id, tier_id, quantity, user_id } = session.metadata ?? {}
+  const { event_id, tier_id, quantity, user_id, buyer_name } = session.metadata ?? {}
 
   if (!event_id || !tier_id || !quantity) {
     console.error('Missing metadata:', session.id)
@@ -48,7 +48,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 
   const qty = parseInt(quantity)
   const buyerEmail = session.customer_details?.email ?? ''
-  const buyerName = session.customer_details?.name ?? ''
+  const buyerName = buyer_name || session.customer_details?.name || ''
 
   try {
     const { data: order, error: orderError } = await supabase
