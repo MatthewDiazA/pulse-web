@@ -94,14 +94,6 @@ function shortTime(iso: string | null): string {
   return m === 0 ? `${h}${suffix}` : `${h}:${String(m).padStart(2, '0')}${suffix}`
 }
 
-function toRomanTierName(name: string): string {
-  const map: Record<string, string> = {
-    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
-    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
-  }
-  return name.replace(/\b(\d+)\b/g, n => map[n] ?? n)
-}
-
 const remainingOf = (t: Tier) => t.quantity - (t.quantity_sold || 0)
 
 // Times are stored as wall-clock in UTC fields (the page renders with timeZone UTC),
@@ -443,7 +435,7 @@ export default function EventDetail() {
     if (LADDER_RELEASE && index > 0) {
       const blocker = sortedTiers.slice(0, index).find(t => remainingOf(t) > 0)
       if (blocker) {
-        return { locked: true, reason: `Opens when ${toRomanTierName(blocker.name)} sells out` }
+        return { locked: true, reason: `Opens when ${blocker.name.trim()} sells out` }
       }
     }
     return { locked: false, reason: '' }
@@ -652,7 +644,7 @@ export default function EventDetail() {
                 const low = !soldOut && !locked && !hideAvailability && available <= 12
                 if (soldOut || locked) return (
                   <div key={tier.id} className="tier-off">
-                    <span>{toRomanTierName(tier.name)}</span>
+                    <span>{tier.name.trim()}</span>
                     <span className="tier-off-state">{displayPrice(price, 1)} · {soldOut ? 'Sold out' : reason}</span>
                   </div>
                 )
@@ -660,7 +652,7 @@ export default function EventDetail() {
                   <div key={tier.id} className="ticket">
                     <div className="tier-row">
                       <div>
-                        <div className="tier-name">{toRomanTierName(tier.name)}</div>
+                        <div className="tier-name">{tier.name.trim()}</div>
                         {low && <div className="tier-sub">Almost gone</div>}
                       </div>
                       <div className="tier-price">{displayPrice(price, 1)}</div>
@@ -769,7 +761,7 @@ export default function EventDetail() {
       {buyableTier && (
         <div className="mobile-buy">
           <div>
-            <div className="mobile-buy-k">{toRomanTierName(buyableTier.name)}</div>
+            <div className="mobile-buy-k">{buyableTier.name.trim()}</div>
             <div className="mobile-buy-price">{displayPrice(safePrice(buyableTier.price), 1)}</div>
           </div>
           <button
