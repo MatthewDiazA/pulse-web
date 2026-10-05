@@ -227,6 +227,11 @@ export default function HomeClient({ initialEvents }: { initialEvents: HomeEvent
   const gridRef = useStaggerReveal<HTMLDivElement>({ selector: '.card', stagger: 0.07, trigger: 'mount', deps: [] })
   const logoRef = useNavLogo<HTMLButtonElement>()
 
+  // Preload the event pages, so tapping a flyer opens instantly and the flyer can morph into the poster
+  useEffect(() => {
+    events.slice(0, 8).forEach(e => router.prefetch(`/events/${e.id}`))
+  }, [events, router])
+
   // Tilt only on real mouse + no reduced motion
   useEffect(() => {
     setTiltOn(

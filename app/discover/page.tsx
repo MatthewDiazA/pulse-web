@@ -106,6 +106,11 @@ export default function Discover() {
     }
   }, [])
 
+  // Preload the event pages, so a tap opens instantly and the flyer morphs into the poster
+  useEffect(() => {
+    events.slice(0, 8).forEach(e => router.prefetch(`/events/${e.id}`))
+  }, [events, router])
+
   const getPreview = useCallback(async (ev: FeedEvent): Promise<string | null> => {
     if (!ev.spotify_playlist_url) return null
     if (ev.id in previewCache.current) return previewCache.current[ev.id]

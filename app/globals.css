@@ -27,15 +27,23 @@ body {
 
 /* Flyer "lift": the tapped flyer morphs into the event page poster (see app/lib/flyerTransition.ts) */
 ::view-transition-group(flyer) {
-  animation-duration: 0.5s;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-duration: 0.55s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 ::view-transition-old(flyer),
 ::view-transition-new(flyer) {
   height: 100%;
   object-fit: cover;
 }
-::view-transition-old(root),
+/* The rest of the page steps aside: old page fades out fast, new page rises in just behind the flyer */
+::view-transition-old(root) {
+  animation: 0.18s ease-out both vt-fade-out;
+}
 ::view-transition-new(root) {
-  animation-duration: 0.3s;
+  animation: 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both vt-rise-in;
+}
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-rise-in { from { opacity: 0; transform: translateY(14px); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
