@@ -113,7 +113,6 @@ function relativeDay(iso: string | null): string | null {
   const diff = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000)
   if (diff === 0) return 'Tonight'
   if (diff === 1) return 'Tomorrow'
-  if (diff > 1 && diff < 7) return `This ${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}`
   return null
 }
 
@@ -410,6 +409,11 @@ export default function EventDetail() {
   const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent([event.venue_name, street, event.state].filter(Boolean).join(' '))}`
   const longAbout = (event.description ?? '').length > 260
   const rel = relativeDay(event.starts_at)
+  // One line each for when and where, right under the title — every fact appears once on the page
+  const monthDay = event.starts_at ? new Date(event.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : null
+  const whenLine = [rel && monthDay ? `${rel}, ${monthDay}` : date, time].filter(Boolean).join(' · ')
+    + (doorsTime && doorsTime !== time ? ` · doors ${doorsTime}` : '')
+  const whereLine = [event.venue_name, event.city].map(x => x?.trim()).filter(Boolean).join(', ')
 
   // Calendar: .ics for Apple/Outlook, template link for Google
   const calStart = event.starts_at ? new Date(event.starts_at) : null
@@ -514,13 +518,8 @@ export default function EventDetail() {
         .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(44px,12vw,80px);font-weight:900;text-transform:uppercase;line-height:0.88;color:#fff;letter-spacing:-0.5px;text-wrap:balance;}
         .ev-sub{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px;color:rgba(255,255,255,0.55);}
 
-        /* THE BAR — the night's key facts, in the flyer's color */
-        .fact-bar{display:flex;align-items:stretch;background:var(--accent);color:var(--ink);border-radius:12px;overflow:hidden;transition:background 0.8s;}
-        .fact{flex:1;min-width:0;padding:12px 14px;border-left:1px solid color-mix(in srgb,var(--ink) 18%,transparent);}
-        .fact:first-child{border-left:none;}
-        .fact-k{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0.65;margin-bottom:3px;}
-        .fact-v{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        @media(max-width:899px){.fact-bar{margin:0 -20px;border-radius:0;}.fact{padding:13px 16px;}}
+        .ev-when{font-size:18px;font-weight:600;color:#fff;line-height:1.3;}
+        .ev-where{font-size:15px;color:rgba(255,255,255,0.6);margin-top:4px;line-height:1.3;}
 
         /* SECTIONS */
         .info-col{display:flex;flex-direction:column;gap:26px;min-width:0;}
@@ -635,13 +634,11 @@ export default function EventDetail() {
         <div className="info-col">
           <header className="ev-head">
             <h1 className="ev-title">{event.title}</h1>
+            <div>
+              <div className="ev-when">{whenLine}</div>
+              {whereLine && <div className="ev-where">{whereLine}</div>}
+            </div>
           </header>
-
-          <div className="fact-bar">
-            <div className="fact"><div className="fact-k">{rel ? date : 'date'}</div><div className="fact-v">{rel ?? date}</div></div>
-            {time && <div className="fact"><div className="fact-k">{doorsTime ? 'doors' : 'time'}</div><div className="fact-v">{doorsTime || time}</div></div>}
-            {event.venue_name && <div className="fact"><div className="fact-k">venue</div><div className="fact-v">{event.venue_name}</div></div>}
-          </div>
 
           {event.description && (
             <section className="section">
@@ -724,20 +721,20 @@ export default function EventDetail() {
                 <a className="detail" href={mapsUrl} target="_blank" rel="noopener noreferrer">
                   <span className="detail-ic"><IcPin/></span>
                   <span className="detail-txt">
-                    <div className="detail-k">{event.venue_name || street}</div>
-                    {street && <div className="detail-v">{street}{event.state ? `, ${event.state}` : ''}</div>}
+                    <div className="detail-k">{street ? `${street}${event.state ? `, ${event.state}` : ''}` : event.venue_name}</div>
                   </span>
                   <span className="detail-go">Directions</span>
                 </a>
               )}
-              <button type="button" className="detail" onClick={() => setCalOpen(o => !o)} disabled={!calStart} aria-expanded={calOpen}>
-                <span className="detail-ic"><IcClock/></span>
-                <span className="detail-txt">
-                  <div className="detail-k">{rel ? `${rel} · ` : ''}{date}{time ? ` · ${time}` : ''}</div>
-                  {doorsTime && <div className="detail-v">Doors open {doorsTime}</div>}
-                </span>
-                {calStart && <span className="detail-go">{calOpen ? 'Close' : 'Add to calendar'}</span>}
-              </button>
+              {calStart && (
+                <button type="button" className="detail" onClick={() => setCalOpen(o => !o)} aria-expanded={calOpen}>
+                  <span className="detail-ic"><IcClock/></span>
+                  <span className="detail-txt">
+                    <div className="detail-k">Add to calendar</div>
+                    <div className="detail-v">Apple, Google or Outlook</div>
+                  </span>
+                </button>
+              )}
               {calOpen && calStart && (
                 <div className="cal-opts">
                   <a className="cal-opt" href={`/api/ics?id=${event.id}`}>Apple Calendar</a>
