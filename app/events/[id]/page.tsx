@@ -131,6 +131,12 @@ function setStart(time?: string): { order: number } | null {
   return { order: h * 60 + (m[2] ? parseInt(m[2]) : 0) }
 }
 
+// Hosts type descriptions with hard line breaks mid-sentence ("makes his\nreturn").
+// Keep blank-line paragraphs; join a single break when the next line continues in lowercase.
+function aboutParagraphs(text: string): string[] {
+  return text.trim().split(/\n\s*\n/).map(p => p.replace(/\n(?=[a-z])/g, ' ').trim()).filter(Boolean)
+}
+
 const isHeadliner = (a: Act) => /headlin/i.test(a.role ?? '')
 
 // Small line icons for the details list
@@ -517,8 +523,8 @@ export default function EventDetail() {
         .info-col{display:flex;flex-direction:column;gap:26px;min-width:0;}
         .section{display:flex;flex-direction:column;gap:14px;}
         .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#fff;line-height:1;}
-        .desc{font-size:15px;line-height:1.75;color:rgba(255,255,255,0.72);white-space:pre-line;}
-        .desc.clamped{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
+        .desc{display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.75;color:rgba(255,255,255,0.72);white-space:pre-line;}
+        .desc.clamped{max-height:8.75em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent);}
         .more-btn{align-self:flex-start;background:none;border:none;padding:0;color:#fff;font-size:13px;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.3);}
 
         /* Plain list with hairlines, like a printed program — no cards, no chips */
@@ -619,7 +625,9 @@ export default function EventDetail() {
           {event.description && (
             <section className="section">
               <h2 className="sec-title">About</h2>
-              <p className={`desc ${longAbout && !aboutOpen ? 'clamped' : ''}`}>{event.description}</p>
+              <div className={`desc ${longAbout && !aboutOpen ? 'clamped' : ''}`}>
+                {aboutParagraphs(event.description).map((para, i) => <p key={i}>{para}</p>)}
+              </div>
               {longAbout && <button className="more-btn" onClick={() => setAboutOpen(o => !o)}>{aboutOpen ? 'Show less' : 'Read more'}</button>}
             </section>
           )}
