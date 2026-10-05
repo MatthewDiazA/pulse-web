@@ -7,7 +7,7 @@ import { useStaggerReveal, useNavLogo } from './lib/animations'
 import TouchBlot from './components/TouchBlot'
 import { openEventWithFlyer } from './lib/flyerTransition'
 
-type Tier = { id: string; price: number; quantity: number; name: string }
+type Tier = { id: string; price: number; quantity: number; quantity_sold: number | null; name: string }
 export type HomeEvent = {
   id: string
   title: string
@@ -133,9 +133,13 @@ function CardPlaceholder({ index }: { index: number }) {
   )
 }
 
+// Current price = cheapest tier that still has tickets (sold-out tiers no longer count)
 function getPrice(event: HomeEvent): string {
   const tiers = event.ticket_tiers ?? []
-  const prices = tiers.map(t => Number(t.price)).filter(p => !isNaN(p) && p >= 0)
+  if (!tiers.length) return 'free'
+  const onSale = tiers.filter(t => (t.quantity ?? 0) - (t.quantity_sold ?? 0) > 0)
+  if (!onSale.length) return 'sold out'
+  const prices = onSale.map(t => Number(t.price)).filter(p => !isNaN(p) && p >= 0)
   if (!prices.length) return 'free'
   const min = Math.min(...prices), max = Math.max(...prices)
   if (min === 0) return 'free'
