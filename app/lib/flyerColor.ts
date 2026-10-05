@@ -89,12 +89,47 @@ export function paletteFromImage(img: HTMLImageElement): FlyerPalette {
   }
 }
 
-export function loadFlyerPalette(url: string): Promise<FlyerPalette> {
+// A solid frame around the artwork (pale border, letterboxing), as fractions of each side
+export type FlyerTrim = { top: number; right: number; bottom: number; left: number }
+export type FlyerInfo = { palette: FlyerPalette; trim: FlyerTrim | null; width: number; height: number }
+
+// Only a true frame is trimmed: every side must be a run of rows/columns that are
+// almost entirely the same color as the corner. Nothing that varies (the art) is ever cut.
+export function detectTrim(img: HTMLImageElement): FlyerTrim | null {
+  const scale = Math.min(1, 240 / Math.max(img.naturalWidth, img.naturalHeight))
+  const W = Math.max(1, Math.round(img.naturalWidth * scale)), H = Math.max(1, Math.round(img.naturalHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = W; canvas.height = H
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return null
+  ctx.drawImage(img, 0, 0, W, H)
+  const d = ctx.getImageData(0, 0, W, H).data
+  const at = (x: number, y: number) => (y * W + x) * 4
+  const ref = at(1, 1)
+  const same = (i: number) => Math.abs(d[i] - d[ref]) + Math.abs(d[i + 1] - d[ref + 1]) + Math.abs(d[i + 2] - d[ref + 2]) < 45
+  const rowFlat = (y: number) => { let n = 0; for (let x = 0; x < W; x++) if (same(at(x, y))) n++; return n >= W * 0.97 }
+  const colFlat = (x: number) => { let n = 0; for (let y = 0; y < H; y++) if (same(at(x, y))) n++; return n >= H * 0.97 }
+  const capY = Math.floor(H * 0.12), capX = Math.floor(W * 0.12)
+  let t = 0; while (t < capY && rowFlat(t)) t++
+  let b = 0; while (b < capY && rowFlat(H - 1 - b)) b++
+  let l = 0; while (l < capX && colFlat(l)) l++
+  let r = 0; while (r < capX && colFlat(W - 1 - r)) r++
+  if (Math.min(t / H, b / H, l / W, r / W) < 0.01) return null // not framed on all four sides
+  // One extra pixel each side swallows the anti-aliased edge of the frame
+  return { top: (t + 1) / H, bottom: (b + 1) / H, left: (l + 1) / W, right: (r + 1) / W }
+}
+
+export function loadFlyer(url: string): Promise<FlyerInfo> {
   return new Promise(resolve => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
-    img.onload = () => { try { resolve(paletteFromImage(img)) } catch { resolve(NEUTRAL_PALETTE) } }
-    img.onerror = () => resolve(NEUTRAL_PALETTE)
+    img.onload = () => {
+      let palette = NEUTRAL_PALETTE, trim: FlyerTrim | null = null
+      try { palette = paletteFromImage(img) } catch {}
+      try { trim = detectTrim(img) } catch {}
+      resolve({ palette, trim, width: img.naturalWidth, height: img.naturalHeight })
+    }
+    img.onerror = () => resolve({ palette: NEUTRAL_PALETTE, trim: null, width: 0, height: 0 })
     img.src = url
   })
 }

@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import { usePageView } from '../../lib/usePageView'
 import FlipCounter from '../../components/FlipCounter'
-import { loadFlyerPalette, NEUTRAL_PALETTE, type FlyerPalette } from '../../lib/flyerColor'
+import { loadFlyer, NEUTRAL_PALETTE, type FlyerPalette, type FlyerInfo } from '../../lib/flyerColor'
 
 type Tier = {
   id: string
@@ -158,6 +158,8 @@ export default function EventDetail() {
   const [progress, setProgress] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [palette, setPalette] = useState<FlyerPalette>(NEUTRAL_PALETTE)
+  // Set only when the uploaded flyer has a solid frame to crop off
+  const [flyer, setFlyer] = useState<FlyerInfo | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shared, setShared] = useState(false)
   const [calOpen, setCalOpen] = useState(false)
@@ -205,7 +207,7 @@ export default function EventDetail() {
   useEffect(() => {
     if (!event?.cover_image_url) return
     let alive = true
-    loadFlyerPalette(event.cover_image_url).then(p => { if (alive) setPalette(p) })
+    loadFlyer(event.cover_image_url).then(f => { if (!alive) return; setPalette(f.palette); if (f.trim) setFlyer(f) })
     return () => { alive = false }
   }, [event?.cover_image_url])
 
@@ -514,6 +516,8 @@ export default function EventDetail() {
         .poster{position:relative;width:100%;max-width:440px;margin:0 auto;border-radius:16px;overflow:hidden;background:#111;box-shadow:0 30px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.08);}
         .poster img,.poster video{display:block;width:100%;height:auto;max-height:72vh;object-fit:cover;}
         .poster-empty{aspect-ratio:4/5;position:relative;}
+        .poster-crop{position:relative;overflow:hidden;}
+        .poster .poster-crop img{position:absolute;max-height:none;max-width:none;object-fit:fill;}
         .hero-canvas{position:absolute;inset:0;width:100%;height:100%;}
 
         /* HEAD */
@@ -616,6 +620,16 @@ export default function EventDetail() {
           <div className="poster" data-flyer style={{viewTransitionName:'flyer'}}>
             {event.feed_video_url ? (
               <video src={event.feed_video_url} autoPlay muted loop playsInline poster={event.cover_image_url ?? undefined}/>
+            ) : event.cover_image_url && flyer?.trim ? (
+              // Crop the frame: the box takes the art's proportions, the image is scaled/shifted so the frame falls outside
+              <div className="poster-crop" style={{ aspectRatio: `${flyer.width * (1 - flyer.trim.left - flyer.trim.right)} / ${flyer.height * (1 - flyer.trim.top - flyer.trim.bottom)}` }}>
+                <img src={event.cover_image_url} alt={`${event.title} flyer`} style={{
+                  width: `${100 / (1 - flyer.trim.left - flyer.trim.right)}%`,
+                  height: `${100 / (1 - flyer.trim.top - flyer.trim.bottom)}%`,
+                  left: `${-100 * flyer.trim.left / (1 - flyer.trim.left - flyer.trim.right)}%`,
+                  top: `${-100 * flyer.trim.top / (1 - flyer.trim.top - flyer.trim.bottom)}%`,
+                }}/>
+              </div>
             ) : event.cover_image_url ? (
               <img src={event.cover_image_url} alt={`${event.title} flyer`}/>
             ) : (
