@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '../lib/supabase/client'
 import QRCode from 'qrcode'
-import LiveQr from '../components/LiveQr'
 import confetti from 'canvas-confetti'
 import { gsap } from 'gsap'
 import { useNavLogo, useTicketTear, GLBadgeStamp } from '../lib/animations'
@@ -124,12 +123,7 @@ function TicketModal({ ticket, onClose }: { ticket: any; onClose: () => void }) 
               }}
               onClick={() => setEnlarged(e => !e)}
             >
-              {ticket.qr_secret ? (
-                // Live rotating code — a screenshot of this won't scan at the door
-                <div style={{width: enlarged ? '240px' : '170px', transition:'width 0.35s cubic-bezier(0.34,1.2,0.64,1)'}}>
-                  <LiveQr ticketId={ticket.id} secret={ticket.qr_secret} staticCode={ticket.qr_code} size={enlarged ? 240 : 170}/>
-                </div>
-              ) : dataUrl
+              {dataUrl
                 ? <img src={dataUrl} alt="QR" style={{width: enlarged ? '240px' : '170px', height: enlarged ? '240px' : '170px', display:'block', transition:'all 0.35s cubic-bezier(0.34,1.2,0.64,1)'}}/>
                 : <div style={{width:'170px',height:'170px',display:'flex',alignItems:'center',justifyContent:'center',color:'#888',fontSize:'12px'}}>generating…</div>
               }
@@ -224,15 +218,7 @@ export default function AccountPage() {
         .select('id, order_id, event_id, tier_id, user_id, qr_code, holder_name, is_checked_in, checked_in_at, is_transferred, created_at, status, is_guestlist, event:events(title,starts_at,venue_name,cover_image_url), tier:ticket_tiers(name,price)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-      // Live-QR secrets for these tickets, fetched with the session so only the owner gets them
-      let secrets: Record<string, string> = {}
-      if (session) {
-        try {
-          const r = await fetch('/api/my-tickets/secrets', { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } })
-          if (r.ok) secrets = (await r.json()).secrets ?? {}
-        } catch {}
-      }
-      setTickets((data ?? []).map(t => ({ ...t, qr_secret: secrets[t.id] ?? null })))
+      setTickets(data ?? [])
       setLoading(false)
     }
     load()

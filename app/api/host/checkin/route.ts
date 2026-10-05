@@ -72,8 +72,7 @@ export async function POST(request: Request) {
     } else if (code) {
       const { data } = await admin.from('tickets').select(TICKET_FIELDS).eq('qr_code', code).maybeSingle()
       ticket = data as unknown as TicketRow | null
-      // Live tickets must show their live code — a fixed code for one is a screenshot of an old email
-      if (ticket?.qr_secret) return reply(ticket.event_id !== eventId ? 'wrong_event' : ticket.is_checked_in ? 'already' : 'static_blocked', ticket)
+      // Each ticket's fixed code is unique and works once — screenshots are fine, rescans are refused below
     } else {
       return NextResponse.json({ error: 'Missing code' }, { status: 400 })
     }

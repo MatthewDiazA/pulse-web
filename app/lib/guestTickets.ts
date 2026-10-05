@@ -45,7 +45,6 @@ export async function sendOrderEmail(orderId: string, opts: { guest: boolean }) 
     tickets: tickets.map(t => ({ qr_code: t.qr_code, tier_name: escapeHtml(t.tier?.name ?? 'Ticket') })),
     order_url: orderUrl(order.id),
     account_email: opts.guest ? escapeHtml(order.buyer_email) : undefined,
-    live: tickets.some(t => t.qr_secret),
   })
 
   await resend.emails.send({

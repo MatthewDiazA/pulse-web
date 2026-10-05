@@ -99,13 +99,13 @@ export default function TicketsPage() {
           {order.tickets.map((t, i) => (
             <div key={t.id} className="ticket">
               <div className="t-row"><span>{t.label}</span><span>{count > 1 ? `${i + 1} of ${count}` : 'Admit one'}</span></div>
-              <LiveQr ticketId={t.id} secret={t.qr_secret} staticCode={t.qr_code} dim={t.checked_in}/>
+              <LiveQr ticketId={t.id} secret={null} staticCode={t.qr_code} dim={t.checked_in}/>
               <div className={`t-foot ${t.checked_in ? 'used' : ''}`}>{t.checked_in ? 'Checked in' : 'Show this at the door'}</div>
             </div>
           ))}
 
           <p className="hint">
-            {count > 1 ? 'Each code gets one person in. Open this page at the door — the codes refresh, so screenshots won’t scan.' : 'Open this page at the door — the code refreshes, so a screenshot won’t scan.'}
+            {count > 1 ? 'Each code gets one person in, once. Screenshot them or send one to each friend.' : 'Screenshot this or keep the email. The code works once at the door.'}
           </p>
 
           {!order.linked && order.buyer_email && (

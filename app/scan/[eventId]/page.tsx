@@ -212,7 +212,7 @@ export default function ScanPage() {
               <div className="cam"><div id="qr-reader"/></div>
               {cameraError
                 ? <div className="err">{cameraError}</div>
-                : <div className="hint">Point the camera at the ticket&apos;s QR code. Tickets must be shown live from the ticket page — screenshots won&apos;t scan.</div>}
+                : <div className="hint">Point the camera at the ticket&apos;s QR code. Each code gets one person in — a second scan shows when it was used.</div>}
             </>
           ) : (
             <>
