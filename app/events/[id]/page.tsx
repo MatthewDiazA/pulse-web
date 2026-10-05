@@ -144,6 +144,7 @@ const svgProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', st
 const IcPin = () => <svg {...svgProps}><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
 const IcClock = () => <svg {...svgProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
 const IcId = () => <svg {...svgProps}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2M14 10h4M14 13h3"/></svg>
+const IcAt = () => <svg {...svgProps}><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
 const IcShirt = () => <svg {...svgProps}><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg>
 
 
@@ -543,8 +544,8 @@ export default function EventDetail() {
         .cal-opt{font-size:13px;color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
         .lineup-row{padding:14px 0;}
 
-        .socials{display:flex;gap:22px;flex-wrap:wrap;margin-top:18px;}
-        .social{font-size:14px;color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
+        .socials{display:flex;gap:16px;flex-wrap:wrap;}
+        .social{color:rgba(255,255,255,0.75);text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
         .social:hover{text-decoration-color:#fff;}
 
         .spotify-wrap{border-radius:12px;overflow:hidden;}
@@ -722,6 +723,18 @@ export default function EventDetail() {
                   <span className="detail-txt"><div className="detail-k">21+</div><div className="detail-v">Valid ID required at the door</div></span>
                 </div>
               )}
+              {hasSocial && (
+                <div className="detail">
+                  <span className="detail-ic"><IcAt/></span>
+                  <span className="detail-txt">
+                    <div className="detail-k">Follow</div>
+                    <div className="detail-v socials">
+                      {event.instagram_handle && <a className="social" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">Instagram</a>}
+                      {event.tiktok_url && <a className="social" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">TikTok</a>}
+                    </div>
+                  </span>
+                </div>
+              )}
               {event.dress_code && (
                 <div className="detail">
                   <span className="detail-ic"><IcShirt/></span>
@@ -757,12 +770,6 @@ export default function EventDetail() {
             </section>
           )}
 
-          {hasSocial && (
-            <div className="socials">
-              {event.instagram_handle && <a className="social" href={igUrl(event.instagram_handle)} target="_blank" rel="noopener noreferrer">Instagram</a>}
-              {event.tiktok_url && <a className="social" href={event.tiktok_url} target="_blank" rel="noopener noreferrer">TikTok</a>}
-            </div>
-          )}
         </div>
       </main>
 
