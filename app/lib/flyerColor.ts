@@ -105,15 +105,17 @@ export function detectTrim(img: HTMLImageElement): FlyerTrim | null {
   ctx.drawImage(img, 0, 0, W, H)
   const d = ctx.getImageData(0, 0, W, H).data
   const at = (x: number, y: number) => (y * W + x) * 4
-  const ref = at(1, 1)
-  const same = (i: number) => Math.abs(d[i] - d[ref]) + Math.abs(d[i + 1] - d[ref + 1]) + Math.abs(d[i + 2] - d[ref + 2]) < 45
-  const rowFlat = (y: number) => { let n = 0; for (let x = 0; x < W; x++) if (same(at(x, y))) n++; return n >= W * 0.97 }
-  const colFlat = (x: number) => { let n = 0; for (let y = 0; y < H; y++) if (same(at(x, y))) n++; return n >= H * 0.97 }
+  // Each side is compared with the middle of its own outer edge (corners are often rounded/transparent);
+  // transparent pixels count as frame.
+  const same = (i: number, ref: number) => d[i + 3] < 20 || Math.abs(d[i] - d[ref]) + Math.abs(d[i + 1] - d[ref + 1]) + Math.abs(d[i + 2] - d[ref + 2]) < 45
+  const rowFlat = (y: number, ref: number) => { let n = 0; for (let x = 0; x < W; x++) if (same(at(x, y), ref)) n++; return n >= W * 0.97 }
+  const colFlat = (x: number, ref: number) => { let n = 0; for (let y = 0; y < H; y++) if (same(at(x, y), ref)) n++; return n >= H * 0.97 }
+  const refT = at(W >> 1, 0), refB = at(W >> 1, H - 1), refL = at(0, H >> 1), refR = at(W - 1, H >> 1)
   const capY = Math.floor(H * 0.12), capX = Math.floor(W * 0.12)
-  let t = 0; while (t < capY && rowFlat(t)) t++
-  let b = 0; while (b < capY && rowFlat(H - 1 - b)) b++
-  let l = 0; while (l < capX && colFlat(l)) l++
-  let r = 0; while (r < capX && colFlat(W - 1 - r)) r++
+  let t = 0; while (t < capY && rowFlat(t, refT)) t++
+  let b = 0; while (b < capY && rowFlat(H - 1 - b, refB)) b++
+  let l = 0; while (l < capX && colFlat(l, refL)) l++
+  let r = 0; while (r < capX && colFlat(W - 1 - r, refR)) r++
   if (Math.min(t / H, b / H, l / W, r / W) < 0.01) return null // not framed on all four sides
   // One extra pixel each side swallows the anti-aliased edge of the frame
   return { top: (t + 1) / H, bottom: (b + 1) / H, left: (l + 1) / W, right: (r + 1) / W }
