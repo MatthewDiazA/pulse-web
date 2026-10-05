@@ -43,18 +43,6 @@ type EventData = {
   ticket_tiers: Tier[]
 }
 
-function spotifyEmbed(url: string): string | null {
-  try {
-    const u = new URL(url)
-    if (!u.hostname.includes('spotify.com')) return null
-    const parts = u.pathname.split('/').filter(Boolean).filter(p => !/^intl-/i.test(p))
-    if (parts.length < 2) return null
-    const [type, id] = parts
-    // theme=0 renders the dark variant instead of the artwork-tinted default
-    return `https://open.spotify.com/embed/${type}/${id.split('?')[0]}?theme=0`
-  } catch { return null }
-}
-
 function igUrl(handle: string): string {
   const clean = handle.replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/+$/, '')
   return `https://www.instagram.com/${clean}/`
@@ -145,6 +133,8 @@ const IcPin = () => <svg {...svgProps}><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 
 const IcClock = () => <svg {...svgProps}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
 const IcId = () => <svg {...svgProps}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6.5 16c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2M14 10h4M14 13h3"/></svg>
 const IcAt = () => <svg {...svgProps}><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
+const IcPlay = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+const IcPause = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
 const IcShirt = () => <svg {...svgProps}><path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg>
 
 
@@ -164,6 +154,8 @@ export default function EventDetail() {
   const [previewUrl, setPreviewUrl] = useState<string | null | undefined>(undefined)
   const [soundMeta, setSoundMeta] = useState<{ title: string; artist: string } | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [palette, setPalette] = useState<FlyerPalette>(NEUTRAL_PALETTE)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -229,10 +221,22 @@ export default function EventDetail() {
 
   useEffect(() => {
     const a = new Audio()
-    a.loop = true
     audioRef.current = a
-    return () => { a.pause(); a.src = '' }
+    const onTime = () => setProgress(a.duration ? a.currentTime / a.duration : 0)
+    const onEnd = () => { setPlaying(false); setProgress(0) }
+    a.addEventListener('timeupdate', onTime)
+    a.addEventListener('ended', onEnd)
+    return () => { a.removeEventListener('timeupdate', onTime); a.removeEventListener('ended', onEnd); a.pause(); a.src = '' }
   }, [])
+
+  // Our own play button for the 30s Spotify preview (the embed looked bolted on)
+  const togglePlay = () => {
+    const a = audioRef.current
+    if (!a || !previewUrl) return
+    if (a.src !== previewUrl) a.src = previewUrl
+    if (a.paused) a.play().then(() => setPlaying(true)).catch(() => {})
+    else { a.pause(); setPlaying(false) }
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -548,7 +552,13 @@ export default function EventDetail() {
         .social{color:rgba(255,255,255,0.75);text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:3px;}
         .social:hover{text-decoration-color:#fff;}
 
-        .spotify-wrap{border-radius:12px;overflow:hidden;}
+        .player{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid rgba(255,255,255,0.09);border-bottom:1px solid rgba(255,255,255,0.09);}
+        .play{width:44px;height:44px;border-radius:50%;background:#fff;color:#000;border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;}
+        .player-txt{flex:1;min-width:0;}
+        .player-title{font-size:15px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .player-artist{font-size:13px;color:rgba(255,255,255,0.5);margin-top:2px;}
+        .player-bar{height:2px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:10px;}
+        .player-bar div{height:100%;background:#fff;transition:width 0.25s linear;}
 
         .share-btn{background:none;border:0.5px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.75);font-size:11px;font-family:'Syne',sans-serif;padding:6px 11px;cursor:pointer;white-space:nowrap;}
 
@@ -744,11 +754,21 @@ export default function EventDetail() {
             </div>
           </section>
 
-          {event.spotify_playlist_url && spotifyEmbed(event.spotify_playlist_url) && (
+          {event.spotify_playlist_url && previewUrl !== undefined && (
             <section className="section">
               <h2 className="sec-title">Sound</h2>
-              <div className="spotify-wrap">
-                <iframe src={spotifyEmbed(event.spotify_playlist_url)!} width="100%" height="152" frameBorder="0" allow="clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Spotify player" style={{display:'block'}}/>
+              <div className="player">
+                {previewUrl && (
+                  <button type="button" className="play" onClick={togglePlay} aria-label={playing ? 'Pause preview' : 'Play preview'}>
+                    {playing ? <IcPause/> : <IcPlay/>}
+                  </button>
+                )}
+                <div className="player-txt">
+                  <div className="player-title">{soundMeta?.title ?? 'Listen on Spotify'}</div>
+                  {soundMeta?.artist && <div className="player-artist">{soundMeta.artist}</div>}
+                  {previewUrl && <div className="player-bar"><div style={{width:`${progress * 100}%`}}/></div>}
+                </div>
+                <a className="detail-go" href={event.spotify_playlist_url} target="_blank" rel="noopener noreferrer">Spotify ↗</a>
               </div>
             </section>
           )}
