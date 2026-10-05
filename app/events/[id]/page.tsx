@@ -497,11 +497,6 @@ export default function EventDetail() {
         .gm-remove:disabled{opacity:0.4;cursor:default;}
         .gm-empty{font-size:13px;color:rgba(255,255,255,0.3);padding:10px 0;}
 
-        /* AMBIENT — the flyer, blurred huge behind the page, so every event has its own room */
-        .ambient{position:absolute;top:0;left:0;right:0;height:900px;z-index:0;overflow:hidden;pointer-events:none;-webkit-mask-image:linear-gradient(#000 30%,transparent);mask-image:linear-gradient(#000 30%,transparent);}
-        .ambient-img{position:absolute;inset:-80px;background-size:cover;background-position:center;filter:blur(70px) saturate(1.35) brightness(0.55);transform:scale(1.1);}
-        .ambient-tint{position:absolute;inset:0;background:radial-gradient(80% 60% at 50% 0%,rgba(var(--accent-rgb),0.22),transparent 70%);transition:background 0.8s;}
-
         .page{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:20px 20px 150px;display:grid;grid-template-columns:minmax(0,1fr);gap:26px;}
         @media(min-width:900px){
           .page{grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:56px;padding:48px 32px 120px;align-items:start;}
@@ -623,13 +618,6 @@ export default function EventDetail() {
           <button className="share-btn" onClick={shareEvent}>{shared ? 'copied' : 'share'}</button>
         </div>
       </nav>
-
-      {event.cover_image_url && (
-        <div className="ambient" aria-hidden="true">
-          <div className="ambient-img" style={{backgroundImage:`url(${event.cover_image_url})`}}/>
-          <div className="ambient-tint"/>
-        </div>
-      )}
 
       <main className="page">
         <div className="poster-col">
