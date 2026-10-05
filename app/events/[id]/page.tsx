@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { useMagneticButton, usePageReveal, useNavLogo } from '../../lib/animations'
+import { usePageReveal, useNavLogo } from '../../lib/animations'
 import TouchBlot from '../../components/TouchBlot'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
@@ -196,6 +196,9 @@ export default function EventDetail() {
   // Removing a guest takes two taps (Remove → Confirm) so a slip doesn't cancel someone's tickets
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
 
+  // Ticket type the buyer picked (defaults to the cheapest one on sale)
+  const [pickedTierId, setPickedTierId] = useState<string | null>(null)
+
   // Host tools live in one Manage sheet
   const [hostMenuOpen, setHostMenuOpen] = useState(false)
 
@@ -215,13 +218,12 @@ export default function EventDetail() {
   const [pSaving, setPSaving] = useState(false)
   const [confirmDeletePromo, setConfirmDeletePromo] = useState<string | null>(null)
 
-  // Per-button magnetic effect via useMagneticButton applied individually
+  // The one checkout button: solid white, shows the total for the picked ticket and quantity
   const BuyButton = ({ tier, qty, isBuying, onClick }: { tier: Tier; qty: number; isBuying: boolean; onClick: () => void }) => {
-    const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
     const price = discounted(safePrice(tier.price), promo)
-    const label = isBuying ? 'Processing…' : price === 0 ? 'Get ticket · Free' : `Get tickets · ${money(price * qty)}`
+    const label = isBuying ? 'Processing…' : price === 0 ? `Get ${qty > 1 ? `${qty} tickets` : 'ticket'} · Free` : `Get ${qty > 1 ? `${qty} tickets` : 'ticket'} · ${money(price * qty)}`
     return (
-      <button ref={ref} className="buy-btn" disabled={isBuying} onClick={onClick}>
+      <button className="buy-btn" disabled={isBuying} onClick={onClick}>
         {label}
       </button>
     )
@@ -557,6 +559,10 @@ export default function EventDetail() {
 
   // Mobile bar should quote the cheapest tier someone can actually buy
   const buyableTier = sortedTiers.find((t, i) => remainingOf(t) > 0 && !lockInfoFor(t, i).locked) ?? null
+  // What the checkout button and sticky bar sell: the picked ticket type, else the cheapest on sale
+  const selectedTier = sortedTiers.find((t, i) => t.id === pickedTierId && remainingOf(t) > 0 && !lockInfoFor(t, i).locked) ?? buyableTier
+  const selQty = selectedTier ? Math.min(selectedQty[selectedTier.id] || 1, Math.max(1, Math.min(remainingOf(selectedTier), 10))) : 1
+  const selUnit = selectedTier ? discounted(safePrice(selectedTier.price), promo) : 0
 
   return (
     <>
@@ -604,7 +610,7 @@ export default function EventDetail() {
         .seg button.on{background:#fff;color:#000;}
         .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
         .promo-paused{color:rgba(255,255,255,0.4);font-weight:500;}
-        .promo-link{align-self:flex-start;background:none;border:none;padding:0;font-size:12px;color:rgba(255,255,255,0.4);font-family:'Syne',sans-serif;cursor:pointer;}
+        .promo-link{align-self:flex-start;background:none;border:none;padding:4px 0;font-size:14px;font-weight:500;color:rgba(255,255,255,0.6);font-family:'Syne',sans-serif;cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.25);text-underline-offset:3px;}
         .promo-link:hover{color:rgba(255,255,255,0.7);}
         .promo-form{display:flex;gap:8px;}
         .promo-form .promo-in{margin-bottom:0;}
@@ -690,11 +696,18 @@ export default function EventDetail() {
 
         /* TICKETS — one clean card per tier on sale; sold-out / unreleased tiers are a single quiet line */
         .tickets{display:flex;flex-direction:column;gap:10px;}
-        .ticket{background:#111;border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:16px;}
+        /* Tap a ticket type to pick it; the picked one gets a white outline and its quantity control */
+        .ticket{background:#0e0e0e;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;}
+        .ticket:hover{border-color:rgba(255,255,255,0.25);}
+        .ticket.on{border-color:#fff;background:#141414;box-shadow:inset 0 0 0 1px #fff;}
+        .ticket:focus-visible{outline:2px solid #fff;outline-offset:2px;}
         .tier-row{display:flex;justify-content:space-between;align-items:center;gap:14px;}
         .tier-name{font-size:16px;font-weight:600;color:#fff;}
-        .tier-sub{font-size:13px;color:var(--accent);margin-top:3px;}
-        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:700;color:#fff;line-height:0.9;white-space:nowrap;}
+        .tier-sub{font-size:13px;color:rgba(255,255,255,0.55);margin-top:3px;}
+        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;color:#fff;line-height:0.9;white-space:nowrap;}
+        .qty-row{display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);cursor:default;}
+        .qty-label{font-size:14px;color:rgba(255,255,255,0.6);}
+        .qty-row .stepper button{min-height:40px;}
         .tier-next{font-size:13px;color:rgba(255,255,255,0.5);margin-top:-6px;}
         .tier-next b{color:#fff;font-weight:600;}
         .checkout-row{display:flex;gap:10px;align-items:stretch;}
@@ -706,19 +719,20 @@ export default function EventDetail() {
         .tier-off:last-child{border-bottom:none;}
         .tier-off-state{text-align:right;}
 
-        /* The buy button wears the flyer color */
-        .buy-btn{flex:1;min-height:48px;background:var(--accent);color:var(--ink);border:none;border-radius:12px;padding:14px 18px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:background 0.8s,filter 0.15s,box-shadow 0.15s;text-align:center;white-space:nowrap;}
-        .buy-btn:hover{filter:brightness(1.08);box-shadow:0 0 24px rgba(var(--accent-rgb),0.35);}
-        .buy-btn:active{transform:scale(0.995);}
-        .buy-btn:disabled{opacity:0.35;cursor:not-allowed;}
+        /* The checkout button: solid white, black text — high contrast on any flyer */
+        .buy-btn{width:100%;min-height:54px;background:#fff;color:#000;border:none;border-radius:12px;padding:16px 18px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:background 0.15s,transform 0.1s;text-align:center;white-space:nowrap;}
+        .buy-btn:hover{background:#e9e9e9;}
+        .buy-btn:active{transform:scale(0.99);}
+        .buy-btn:disabled{opacity:0.5;cursor:not-allowed;}
 
-        /* Mobile: tickets sit far below the fold. This scrolls to them. */
+        /* Mobile: sticky bar with the picked ticket's total — buys directly */
         .mobile-buy{display:none;}
         @media(max-width:899px){
           .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
           .mobile-buy-k{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:2px;}
           .mobile-buy-price{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff;line-height:1;}
-          .mobile-buy-btn{background:var(--accent);color:var(--ink);border:none;border-radius:12px;padding:13px 22px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:background 0.8s;}
+          .mobile-buy-btn{background:#fff;color:#000;border:none;border-radius:12px;padding:15px 26px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;flex-shrink:0;}
+          .mobile-buy-btn:disabled{opacity:0.5;}
         }
       `}</style>
 
@@ -789,7 +803,6 @@ export default function EventDetail() {
                 const maxQty = Math.min(available, 10)
                 const qty = Math.min(selectedQty[tier.id] || 1, Math.max(1, maxQty))
                 const setQty = (n: number) => setSelectedQty(prev => ({ ...prev, [tier.id]: n }))
-                const isBuying = buyingTier === tier.id
                 // Door tier: hide the availability bar (still sells, still goes sold-out)
                 const hideAvailability = tier.name.trim().toLowerCase() === 'door'
                 const low = !soldOut && !locked && !hideAvailability && available <= 12
@@ -799,8 +812,18 @@ export default function EventDetail() {
                     <span className="tier-off-state">{displayPrice(price, 1)} · {soldOut ? 'Sold out' : reason}</span>
                   </div>
                 )
+                // Pick a ticket type, then buy (one checkout button below the list)
+                const selected = selectedTier?.id === tier.id
                 return (
-                  <div key={tier.id} className="ticket">
+                  <div
+                    key={tier.id}
+                    className={`ticket ${selected ? 'on' : ''}`}
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={0}
+                    onClick={() => setPickedTierId(tier.id)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPickedTierId(tier.id) } }}
+                  >
                     <div className="tier-row">
                       <div>
                         <div className="tier-name">{tier.name.trim()}</div>
@@ -811,17 +834,19 @@ export default function EventDetail() {
                         {displayPrice(discounted(price, promo), 1)}
                       </div>
                     </div>
-                    {nextTier && (
+                    {selected && nextTier && (
                       <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
                     )}
-                    <div className="checkout-row">
-                      <div className="stepper">
-                        <button type="button" aria-label="Fewer tickets" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
-                        <span aria-live="polite">{qty}</span>
-                        <button type="button" aria-label="More tickets" disabled={qty >= maxQty} onClick={() => setQty(qty + 1)}>+</button>
+                    {selected && (
+                      <div className="qty-row" onClick={e => e.stopPropagation()}>
+                        <span className="qty-label">Quantity</span>
+                        <div className="stepper">
+                          <button type="button" aria-label="Fewer tickets" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
+                          <span aria-live="polite">{qty}</span>
+                          <button type="button" aria-label="More tickets" disabled={qty >= maxQty} onClick={() => setQty(qty + 1)}>+</button>
+                        </div>
                       </div>
-                      <BuyButton tier={tier} qty={qty} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
-                    </div>
+                    )}
                   </div>
                 )
               })
@@ -832,6 +857,9 @@ export default function EventDetail() {
               </div>
             )}
             </div>
+            {selectedTier && (
+              <BuyButton tier={selectedTier} qty={selQty} isBuying={buyingTier === selectedTier.id} onClick={() => handleBuyTicket(selectedTier)}/>
+            )}
             {buyableTier && (promo ? (
               <div className="promo-on">
                 <span>Code <b>{promo.code}</b> applied · {promo.label}</span>
@@ -942,17 +970,15 @@ export default function EventDetail() {
         </div>
       </main>
 
-      {buyableTier && (
+      {selectedTier && (
+        // Sticky bar buys directly — no scroll-to-tickets detour
         <div className="mobile-buy">
           <div>
-            <div className="mobile-buy-k">{buyableTier.name.trim()}</div>
-            <div className="mobile-buy-price">{displayPrice(discounted(safePrice(buyableTier.price), promo), 1)}</div>
+            <div className="mobile-buy-k">{selectedTier.name.trim()}{selQty > 1 ? ` · ${selQty} tickets` : ''}</div>
+            <div className="mobile-buy-price">{selUnit === 0 ? 'Free' : money(selUnit * selQty)}</div>
           </div>
-          <button
-            className="mobile-buy-btn"
-            onClick={() => document.getElementById('tickets')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-          >
-            Get tickets
+          <button className="mobile-buy-btn" disabled={buyingTier === selectedTier.id} onClick={() => handleBuyTicket(selectedTier)}>
+            {buyingTier === selectedTier.id ? 'Processing…' : 'Get tickets'}
           </button>
         </div>
       )}
