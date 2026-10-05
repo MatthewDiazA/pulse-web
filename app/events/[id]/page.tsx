@@ -154,7 +154,7 @@ export default function EventDetail() {
   const params = useParams()
   const eventId = params.id as string
   const logoRef = useNavLogo<HTMLButtonElement>()
-  usePageReveal({ selectors: ['.poster', '.ev-head', '.fact-bar', '.section'], delay: 0.15 })
+  usePageReveal({ selectors: ['.poster', '.ev-head', '.section'], delay: 0.15 })
   const [event, setEvent] = useState<EventData | null>(null)
   const [loading, setLoading] = useState(true)
   const [buyingTier, setBuyingTier] = useState<string | null>(null)
@@ -194,7 +194,7 @@ export default function EventDetail() {
   const BuyButton = ({ tier, qty, isBuying, onClick }: { tier: Tier; qty: number; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
     const price = safePrice(tier.price)
-    const label = isBuying ? 'processing…' : price === 0 ? 'rsvp · free' : `get tickets · ${money(price * qty)}`
+    const label = isBuying ? 'Processing…' : price === 0 ? 'Get ticket · Free' : `Get tickets · ${money(price * qty)}`
     return (
       <button ref={ref} className="buy-btn" disabled={isBuying} onClick={onClick}>
         {label}
@@ -437,13 +437,13 @@ export default function EventDetail() {
       const opensAt = new Date(tier.available_at).getTime()
       if (!isNaN(opensAt) && Date.now() < opensAt) {
         const d = new Date(opensAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase()
-        return { locked: true, reason: `opens ${d}` }
+        return { locked: true, reason: `Opens ${d}` }
       }
     }
     if (LADDER_RELEASE && index > 0) {
       const blocker = sortedTiers.slice(0, index).find(t => remainingOf(t) > 0)
       if (blocker) {
-        return { locked: true, reason: `opens when ${toRomanTierName(blocker.name).toLowerCase()} sells out` }
+        return { locked: true, reason: `Opens when ${toRomanTierName(blocker.name)} sells out` }
       }
     }
     return { locked: false, reason: '' }
@@ -495,7 +495,7 @@ export default function EventDetail() {
         .gm-info{flex:1;min-width:0;}
         .gm-name{font-size:13px;font-weight:600;color:#f0f0f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .gm-email{font-size:11px;color:rgba(255,255,255,0.28);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .gm-in{font-size:9px;font-weight:700;letter-spacing:1.5px;color:#5ec888;text-transform:uppercase;flex-shrink:0;font-family:'Barlow Condensed',sans-serif;}
+        .gm-in{font-size:12px;font-weight:600;color:#5ec888;flex-shrink:0;}
         .gm-remove{background:none;border:0.5px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:5px 11px;font-size:11px;font-family:'Syne',sans-serif;cursor:pointer;flex-shrink:0;}
         .gm-remove:hover{border-color:rgba(255,120,120,0.5);color:rgba(255,140,140,0.9);}
         .gm-remove:disabled{opacity:0.4;cursor:default;}
@@ -566,8 +566,8 @@ export default function EventDetail() {
           -webkit-mask:radial-gradient(circle var(--notch) at 0 0,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 0,#0000 98%,#000) right/51% 100% no-repeat;
                   mask:radial-gradient(circle var(--notch) at 0 0,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 0,#0000 98%,#000) right/51% 100% no-repeat;}
         .tier-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;}
-        .tier-name{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#fff;margin-bottom:6px;}
-        .tier-sub{font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:0.5px;}
+        .tier-name{font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;}
+        .tier-sub{font-size:13px;color:rgba(255,255,255,0.5);}
         .tier-sub.low{color:var(--accent);font-weight:600;}
         .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:700;color:#fff;line-height:0.85;letter-spacing:-0.5px;white-space:nowrap;}
         .checkout-row{display:flex;gap:10px;align-items:stretch;}
@@ -577,7 +577,7 @@ export default function EventDetail() {
         .stepper span{min-width:20px;text-align:center;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;}
         .tier-next{margin-top:12px;font-size:11px;color:rgba(255,255,255,0.5);}
         .tier-next b{color:#fff;font-weight:700;}
-        .state-pill{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);}
+        .state-pill{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;font-weight:500;color:rgba(255,255,255,0.45);}
 
         /* Not released yet / sold out — visible, priced, and plainly not for sale */
         .ticket.dim .ticket-top{background:#101010;}
@@ -588,7 +588,7 @@ export default function EventDetail() {
         .ticket.soldout .tier-price{text-decoration:line-through;text-decoration-thickness:2px;}
 
         /* The buy button wears the flyer color */
-        .buy-btn{flex:1;min-height:48px;background:var(--accent);color:var(--ink);border:none;border-radius:10px;padding:14px 18px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:1px;transition:background 0.8s,filter 0.15s,box-shadow 0.15s;text-align:center;white-space:nowrap;}
+        .buy-btn{flex:1;min-height:48px;background:var(--accent);color:var(--ink);border:none;border-radius:10px;padding:14px 18px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:background 0.8s,filter 0.15s,box-shadow 0.15s;text-align:center;white-space:nowrap;}
         .buy-btn:hover{filter:brightness(1.08);box-shadow:0 0 24px rgba(var(--accent-rgb),0.35);}
         .buy-btn:active{transform:scale(0.995);}
         .buy-btn:disabled{opacity:0.35;cursor:not-allowed;}
@@ -597,24 +597,24 @@ export default function EventDetail() {
         .mobile-buy{display:none;}
         @media(max-width:899px){
           .mobile-buy{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:0.5px solid rgba(255,255,255,0.12);}
-          .mobile-buy-k{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:3px;}
+          .mobile-buy-k{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:2px;}
           .mobile-buy-price{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#fff;line-height:1;}
-          .mobile-buy-btn{background:var(--accent);color:var(--ink);border:none;border-radius:8px;padding:13px 22px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:1.5px;cursor:pointer;transition:background 0.8s;}
+          .mobile-buy-btn{background:var(--accent);color:var(--ink);border:none;border-radius:8px;padding:13px 22px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:background 0.8s;}
         }
       `}</style>
 
       <nav>
-        <button className="back-btn" onClick={() => router.back()}>← back</button>
+        <button className="back-btn" onClick={() => router.back()}>← Back</button>
         <button ref={logoRef} className="nav-logo" onClick={() => router.push('/')} aria-label="Pulse home">
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         <div className="admin-tools">
           {isHostOrAdmin && <>
-            <button className="tool-btn" onClick={() => { setGuestLink(null); setGlCount(1); setLinkSheetOpen(true) }}>link</button>
-            <button className="tool-btn" onClick={openGuestManager}>guests</button>
-            <button className="tool-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>edit</button>
+            <button className="tool-btn" onClick={() => { setGuestLink(null); setGlCount(1); setLinkSheetOpen(true) }}>Link</button>
+            <button className="tool-btn" onClick={openGuestManager}>Guests</button>
+            <button className="tool-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>Edit</button>
           </>}
-          <button className="share-btn" onClick={shareEvent}>{shared ? 'copied' : 'share'}</button>
+          <button className="share-btn" onClick={shareEvent}>{shared ? 'Copied' : 'Share'}</button>
         </div>
       </nav>
 
@@ -673,7 +673,7 @@ export default function EventDetail() {
                         <div>
                           <div className="tier-name">{toRomanTierName(tier.name)}</div>
                           <div className={`tier-sub ${low ? 'low' : ''}`}>
-                            {soldOut ? 'sold out' : locked ? reason : low ? 'almost gone' : price === 0 ? 'free admission' : 'general admission'}
+                            {soldOut ? 'Sold out' : locked ? reason : low ? 'Almost gone' : price === 0 ? 'Free' : 'General admission'}
                           </div>
                         </div>
                         <div className="tier-price">
@@ -686,9 +686,9 @@ export default function EventDetail() {
                     </div>
                     <div className="ticket-bottom">
                       {soldOut ? (
-                        <div className="state-pill">sold out</div>
+                        <div className="state-pill">Sold out</div>
                       ) : locked ? (
-                        <div className="state-pill">not yet released</div>
+                        <div className="state-pill">Not on sale yet</div>
                       ) : (
                         <div className="checkout-row">
                           <div className="stepper">
@@ -706,9 +706,9 @@ export default function EventDetail() {
             ) : (
               <div className="ticket dim">
                 <div className="ticket-top" style={{textAlign:'center'}}>
-                  <div className="tier-name">tickets not available yet</div>
+                  <div className="tier-name">Tickets aren&apos;t on sale yet</div>
                 </div>
-                <div className="ticket-bottom"><div className="state-pill">check back soon</div></div>
+                <div className="ticket-bottom"><div className="state-pill">Check back soon</div></div>
               </div>
             )}
             </div>
@@ -802,7 +802,7 @@ export default function EventDetail() {
             className="mobile-buy-btn"
             onClick={() => document.getElementById('tickets')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
           >
-            get tickets
+            Get tickets
           </button>
         </div>
       )}
@@ -816,19 +816,19 @@ export default function EventDetail() {
             handleBuyTicket(guestSheet, { buyerName: guestName.trim(), buyerEmail: guestEmail.trim() })
           }}>
             <div className="gl-drag"/>
-            <div className="gl-sheet-title">where should we send them?</div>
+            <div className="gl-sheet-title">Where should we send them?</div>
             <p className="gl-sheet-desc">No account needed — your tickets go straight to your inbox{safePrice(guestSheet.price) > 0 ? ' after payment' : ''}.</p>
             <input className="gm-search guest-in" placeholder="Full name" autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)}/>
             <input className="gm-search guest-in" type="email" inputMode="email" placeholder="Email" autoComplete="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)}/>
             {guestError && <p className="guest-err">{guestError}</p>}
             <button type="submit" className="buy-btn guest-go" disabled={buyingTier === guestSheet.id}>
               {buyingTier === guestSheet.id
-                ? (safePrice(guestSheet.price) > 0 ? 'opening checkout…' : 'sending…')
+                ? (safePrice(guestSheet.price) > 0 ? 'Opening checkout…' : 'Sending…')
                 : safePrice(guestSheet.price) > 0
-                  ? `continue to payment · ${money(safePrice(guestSheet.price) * (selectedQty[guestSheet.id] || 1))}`
-                  : `get ${(selectedQty[guestSheet.id] || 1) > 1 ? `${selectedQty[guestSheet.id]} tickets` : 'ticket'}`}
+                  ? `Continue to payment · ${money(safePrice(guestSheet.price) * (selectedQty[guestSheet.id] || 1))}`
+                  : `Get ${(selectedQty[guestSheet.id] || 1) > 1 ? `${selectedQty[guestSheet.id]} tickets` : 'ticket'}`}
             </button>
-            <button type="button" className="gl-close-btn" onClick={() => { try { sessionStorage.setItem('pulse_redirect', `/events/${eventId}`) } catch {}; router.push('/login') }}>have an account? sign in</button>
+            <button type="button" className="gl-close-btn" onClick={() => { try { sessionStorage.setItem('pulse_redirect', `/events/${eventId}`) } catch {}; router.push('/login') }}>Have an account? Sign in</button>
           </form>
         </div>
       )}
@@ -837,7 +837,7 @@ export default function EventDetail() {
         <div className="gl-backdrop" onClick={() => setLinkSheetOpen(false)}>
           <div className="gl-sheet" onClick={e => e.stopPropagation()}>
             <div className="gl-drag"/>
-            <div className="gl-sheet-title">guest list link</div>
+            <div className="gl-sheet-title">Guest list link</div>
             <p className="gl-sheet-desc">
               {guestLink
                 ? `This link works once — whoever claims it gets ${glCount} free guest ${glCount === 1 ? 'ticket' : 'tickets'} in their account. Generate a new link for the next person.`
@@ -848,14 +848,14 @@ export default function EventDetail() {
               <div className="gl-url-row">
                 <input className="gl-url-input" readOnly value={guestLink} onFocus={e => e.currentTarget.select()}/>
                 <button className={`gl-copy-btn ${linkCopied ? 'copied' : ''}`} onClick={copyGuestLink}>
-                  {linkCopied ? 'copied' : 'copy'}
+                  {linkCopied ? 'Copied' : 'Copy'}
                 </button>
               </div>
             )}
             {guestLink
-              ? <button className="gl-close-btn" onClick={() => { setGuestLink(null); setLinkCopied(false) }}>new link</button>
-              : <button className="gl-copy-btn" style={{width:'100%',marginBottom:'4px'}} onClick={generateGuestLink} disabled={genningLink}>{genningLink ? 'generating…' : 'generate link'}</button>}
-            <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>done</button>
+              ? <button className="gl-close-btn" onClick={() => { setGuestLink(null); setLinkCopied(false) }}>New link</button>
+              : <button className="gl-copy-btn" style={{width:'100%',marginBottom:'4px'}} onClick={generateGuestLink} disabled={genningLink}>{genningLink ? 'Generating…' : 'Generate link'}</button>}
+            <button className="gl-close-btn" onClick={() => setLinkSheetOpen(false)}>Done</button>
           </div>
         </div>
       )}
@@ -864,7 +864,7 @@ export default function EventDetail() {
         <div className="gl-backdrop" onClick={() => setManageOpen(false)}>
           <div className="gl-sheet" onClick={e => e.stopPropagation()}>
             <div className="gl-drag"/>
-            <div className="gl-sheet-title">guest list</div>
+            <div className="gl-sheet-title">Guest list</div>
             <p className="gl-sheet-desc">
               {loadingGuests
                 ? 'Loading…'
@@ -889,15 +889,15 @@ export default function EventDetail() {
                         <div className="gm-name">{g.name}</div>
                         {g.email && <div className="gm-email">{g.email}</div>}
                       </div>
-                      {g.is_checked_in && <span className="gm-in">In</span>}
+                      {g.is_checked_in && <span className="gm-in">Checked in</span>}
                       <button className="gm-remove" disabled={removingId === g.ticket_id} onClick={() => removeGuest(g.ticket_id)}>
-                        {removingId === g.ticket_id ? '…' : 'remove'}
+                        {removingId === g.ticket_id ? '…' : 'Remove'}
                       </button>
                     </div>
                   ))
               )}
             </div>
-            <button className="gl-close-btn" onClick={() => setManageOpen(false)}>done</button>
+            <button className="gl-close-btn" onClick={() => setManageOpen(false)}>Done</button>
           </div>
         </div>
       )}
