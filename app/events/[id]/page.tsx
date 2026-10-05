@@ -553,39 +553,23 @@ export default function EventDetail() {
 
         .share-btn{background:none;border:0.5px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.75);font-size:11px;font-family:'Syne',sans-serif;padding:6px 11px;cursor:pointer;white-space:nowrap;}
 
-        /* TICKETS — a real ticket: header with price, perforated tear line with notches, footer with checkout */
-        .ticket{filter:drop-shadow(0 18px 40px rgba(0,0,0,0.55));}
-        /* The notches are true cutouts (masks), so they show whatever is behind the card */
-        .tickets{display:flex;flex-direction:column;gap:14px;}
-        .ticket-top,.ticket-bottom{--notch:11px;position:relative;background:#141414;}
-        .ticket-top{border-radius:14px 14px 0 0;padding:22px 22px 20px;background:linear-gradient(160deg,rgba(var(--accent-rgb),0.16) 0%,#141414 60%);border-bottom:2px dashed rgba(255,255,255,0.12);
-          -webkit-mask:radial-gradient(circle var(--notch) at 0 100%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 100%,#0000 98%,#000) right/51% 100% no-repeat;
-                  mask:radial-gradient(circle var(--notch) at 0 100%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 100%,#0000 98%,#000) right/51% 100% no-repeat;}
-        .ticket-top::before{content:'';position:absolute;top:0;left:22px;right:22px;height:3px;border-radius:0 0 3px 3px;background:var(--accent);transition:background 0.8s;}
-        .ticket-bottom{border-radius:0 0 14px 14px;padding:18px 22px 22px;
-          -webkit-mask:radial-gradient(circle var(--notch) at 0 0,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 0,#0000 98%,#000) right/51% 100% no-repeat;
-                  mask:radial-gradient(circle var(--notch) at 0 0,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--notch) at 100% 0,#0000 98%,#000) right/51% 100% no-repeat;}
-        .tier-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;}
-        .tier-name{font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;}
-        .tier-sub{font-size:13px;color:rgba(255,255,255,0.5);}
-        .tier-sub.low{color:var(--accent);font-weight:600;}
-        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:700;color:#fff;line-height:0.85;letter-spacing:-0.5px;white-space:nowrap;}
+        /* TICKETS — one clean card per tier on sale; sold-out / unreleased tiers are a single quiet line */
+        .tickets{display:flex;flex-direction:column;gap:10px;}
+        .ticket{background:#111;border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px;}
+        .tier-row{display:flex;justify-content:space-between;align-items:center;gap:14px;}
+        .tier-name{font-size:16px;font-weight:600;color:#fff;}
+        .tier-sub{font-size:13px;color:var(--accent);margin-top:3px;}
+        .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:700;color:#fff;line-height:0.9;white-space:nowrap;}
+        .tier-next{font-size:13px;color:rgba(255,255,255,0.5);margin-top:-6px;}
+        .tier-next b{color:#fff;font-weight:600;}
         .checkout-row{display:flex;gap:10px;align-items:stretch;}
         .stepper{display:flex;align-items:center;border:1px solid rgba(255,255,255,0.14);border-radius:10px;flex-shrink:0;}
         .stepper button{width:36px;height:100%;min-height:48px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;font-family:'Syne',sans-serif;}
         .stepper button:disabled{color:rgba(255,255,255,0.2);cursor:default;}
         .stepper span{min-width:20px;text-align:center;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;}
-        .tier-next{margin-top:12px;font-size:11px;color:rgba(255,255,255,0.5);}
-        .tier-next b{color:#fff;font-weight:700;}
-        .state-pill{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);font-size:13px;font-weight:500;color:rgba(255,255,255,0.45);}
-
-        /* Not released yet / sold out — visible, priced, and plainly not for sale */
-        .ticket.dim .ticket-top{background:#101010;}
-        .ticket.dim .ticket-top::before{background:rgba(255,255,255,0.12);}
-        .ticket.dim .ticket-bottom{background:#101010;}
-        .ticket.dim .tier-name{color:rgba(255,255,255,0.45);}
-        .ticket.dim .tier-price{color:rgba(255,255,255,0.25);}
-        .ticket.soldout .tier-price{text-decoration:line-through;text-decoration-thickness:2px;}
+        .tier-off{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 2px;font-size:14px;color:rgba(255,255,255,0.4);border-bottom:1px solid rgba(255,255,255,0.07);}
+        .tier-off:last-child{border-bottom:none;}
+        .tier-off-state{text-align:right;}
 
         /* The buy button wears the flyer color */
         .buy-btn{flex:1;min-height:48px;background:var(--accent);color:var(--ink);border:none;border-radius:10px;padding:14px 18px;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:background 0.8s,filter 0.15s,box-shadow 0.15s;text-align:center;white-space:nowrap;}
@@ -666,49 +650,39 @@ export default function EventDetail() {
                 // Door tier: hide the availability bar (still sells, still goes sold-out)
                 const hideAvailability = tier.name.trim().toLowerCase() === 'door'
                 const low = !soldOut && !locked && !hideAvailability && available <= 12
+                if (soldOut || locked) return (
+                  <div key={tier.id} className="tier-off">
+                    <span>{toRomanTierName(tier.name)}</span>
+                    <span className="tier-off-state">{displayPrice(price, 1)} · {soldOut ? 'Sold out' : reason}</span>
+                  </div>
+                )
                 return (
-                  <div key={tier.id} className={`ticket ${soldOut ? 'dim soldout' : locked ? 'dim' : ''}`}>
-                    <div className="ticket-top">
-                      <div className="tier-row">
-                        <div>
-                          <div className="tier-name">{toRomanTierName(tier.name)}</div>
-                          <div className={`tier-sub ${low ? 'low' : ''}`}>
-                            {soldOut ? 'Sold out' : locked ? reason : low ? 'Almost gone' : price === 0 ? 'Free' : 'General admission'}
-                          </div>
-                        </div>
-                        <div className="tier-price">
-                          {displayPrice(price, 1)}
-                        </div>
+                  <div key={tier.id} className="ticket">
+                    <div className="tier-row">
+                      <div>
+                        <div className="tier-name">{toRomanTierName(tier.name)}</div>
+                        {low && <div className="tier-sub">Almost gone</div>}
                       </div>
-                      {nextTier && (
-                        <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
-                      )}
+                      <div className="tier-price">{displayPrice(price, 1)}</div>
                     </div>
-                    <div className="ticket-bottom">
-                      {soldOut ? (
-                        <div className="state-pill">Sold out</div>
-                      ) : locked ? (
-                        <div className="state-pill">Not on sale yet</div>
-                      ) : (
-                        <div className="checkout-row">
-                          <div className="stepper">
-                            <button type="button" aria-label="Fewer tickets" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
-                            <span aria-live="polite">{qty}</span>
-                            <button type="button" aria-label="More tickets" disabled={qty >= maxQty} onClick={() => setQty(qty + 1)}>+</button>
-                          </div>
-                          <BuyButton tier={tier} qty={qty} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
-                        </div>
-                      )}
+                    {nextTier && (
+                      <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
+                    )}
+                    <div className="checkout-row">
+                      <div className="stepper">
+                        <button type="button" aria-label="Fewer tickets" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
+                        <span aria-live="polite">{qty}</span>
+                        <button type="button" aria-label="More tickets" disabled={qty >= maxQty} onClick={() => setQty(qty + 1)}>+</button>
+                      </div>
+                      <BuyButton tier={tier} qty={qty} isBuying={isBuying} onClick={() => handleBuyTicket(tier)}/>
                     </div>
                   </div>
                 )
               })
             ) : (
-              <div className="ticket dim">
-                <div className="ticket-top" style={{textAlign:'center'}}>
-                  <div className="tier-name">Tickets aren&apos;t on sale yet</div>
-                </div>
-                <div className="ticket-bottom"><div className="state-pill">Check back soon</div></div>
+              <div className="tier-off">
+                <span>Tickets aren&apos;t on sale yet</span>
+                <span className="tier-off-state">Check back soon</span>
               </div>
             )}
             </div>
