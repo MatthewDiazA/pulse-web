@@ -604,6 +604,8 @@ export default function EventDetail() {
         .seg button.on{background:#fff;color:#000;}
         .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
         .promo-paused{color:rgba(255,255,255,0.4);font-weight:500;}
+        .promo-link{align-self:flex-start;background:none;border:none;padding:0;font-size:12px;color:rgba(255,255,255,0.4);font-family:'Syne',sans-serif;cursor:pointer;}
+        .promo-link:hover{color:rgba(255,255,255,0.7);}
         .promo-form{display:flex;gap:8px;}
         .promo-form .promo-in{margin-bottom:0;}
         .promo-apply{padding:0 18px;border-radius:12px;border:none;background:#fff;color:#000;font-size:14px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;}
@@ -841,7 +843,7 @@ export default function EventDetail() {
                 <button type="submit" className="promo-apply" disabled={applyingPromo || !promoInput.trim()}>{applyingPromo ? '…' : 'Apply'}</button>
               </form>
             ) : (
-              <button type="button" className="more-btn" onClick={() => setPromoOpen(true)}>Have a promo code?</button>
+              <button type="button" className="promo-link" onClick={() => setPromoOpen(true)}>Promo</button>
             ))}
             {promoError && !promo && <p className="guest-err" style={{margin:0}}>{promoError}</p>}
           </section>
