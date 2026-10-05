@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
+import { newQrSecret } from '../../lib/liveQr'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { isEmail, orderUrl, sendOrderEmail } from '../../lib/guestTickets'
+import { applyPromo, findUsablePromo, recordPromoUse, type Promo } from '../../lib/promo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -79,14 +81,25 @@ export async function POST(request: Request) {
 
     const basePrice = Number(tier.price) || 0
 
-    // Free ticket, no account — record an order under their email and send the tickets there
-    if (basePrice === 0 && !userId) {
+    // Promo code: validated and applied here, never trusted from the client
+    let promo: Promo | null = null
+    if (body.promoCode) {
+      const found = await findUsablePromo(eventId, body.promoCode)
+      if ('error' in found) return NextResponse.json({ error: found.error }, { status: 400 })
+      promo = found.promo
+    }
+    const unitPrice = applyPromo(basePrice, promo)
+    const discountEach = Math.round((basePrice - unitPrice) * 100) / 100
+    const promoFields = promo ? { promo_code: promo.code, discount_amount: Math.round(discountEach * quantity * 100) / 100 } : {}
+
+    // Free ticket (or free after the code), no account — record an order under their email and send the tickets there
+    if (unitPrice === 0 && !userId) {
       if (!buyerEmail || !buyerName) {
         return NextResponse.json({ error: 'Add your name and email so we can send your tickets.' }, { status: 400 })
       }
       const { data: order, error: orderErr } = await supabase
         .from('orders')
-        .insert({ event_id: eventId, user_id: null, status: 'confirmed', total_amount: 0, buyer_email: buyerEmail, buyer_name: buyerName })
+        .insert({ event_id: eventId, user_id: null, status: 'confirmed', total_amount: 0, buyer_email: buyerEmail, buyer_name: buyerName, ...promoFields })
         .select('id')
         .single()
       if (orderErr || !order) {
@@ -101,6 +114,7 @@ export async function POST(request: Request) {
           tier_id: tierId,
           holder_name: buyerName,
           qr_code: `PULSE-${crypto.randomUUID()}`,
+          qr_secret: newQrSecret(),
           status: 'active',
         })),
       )
@@ -110,17 +124,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Could not reserve your tickets. Try again.' }, { status: 500 })
       }
       await supabase.rpc('increment_tickets_sold', { p_tier_id: tierId, p_qty: quantity })
+      if (promo) await recordPromoUse(promo.id)
       try { await sendOrderEmail(order.id, { guest: true }) } catch (e) { console.error('Guest ticket email failed:', e) }
       return NextResponse.json({ url: orderUrl(order.id) })
     }
 
-    // Free ticket — skip Stripe, create ticket directly
-    if (basePrice === 0) {
+    // Free ticket (or free after the code) — skip Stripe, create ticket directly
+    if (unitPrice === 0) {
       const ticketRows = Array.from({ length: quantity }).map(() => ({
         user_id: userId,
         event_id: eventId,
         tier_id: tierId,
         qr_code: `PULSE-${crypto.randomUUID()}`,
+        qr_secret: newQrSecret(),
         status: 'active',
       }))
 
@@ -129,6 +145,7 @@ export async function POST(request: Request) {
         console.error('Failed to insert tickets:', insertErr)
         return NextResponse.json({ error: 'Failed to create tickets' }, { status: 500 })
       }
+      if (promo) await recordPromoUse(promo.id)
 
       // Update sold count
       await supabase
@@ -142,8 +159,11 @@ export async function POST(request: Request) {
     }
 
     // Paid ticket — create Stripe checkout session
-    // Customer pays base price. Platform fee is internal (taken from host payout).
-    const totalPerTicketCents = Math.round(basePrice * 100)
+    // Customer pays the (possibly discounted) price. Platform fee is internal (taken from host payout).
+    const totalPerTicketCents = Math.round(unitPrice * 100)
+    if (totalPerTicketCents * quantity < 50) {
+      return NextResponse.json({ error: 'That total is under the $0.50 card minimum. Add a ticket or remove the code.' }, { status: 400 })
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -154,7 +174,7 @@ export async function POST(request: Request) {
             currency: 'usd',
             unit_amount: totalPerTicketCents,
             product_data: {
-              name: `${tier.name} — ${event.title}`,
+              name: `${tier.name} — ${event.title}${promo ? ` (code ${promo.code})` : ''}`,
             },
           },
         },
@@ -172,6 +192,8 @@ export async function POST(request: Request) {
         quantity: String(quantity),
         // Name typed on our page (Stripe's is the cardholder's) — goes on the tickets for the door
         ...(buyerName ? { buyer_name: buyerName } : {}),
+        // The webhook records the use and the discount on the order
+        ...(promo ? { promo_id: promo.id, promo_code: promo.code, discount_each: String(discountEach) } : {}),
       },
     })
 

@@ -7,6 +7,17 @@ import { createClient } from '../../lib/supabase/client'
 import { usePageView } from '../../lib/usePageView'
 import FlipCounter from '../../components/FlipCounter'
 import { loadFlyer, NEUTRAL_PALETTE, type FlyerPalette, type FlyerInfo } from '../../lib/flyerColor'
+import { authFetch } from '../../lib/authFetch'
+
+type AppliedPromo = { code: string; kind: 'percent' | 'amount'; value: number; label: string }
+type HostPromo = { id: string; code: string; kind: 'percent' | 'amount'; value: number; max_uses: number | null; uses: number; expires_at: string | null; active: boolean }
+
+// Mirrors applyPromo in lib/promo.ts (the server re-applies it at checkout)
+function discounted(price: number, p: Pick<AppliedPromo, 'kind' | 'value'> | null): number {
+  if (!p) return price
+  const off = p.kind === 'percent' ? price * (Math.min(100, p.value) / 100) : p.value
+  return Math.max(0, Math.round((price - off) * 100) / 100)
+}
 
 type Tier = {
   id: string
@@ -182,11 +193,32 @@ export default function EventDetail() {
   const [guestSearch, setGuestSearch] = useState('')
   const [loadingGuests, setLoadingGuests] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  // Removing a guest takes two taps (Remove → Confirm) so a slip doesn't cancel someone's tickets
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+
+  // Host tools live in one Manage sheet
+  const [hostMenuOpen, setHostMenuOpen] = useState(false)
+
+  // Promo codes — buyer side
+  const [promo, setPromo] = useState<AppliedPromo | null>(null)
+  const [promoOpen, setPromoOpen] = useState(false)
+  const [promoInput, setPromoInput] = useState('')
+  const [promoError, setPromoError] = useState('')
+  const [applyingPromo, setApplyingPromo] = useState(false)
+
+  // Promo codes — host side
+  const [promosOpen, setPromosOpen] = useState(false)
+  const [promos, setPromos] = useState<HostPromo[]>([])
+  const [loadingPromos, setLoadingPromos] = useState(false)
+  const [pForm, setPForm] = useState({ code: '', kind: 'percent' as 'percent' | 'amount', value: '', max_uses: '', expires: '' })
+  const [pError, setPError] = useState('')
+  const [pSaving, setPSaving] = useState(false)
+  const [confirmDeletePromo, setConfirmDeletePromo] = useState<string | null>(null)
 
   // Per-button magnetic effect via useMagneticButton applied individually
   const BuyButton = ({ tier, qty, isBuying, onClick }: { tier: Tier; qty: number; isBuying: boolean; onClick: () => void }) => {
     const ref = useMagneticButton<HTMLButtonElement>({ strength: 0.2 })
-    const price = safePrice(tier.price)
+    const price = discounted(safePrice(tier.price), promo)
     const label = isBuying ? 'Processing…' : price === 0 ? 'Get ticket · Free' : `Get tickets · ${money(price * qty)}`
     return (
       <button ref={ref} className="buy-btn" disabled={isBuying} onClick={onClick}>
@@ -300,7 +332,7 @@ export default function EventDetail() {
     if (!user && !guest) { setGuestError(''); setGuestSheet(tier); return }
     setBuyingTier(tier.id)
     try {
-      const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tierId: tier.id, eventId: event?.id, quantity: qty, ...(user ? { userId: user.id } : guest) }) })
+      const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tierId: tier.id, eventId: event?.id, quantity: qty, ...(user ? { userId: user.id } : guest), ...(promo ? { promoCode: promo.code } : {}) }) })
       const data = await res.json()
       if (data.url) window.location.href = data.url
       else if (guest) setGuestError(data.error ?? 'Something went wrong')
@@ -356,11 +388,11 @@ export default function EventDetail() {
     if (!event || !currentUser) return
     setManageOpen(true)
     setLoadingGuests(true)
+    setConfirmRemove(null)
     try {
-      const res = await fetch('/api/claim-guest', {
+      const res = await authFetch('/api/claim-guest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list', eventId: event.id, requesterId: currentUser.id }),
+        body: JSON.stringify({ action: 'list', eventId: event.id }),
       })
       const data = await res.json()
       setGuests(data.guests ?? [])
@@ -370,16 +402,85 @@ export default function EventDetail() {
 
   const removeGuest = async (ticketId: string) => {
     if (!event || !currentUser) return
+    if (confirmRemove !== ticketId) { setConfirmRemove(ticketId); return }
     setRemovingId(ticketId)
     try {
-      const res = await fetch('/api/claim-guest', {
+      const res = await authFetch('/api/claim-guest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'remove', eventId: event.id, requesterId: currentUser.id, ticketId }),
+        body: JSON.stringify({ action: 'remove', eventId: event.id, ticketId }),
       })
       if (res.ok) setGuests(g => g.filter(x => x.ticket_id !== ticketId))
     } catch {}
+    setConfirmRemove(null)
     setRemovingId(null)
+  }
+
+  // ── Promo codes ──
+  const applyPromoCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!event || !promoInput.trim()) return
+    setApplyingPromo(true)
+    setPromoError('')
+    try {
+      const res = await fetch('/api/promo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId: event.id, code: promoInput }) })
+      const d = await res.json()
+      if (res.ok) { setPromo(d); setPromoOpen(false) } else setPromoError(d.error ?? 'That code isn’t valid.')
+    } catch { setPromoError('Couldn’t check that code. Try again.') }
+    setApplyingPromo(false)
+  }
+
+  const openPromos = async () => {
+    if (!event) return
+    setPromosOpen(true)
+    setLoadingPromos(true)
+    setPError('')
+    try {
+      const res = await authFetch(`/api/host/promos?eventId=${event.id}`)
+      const d = await res.json()
+      setPromos(d.promos ?? [])
+    } catch {}
+    setLoadingPromos(false)
+  }
+
+  const createPromo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!event) return
+    setPSaving(true)
+    setPError('')
+    try {
+      const res = await authFetch('/api/host/promos', {
+        method: 'POST',
+        body: JSON.stringify({
+          eventId: event.id,
+          code: pForm.code,
+          kind: pForm.kind,
+          value: pForm.value,
+          max_uses: pForm.max_uses,
+          // Expiry date means "through the end of that day"
+          expires_at: pForm.expires ? new Date(`${pForm.expires}T23:59:59`).toISOString() : null,
+        }),
+      })
+      const d = await res.json()
+      if (res.ok) {
+        setPromos(p => [d.promo, ...p])
+        setPForm({ code: '', kind: pForm.kind, value: '', max_uses: '', expires: '' })
+      } else setPError(d.error ?? 'Couldn’t create the code.')
+    } catch { setPError('Couldn’t create the code.') }
+    setPSaving(false)
+  }
+
+  const togglePromo = async (p: HostPromo) => {
+    if (!event) return
+    const res = await authFetch('/api/host/promos', { method: 'PATCH', body: JSON.stringify({ eventId: event.id, id: p.id, active: !p.active }) })
+    if (res.ok) setPromos(list => list.map(x => x.id === p.id ? { ...x, active: !p.active } : x))
+  }
+
+  const deletePromo = async (p: HostPromo) => {
+    if (!event) return
+    if (confirmDeletePromo !== p.id) { setConfirmDeletePromo(p.id); return }
+    const res = await authFetch(`/api/host/promos?eventId=${event.id}&id=${p.id}`, { method: 'DELETE' })
+    if (res.ok) setPromos(list => list.filter(x => x.id !== p.id))
+    setConfirmDeletePromo(null)
   }
 
   if (loading) return (
@@ -491,6 +592,25 @@ export default function EventDetail() {
         .gl-close-btn{width:100%;padding:12px;background:transparent;border:0.5px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);font-size:12px;font-family:'Syne',sans-serif;cursor:pointer;margin-top:4px;border-radius:12px;}
         .gm-search{width:100%;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);padding:10px 12px;font-size:13px;color:#fff;font-family:'Syne',sans-serif;outline:none;margin-bottom:12px;border-radius:12px;}
         .guest-in{font-size:16px;padding:13px 12px;border-radius:12px;}
+        .gm-remove.confirm{border-color:rgba(255,120,120,0.6);color:#ff8a8a;}
+        .host-menu{display:flex;flex-direction:column;margin-bottom:14px;border-top:1px solid rgba(255,255,255,0.08);}
+        .host-menu button{display:flex;flex-direction:column;gap:3px;text-align:left;background:none;border:none;border-bottom:1px solid rgba(255,255,255,0.08);padding:14px 2px;cursor:pointer;font-family:'Syne',sans-serif;}
+        .host-menu b{font-size:15px;font-weight:600;color:#fff;}
+        .host-menu span{font-size:13px;color:rgba(255,255,255,0.5);}
+        .promo-create{display:flex;flex-direction:column;}
+        .promo-in{font-size:16px;padding:12px;}
+        .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:rgba(255,255,255,0.04);border-radius:12px;padding:4px;margin-bottom:12px;}
+        .seg button{padding:10px;border:none;border-radius:9px;background:none;color:rgba(255,255,255,0.55);font-size:13px;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;}
+        .seg button.on{background:#fff;color:#000;}
+        .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .promo-paused{color:rgba(255,255,255,0.4);font-weight:500;}
+        .promo-form{display:flex;gap:8px;}
+        .promo-form .promo-in{margin-bottom:0;}
+        .promo-apply{padding:0 18px;border-radius:12px;border:none;background:#fff;color:#000;font-size:14px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;}
+        .promo-apply:disabled{opacity:0.4;}
+        .promo-on{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px;color:rgba(255,255,255,0.7);}
+        .promo-on b{color:#fff;}
+        .tier-was{font-family:'Syne',sans-serif;font-size:15px;font-weight:500;color:rgba(255,255,255,0.4);margin-right:8px;vertical-align:middle;}
         .guest-err{font-size:12px;color:#ff8a8a;margin:-4px 0 10px;}
         .guest-go{width:100%;margin-bottom:4px;}
         .gm-search::placeholder{color:rgba(255,255,255,0.25);}
@@ -606,11 +726,7 @@ export default function EventDetail() {
           <img src="/pulse-word-tight.png" alt="pulse" className="logo-img"/>
         </button>
         <div className="admin-tools">
-          {isHostOrAdmin && <>
-            <button className="tool-btn" onClick={() => { setGuestLink(null); setGlCount(1); setLinkSheetOpen(true) }}>Link</button>
-            <button className="tool-btn" onClick={openGuestManager}>Guests</button>
-            <button className="tool-btn" onClick={() => router.push(`/host/edit/${event.id}`)}>Edit</button>
-          </>}
+          {isHostOrAdmin && <button className="tool-btn" onClick={() => setHostMenuOpen(true)}>Manage</button>}
           <button className="share-btn" onClick={shareEvent}>{shared ? 'Copied' : 'Share'}</button>
         </div>
       </nav>
@@ -688,7 +804,10 @@ export default function EventDetail() {
                         <div className="tier-name">{tier.name.trim()}</div>
                         {low && <div className="tier-sub">Almost gone</div>}
                       </div>
-                      <div className="tier-price">{displayPrice(price, 1)}</div>
+                      <div className="tier-price">
+                        {promo && price > 0 && <s className="tier-was">{money(price)}</s>}
+                        {displayPrice(discounted(price, promo), 1)}
+                      </div>
                     </div>
                     {nextTier && (
                       <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
@@ -711,6 +830,20 @@ export default function EventDetail() {
               </div>
             )}
             </div>
+            {buyableTier && (promo ? (
+              <div className="promo-on">
+                <span>Code <b>{promo.code}</b> applied · {promo.label}</span>
+                <button type="button" className="more-btn" onClick={() => { setPromo(null); setPromoInput('') }}>Remove</button>
+              </div>
+            ) : promoOpen ? (
+              <form className="promo-form" onSubmit={applyPromoCode}>
+                <input className="gm-search promo-in" placeholder="Promo code" autoCapitalize="characters" autoComplete="off" value={promoInput} onChange={e => setPromoInput(e.target.value)}/>
+                <button type="submit" className="promo-apply" disabled={applyingPromo || !promoInput.trim()}>{applyingPromo ? '…' : 'Apply'}</button>
+              </form>
+            ) : (
+              <button type="button" className="more-btn" onClick={() => setPromoOpen(true)}>Have a promo code?</button>
+            ))}
+            {promoError && !promo && <p className="guest-err" style={{margin:0}}>{promoError}</p>}
           </section>
 
           <section className="section">
@@ -811,7 +944,7 @@ export default function EventDetail() {
         <div className="mobile-buy">
           <div>
             <div className="mobile-buy-k">{buyableTier.name.trim()}</div>
-            <div className="mobile-buy-price">{displayPrice(safePrice(buyableTier.price), 1)}</div>
+            <div className="mobile-buy-price">{displayPrice(discounted(safePrice(buyableTier.price), promo), 1)}</div>
           </div>
           <button
             className="mobile-buy-btn"
@@ -832,15 +965,15 @@ export default function EventDetail() {
           }}>
             <div className="gl-drag"/>
             <div className="gl-sheet-title">Where should we send them?</div>
-            <p className="gl-sheet-desc">No account needed — your tickets go straight to your inbox{safePrice(guestSheet.price) > 0 ? ' after payment' : ''}.</p>
+            <p className="gl-sheet-desc">No account needed — your tickets go straight to your inbox{discounted(safePrice(guestSheet.price), promo) > 0 ? ' after payment' : ''}.</p>
             <input className="gm-search guest-in" placeholder="Full name" autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)}/>
             <input className="gm-search guest-in" type="email" inputMode="email" placeholder="Email" autoComplete="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)}/>
             {guestError && <p className="guest-err">{guestError}</p>}
             <button type="submit" className="buy-btn guest-go" disabled={buyingTier === guestSheet.id}>
               {buyingTier === guestSheet.id
-                ? (safePrice(guestSheet.price) > 0 ? 'Opening checkout…' : 'Sending…')
-                : safePrice(guestSheet.price) > 0
-                  ? `Continue to payment · ${money(safePrice(guestSheet.price) * (selectedQty[guestSheet.id] || 1))}`
+                ? (discounted(safePrice(guestSheet.price), promo) > 0 ? 'Opening checkout…' : 'Sending…')
+                : discounted(safePrice(guestSheet.price), promo) > 0
+                  ? `Continue to payment · ${money(discounted(safePrice(guestSheet.price), promo) * (selectedQty[guestSheet.id] || 1))}`
                   : `Get ${(selectedQty[guestSheet.id] || 1) > 1 ? `${selectedQty[guestSheet.id]} tickets` : 'ticket'}`}
             </button>
             <button type="button" className="gl-close-btn" onClick={() => { try { sessionStorage.setItem('pulse_redirect', `/events/${eventId}`) } catch {}; router.push('/login') }}>Have an account? Sign in</button>
@@ -905,14 +1038,76 @@ export default function EventDetail() {
                         {g.email && <div className="gm-email">{g.email}</div>}
                       </div>
                       {g.is_checked_in && <span className="gm-in">Checked in</span>}
-                      <button className="gm-remove" disabled={removingId === g.ticket_id} onClick={() => removeGuest(g.ticket_id)}>
-                        {removingId === g.ticket_id ? '…' : 'Remove'}
+                      <button className={`gm-remove ${confirmRemove === g.ticket_id ? 'confirm' : ''}`} disabled={removingId === g.ticket_id} onClick={() => removeGuest(g.ticket_id)}>
+                        {removingId === g.ticket_id ? '…' : confirmRemove === g.ticket_id ? 'Confirm' : 'Remove'}
                       </button>
                     </div>
                   ))
               )}
             </div>
             <button className="gl-close-btn" onClick={() => setManageOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {hostMenuOpen && (
+        <div className="gl-backdrop" onClick={() => setHostMenuOpen(false)}>
+          <div className="gl-sheet" onClick={e => e.stopPropagation()}>
+            <div className="gl-drag"/>
+            <div className="gl-sheet-title">Manage event</div>
+            <div className="host-menu">
+              <button onClick={() => router.push(`/scan/${event.id}`)}><b>Scan tickets</b><span>Check people in at the door with your camera</span></button>
+              <button onClick={() => { setHostMenuOpen(false); openGuestManager() }}><b>Guest list</b><span>See who&apos;s on it and remove people</span></button>
+              <button onClick={() => { setHostMenuOpen(false); setGuestLink(null); setGlCount(1); setLinkSheetOpen(true) }}><b>Guest list link</b><span>Invite someone for free</span></button>
+              <button onClick={() => { setHostMenuOpen(false); openPromos() }}><b>Promo codes</b><span>Create discounts for this event</span></button>
+              <button onClick={() => router.push(`/host/edit/${event.id}`)}><b>Edit event</b><span>Details, tickets and flyer</span></button>
+            </div>
+            <button className="gl-close-btn" onClick={() => setHostMenuOpen(false)}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {promosOpen && (
+        <div className="gl-backdrop" onClick={() => setPromosOpen(false)}>
+          <div className="gl-sheet" onClick={e => e.stopPropagation()}>
+            <div className="gl-drag"/>
+            <div className="gl-sheet-title">Promo codes</div>
+            <p className="gl-sheet-desc">Buyers enter a code before checkout. Each order counts as one use.</p>
+            <form className="promo-create" onSubmit={createPromo} noValidate>
+              <input className="gm-search promo-in" placeholder="Code, e.g. DEDRO20" autoCapitalize="characters" autoComplete="off" value={pForm.code} onChange={e => setPForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/\s/g, '') }))}/>
+              <div className="seg">
+                <button type="button" className={pForm.kind === 'percent' ? 'on' : ''} onClick={() => setPForm(f => ({ ...f, kind: 'percent' }))}>% off</button>
+                <button type="button" className={pForm.kind === 'amount' ? 'on' : ''} onClick={() => setPForm(f => ({ ...f, kind: 'amount' }))}>$ off each ticket</button>
+              </div>
+              <input className="gm-search promo-in" inputMode="decimal" placeholder={pForm.kind === 'percent' ? 'Discount, e.g. 20 for 20% off' : 'Dollars off each ticket, e.g. 5'} value={pForm.value} onChange={e => setPForm(f => ({ ...f, value: e.target.value.replace(/[^\d.]/g, '') }))}/>
+              <div className="two">
+                <input className="gm-search promo-in" inputMode="numeric" placeholder="Use limit (optional)" value={pForm.max_uses} onChange={e => setPForm(f => ({ ...f, max_uses: e.target.value.replace(/\D/g, '') }))}/>
+                <input className="gm-search promo-in" type="date" aria-label="Expires (optional)" value={pForm.expires} onChange={e => setPForm(f => ({ ...f, expires: e.target.value }))}/>
+              </div>
+              {pError && <p className="guest-err">{pError}</p>}
+              <button type="submit" className="gl-copy-btn" style={{width:'100%'}} disabled={pSaving || !pForm.code || !pForm.value}>{pSaving ? 'Creating…' : 'Create code'}</button>
+            </form>
+            <div className="gm-list" style={{marginTop:'16px'}}>
+              {loadingPromos ? (
+                <div className="gm-empty">Loading codes…</div>
+              ) : promos.length === 0 ? (
+                <div className="gm-empty">No codes yet.</div>
+              ) : promos.map(p => (
+                <div key={p.id} className="gm-row">
+                  <div className="gm-info">
+                    <div className="gm-name">{p.code}{!p.active && <span className="promo-paused"> · Paused</span>}</div>
+                    <div className="gm-email">
+                      {p.kind === 'percent' ? `${Number(p.value)}% off` : `$${Number(p.value)} off each ticket`}
+                      {' · '}{p.uses}{p.max_uses ? ` of ${p.max_uses}` : ''} used
+                      {p.expires_at ? ` · ends ${new Date(p.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                    </div>
+                  </div>
+                  <button className="gm-remove" onClick={() => togglePromo(p)}>{p.active ? 'Pause' : 'Resume'}</button>
+                  <button className={`gm-remove ${confirmDeletePromo === p.id ? 'confirm' : ''}`} onClick={() => deletePromo(p)}>{confirmDeletePromo === p.id ? 'Confirm' : 'Delete'}</button>
+                </div>
+              ))}
+            </div>
+            <button className="gl-close-btn" onClick={() => setPromosOpen(false)}>Done</button>
           </div>
         </div>
       )}

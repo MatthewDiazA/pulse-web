@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavLogo } from '../lib/animations'
 import { createClient } from '../lib/supabase/client'
 import FlipCounter from '../components/FlipCounter'
+import { authFetch } from '../lib/authFetch'
 
 type Buyer = {
   ticket_id: string
@@ -28,6 +29,20 @@ export default function HostDashboard() {
   const [openGuests, setOpenGuests] = useState<string | null>(null)
   const [buyers, setBuyers] = useState<Record<string, Buyer[]>>({})
   const [loadingBuyers, setLoadingBuyers] = useState<string | null>(null)
+  // Guest list removal: two taps (remove → confirm) so a slip doesn't cancel someone's tickets
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const [removingGuest, setRemovingGuest] = useState<string | null>(null)
+
+  const removeGuest = async (eventId: string, ticketId: string) => {
+    if (confirmRemove !== ticketId) { setConfirmRemove(ticketId); return }
+    setRemovingGuest(ticketId)
+    try {
+      const res = await authFetch('/api/claim-guest', { method: 'POST', body: JSON.stringify({ action: 'remove', eventId, ticketId }) })
+      if (res.ok) setBuyers(prev => ({ ...prev, [eventId]: (prev[eventId] ?? []).filter(b => b.ticket_id !== ticketId) }))
+    } catch {}
+    setConfirmRemove(null)
+    setRemovingGuest(null)
+  }
   const [genLink, setGenLink] = useState<string | null>(null)
   const [genningFor, setGenningFor] = useState<string | null>(null)
   const [copiedToken, setCopiedToken] = useState(false)
@@ -330,6 +345,7 @@ export default function HostDashboard() {
                     <div className="row-actions">
                       <button className="action-btn" onClick={() => window.location.href=`/events/${e.id}`}>view</button>
                       <button className="action-btn" onClick={() => window.location.href=`/host/edit/${e.id}`}>edit</button>
+                      <button className="action-btn" onClick={() => window.location.href=`/scan/${e.id}`}>scan</button>
                       <button className="action-btn" onClick={() => toggleGuests(e.id)}>{isOpen ? 'hide' : 'guests'}</button>
                       <button className="action-btn" onClick={() => {
                         setGenLink(null); setGlCount(1)
@@ -375,6 +391,11 @@ export default function HostDashboard() {
                               <div className="guest-name">{b.name}</div>
                               {b.is_guestlist && <span className="guest-tag gl">guest list</span>}
                               {b.is_checked_in && <span className="guest-tag in">in</span>}
+                              {b.is_guestlist && (
+                                <button className="gl-copy" style={{marginLeft:'auto'}} disabled={removingGuest === b.ticket_id} onClick={() => removeGuest(e.id, b.ticket_id)}>
+                                  {removingGuest === b.ticket_id ? '…' : confirmRemove === b.ticket_id ? 'confirm' : 'remove'}
+                                </button>
+                              )}
                             </div>
                           ))}
                         </>

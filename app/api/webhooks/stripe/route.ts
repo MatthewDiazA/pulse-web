@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
+import { newQrSecret } from '../../../lib/liveQr'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { sendOrderEmail } from '../../../lib/guestTickets'
+import { recordPromoUse } from '../../../lib/promo'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
 }
 
 async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
-  const { event_id, tier_id, quantity, user_id, buyer_name } = session.metadata ?? {}
+  const { event_id, tier_id, quantity, user_id, buyer_name, promo_id, promo_code, discount_each } = session.metadata ?? {}
 
   if (!event_id || !tier_id || !quantity) {
     console.error('Missing metadata:', session.id)
@@ -61,6 +63,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
         stripe_payment_intent_id: session.payment_intent as string,
         buyer_email: buyerEmail,
         buyer_name: buyerName,
+        ...(promo_code ? { promo_code, discount_amount: Math.round(Number(discount_each || 0) * qty * 100) / 100 } : {}),
       })
       .select()
       .single()
@@ -74,6 +77,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
       user_id: user_id ?? null,
       holder_name: buyerName || null,
       qr_code: `PULSE-${crypto.randomUUID()}`,
+      qr_secret: newQrSecret(),
     }))
 
     const { error: ticketError } = await supabase.from('tickets').insert(ticketRows)
@@ -83,6 +87,11 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
       p_tier_id: tier_id,
       p_qty: qty,
     })
+
+    // One completed order = one use of the promo code
+    if (promo_id) {
+      try { await recordPromoUse(promo_id) } catch (e) { console.error('Promo use not recorded:', e) }
+    }
 
     if (buyerEmail) {
       try {
@@ -114,7 +123,6 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 
         // Notify admin of new sale
         try {
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticketRows[0].qr_code)}`
           const adminHtml = `<!DOCTYPE html><html><body style="margin:0;padding:32px;background:#000;font-family:Arial,sans-serif;color:#f0f0f0;">
             <div style="max-width:480px;margin:0 auto;">
               <div style="font-size:24px;font-weight:900;color:#ffaa33;margin-bottom:24px;letter-spacing:3px;">pulse · new sale</div>
@@ -123,12 +131,6 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
                 <div style="font-size:13px;color:#888;margin-bottom:12px;">${tierName} · ${eventDate}${eventData?.venue_name ? ` · ${eventData.venue_name}` : ''}</div>
                 <div style="font-size:13px;color:#aaa;">Buyer: <strong style="color:#fff;">${buyerName || 'Unknown'}</strong></div>
                 <div style="font-size:13px;color:#aaa;">Email: <strong style="color:#ffaa33;">${buyerEmail}</strong></div>
-              </div>
-              <div style="text-align:center;background:#0d0800;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:20px;">
-                <div style="font-size:11px;color:#554;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Their QR</div>
-                <div style="background:#fff;border-radius:8px;padding:10px;display:inline-block;">
-                  <img src="${qrUrl}" width="150" height="150" alt="QR" style="display:block;"/>
-                </div>
               </div>
             </div>
           </body></html>`

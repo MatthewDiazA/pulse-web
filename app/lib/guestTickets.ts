@@ -27,13 +27,13 @@ export const orderUrl = (orderId: string) => `${appUrl()}/tickets/${orderId}`
 export async function sendOrderEmail(orderId: string, opts: { guest: boolean }) {
   const { data: order } = await admin
     .from('orders')
-    .select('id, buyer_email, buyer_name, event:events(title, starts_at, venue_name), tickets(qr_code, tier:ticket_tiers(name))')
+    .select('id, buyer_email, buyer_name, event:events(title, starts_at, venue_name), tickets(qr_code, qr_secret, tier:ticket_tiers(name))')
     .eq('id', orderId)
     .single()
   if (!order?.buyer_email) return
 
   const event = order.event as unknown as { title: string; starts_at: string | null; venue_name: string | null } | null
-  const tickets = (order.tickets as unknown as { qr_code: string; tier: { name: string } | null }[]) ?? []
+  const tickets = (order.tickets as unknown as { qr_code: string; qr_secret: string | null; tier: { name: string } | null }[]) ?? []
   const title = event?.title ?? 'your event'
   const html = buildTicketEmail({
     buyer_name: order.buyer_name ? escapeHtml(order.buyer_name) : undefined,
@@ -45,6 +45,7 @@ export async function sendOrderEmail(orderId: string, opts: { guest: boolean }) 
     tickets: tickets.map(t => ({ qr_code: t.qr_code, tier_name: escapeHtml(t.tier?.name ?? 'Ticket') })),
     order_url: orderUrl(order.id),
     account_email: opts.guest ? escapeHtml(order.buyer_email) : undefined,
+    live: tickets.some(t => t.qr_secret),
   })
 
   await resend.emails.send({

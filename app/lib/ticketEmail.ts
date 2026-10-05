@@ -1,6 +1,7 @@
 // Canonical ticket email (QR codes + details). Used by /api/email and server-side senders.
 
-export function buildTicketEmail({ buyer_name, event_title, event_date, venue, tickets, order_url, account_email }: {
+export function buildTicketEmail({ buyer_name, event_title, event_date, venue, tickets, order_url, account_email, live }: {
+  live?: boolean          // live rotating codes: no QR images in the email (screenshots), link to the ticket page instead
   buyer_name?: string
   order_url?: string     // no-login page with every ticket in the order
   account_email?: string // guest checkout: nudge them to sign up with this email
@@ -72,14 +73,19 @@ export function buildTicketEmail({ buyer_name, event_title, event_date, venue, t
         <div style="border-top:1px dashed rgba(255,255,255,0.08);"></div>
       </td></tr>` : ''}
 
-      <!-- QR codes -->
-      ${qrBlocks}
+      <!-- QR codes (or, for live tickets, where to find them) -->
+      ${live && order_url ? `
+      <tr><td style="padding:28px;text-align:center;">
+        <div style="font-size:15px;color:#ffffff;font-weight:700;margin-bottom:8px;">${count > 1 ? `Your ${count} entry codes are on your ticket page` : 'Your entry code is on your ticket page'}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:20px;">Open it at the door. The code refreshes every few seconds, so screenshots won't scan.</div>
+        <a href="${order_url}" style="display:inline-block;background:#ffffff;color:#000000;text-decoration:none;font-size:15px;font-weight:700;padding:14px 30px;border-radius:100px;">Open your ${count > 1 ? 'tickets' : 'ticket'}</a>
+      </td></tr>` : qrBlocks}
 
-      ${count > 1 ? `<tr><td style="padding:0 28px 24px;text-align:center;"><div style="font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1.5px;text-transform:uppercase;">Show each code at the door</div></td></tr>` : ''}
+      ${!live && count > 1 ? `<tr><td style="padding:0 28px 24px;text-align:center;"><div style="font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1.5px;text-transform:uppercase;">Show each code at the door</div></td></tr>` : ''}
     </table>
   </td></tr>
 
-  ${order_url ? `
+  ${order_url && !live ? `
   <!-- View tickets -->
   <tr><td style="padding-bottom:24px;text-align:center;">
     <a href="${order_url}" style="display:inline-block;background:#ffffff;color:#000000;text-decoration:none;font-size:15px;font-weight:700;padding:14px 30px;border-radius:100px;">View your tickets</a>

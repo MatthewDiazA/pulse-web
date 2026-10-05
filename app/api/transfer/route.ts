@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { newQrSecret } from '../../lib/liveQr'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -67,6 +68,8 @@ export async function GET(request: Request) {
     await supabase.from('tickets').update({
       user_id: claimUserId,
       qr_code: newQr,
+      // New secret: the previous holder's live code stops scanning the moment it's transferred
+      qr_secret: newQrSecret(),
       is_transferred: true,
     }).eq('id', transfer.ticket_id)
 

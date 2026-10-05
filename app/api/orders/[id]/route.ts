@@ -13,12 +13,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const { data: order } = await admin
     .from('orders')
-    .select('id, status, buyer_name, buyer_email, user_id, event:events(id, title, starts_at, doors_at, venue_name, address, city, state, cover_image_url), tickets(id, qr_code, is_checked_in, is_guestlist, tier:ticket_tiers(name))')
+    .select('id, status, buyer_name, buyer_email, user_id, event:events(id, title, starts_at, doors_at, venue_name, address, city, state, cover_image_url), tickets(id, qr_code, qr_secret, is_checked_in, is_guestlist, tier:ticket_tiers(name))')
     .eq('id', id)
     .single()
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const tickets = (order.tickets as unknown as { id: string; qr_code: string; is_checked_in: boolean; is_guestlist: boolean; tier: { name: string } | null }[]) ?? []
+  const tickets = (order.tickets as unknown as { id: string; qr_code: string; qr_secret: string | null; is_checked_in: boolean; is_guestlist: boolean; tier: { name: string } | null }[]) ?? []
   return NextResponse.json({
     id: order.id,
     status: order.status,
@@ -29,6 +29,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     tickets: tickets.map(t => ({
       id: t.id,
       qr_code: t.qr_code,
+      qr_secret: t.qr_secret,
       checked_in: !!t.is_checked_in,
       label: t.is_guestlist ? 'Guest list' : t.tier?.name ?? 'Ticket',
     })),

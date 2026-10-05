@@ -1,7 +1,9 @@
 // app/api/claim-guest/route.ts
 import { NextResponse } from 'next/server'
+import { newQrSecret } from '../../lib/liveQr'
 import { createClient } from '@supabase/supabase-js'
 import { isEmail, sendOrderEmail } from '../../lib/guestTickets'
+import { requireEventHost } from '../../lib/hostAuth'
 
 // Service-role client — bypasses RLS so we can mint the ticket reliably
 const supabase = createClient(
@@ -12,21 +14,12 @@ const supabase = createClient(
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { token, userId, action, eventId, requesterId, ticketId } = body as { token?: string; userId?: string; action?: string; eventId?: string; requesterId?: string; ticketId?: string }
+    const { token, userId, action, eventId, ticketId } = body as { token?: string; userId?: string; action?: string; eventId?: string; ticketId?: string }
 
     // ── Guest-list management (host/admin only): list + remove ──────────────
     if (action === 'list' || action === 'remove') {
-      // authorize: requester must be the event host or a site admin
-      let allowed = false
-      if (eventId && requesterId) {
-        const { data: ev } = await supabase.from('events').select('host_id').eq('id', eventId).single()
-        if (ev?.host_id === requesterId) allowed = true
-        else {
-          const { data: admin } = await supabase.from('admins').select('user_id').eq('user_id', requesterId).single()
-          allowed = !!admin
-        }
-      }
-      if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      // Authorize from the caller's session token — a user id in the body could be anyone's
+      if (!(await requireEventHost(request, eventId))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
       if (action === 'list') {
         const { data: tickets } = await supabase
@@ -155,6 +148,7 @@ export async function POST(request: Request) {
       order_id: orderId,
       holder_name: userId ? null : guestName,
       qr_code: `PULSE-GL-${crypto.randomUUID()}`,
+      qr_secret: newQrSecret(),
       status: 'active',
       is_guestlist: true,
     }))

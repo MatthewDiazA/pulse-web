@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { newQrSecret } from '../../../lib/liveQr'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       tier_id,
       user_id: user_id ?? null,
       qr_code: generateCode(),
+      qr_secret: newQrSecret(),
     }))
 
     const { error: ticketError } = await supabase

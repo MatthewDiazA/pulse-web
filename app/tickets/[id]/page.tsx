@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import QRCode from 'qrcode'
+import LiveQr from '../../components/LiveQr'
 import Link from 'next/link'
 
 // No-login ticket page: every ticket in one order, with its QR code.
@@ -13,7 +13,7 @@ type OrderView = {
   buyer_email: string | null
   linked: boolean
   event: { id: string; title: string; starts_at: string | null; venue_name: string | null; address: string | null; city: string | null; state: string | null; cover_image_url: string | null } | null
-  tickets: { id: string; qr_code: string; checked_in: boolean; label: string }[]
+  tickets: { id: string; qr_code: string; qr_secret: string | null; checked_in: boolean; label: string }[]
 }
 
 function when(iso: string | null): string {
@@ -23,14 +23,6 @@ function when(iso: string | null): string {
   const h = d.getUTCHours(), m = d.getUTCMinutes()
   const time = `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''}${h >= 12 ? 'pm' : 'am'}`
   return `${day} · ${time}`
-}
-
-function Qr({ value, dim }: { value: string; dim: boolean }) {
-  const [src, setSrc] = useState<string | null>(null)
-  useEffect(() => {
-    QRCode.toDataURL(value, { width: 520, margin: 1, color: { dark: '#000000', light: '#ffffff' } }).then(setSrc)
-  }, [value])
-  return src ? <img src={src} alt="Ticket QR code" className={`qr ${dim ? 'dim' : ''}`}/> : <div className="qr qr-empty"/>
 }
 
 export default function TicketsPage() {
@@ -68,9 +60,6 @@ export default function TicketsPage() {
         .ticket{background:#fff;color:#000;border-radius:16px;padding:22px 22px 18px;margin-bottom:14px;text-align:center;}
         .t-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
         .t-row span:last-child{color:rgba(0,0,0,0.45);}
-        .qr{width:100%;max-width:260px;aspect-ratio:1;display:block;margin:0 auto;image-rendering:pixelated;}
-        .qr.dim{opacity:0.25;}
-        .qr-empty{background:#f2f2f2;border-radius:8px;}
         .t-foot{margin-top:12px;font-size:11px;color:rgba(0,0,0,0.5);}
         .t-foot.used{color:#1a8f4c;font-weight:700;}
         .hint{font-size:12px;color:rgba(255,255,255,0.45);text-align:center;margin:6px 0 28px;line-height:1.6;}
@@ -110,13 +99,13 @@ export default function TicketsPage() {
           {order.tickets.map((t, i) => (
             <div key={t.id} className="ticket">
               <div className="t-row"><span>{t.label}</span><span>{count > 1 ? `${i + 1} of ${count}` : 'Admit one'}</span></div>
-              <Qr value={t.qr_code} dim={t.checked_in}/>
+              <LiveQr ticketId={t.id} secret={t.qr_secret} staticCode={t.qr_code} dim={t.checked_in}/>
               <div className={`t-foot ${t.checked_in ? 'used' : ''}`}>{t.checked_in ? 'Checked in' : 'Show this at the door'}</div>
             </div>
           ))}
 
           <p className="hint">
-            {count > 1 ? 'Each code gets one person in. Screenshot them or send one to each friend.' : 'Screenshot this or keep the email — the code is all you need at the door.'}
+            {count > 1 ? 'Each code gets one person in. Open this page at the door — the codes refresh, so screenshots won’t scan.' : 'Open this page at the door — the code refreshes, so a screenshot won’t scan.'}
           </p>
 
           {!order.linked && order.buyer_email && (
