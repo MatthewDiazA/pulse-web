@@ -447,8 +447,6 @@ export default function EventDetail() {
 
   // Mobile bar should quote the cheapest tier someone can actually buy
   const buyableTier = sortedTiers.find((t, i) => remainingOf(t) > 0 && !lockInfoFor(t, i).locked) ?? null
-  // Social proof only once it's real
-  const going = sortedTiers.reduce((n, t) => n + (t.quantity_sold || 0), 0)
 
   return (
     <>
@@ -520,8 +518,6 @@ export default function EventDetail() {
         .ev-head{display:flex;flex-direction:column;gap:12px;}
         .ev-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(44px,12vw,80px);font-weight:900;text-transform:uppercase;line-height:0.88;color:#fff;letter-spacing:-0.5px;text-wrap:balance;}
         .ev-sub{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px;color:rgba(255,255,255,0.55);}
-        .going{display:inline-flex;align-items:center;gap:7px;color:rgba(255,255,255,0.8);font-weight:600;}
-        .going::before{content:'';width:6px;height:6px;border-radius:50%;background:#5ec888;box-shadow:0 0 8px #5ec888;}
 
         /* THE BAR — the night's key facts, in the flyer's color */
         .fact-bar{display:flex;align-items:stretch;background:var(--accent);color:var(--ink);border-radius:12px;overflow:hidden;transition:background 0.8s;}
@@ -580,8 +576,6 @@ export default function EventDetail() {
         .tier-sub{font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:0.5px;}
         .tier-sub.low{color:var(--accent);font-weight:600;}
         .tier-price{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:700;color:#fff;line-height:0.85;letter-spacing:-0.5px;white-space:nowrap;}
-        .avail-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:18px;}
-        .avail-fill{height:100%;background:var(--accent);transition:width 0.5s ease,background 0.8s;}
         .checkout-row{display:flex;gap:10px;align-items:stretch;}
         .stepper{display:flex;align-items:center;border:1px solid rgba(255,255,255,0.14);border-radius:10px;flex-shrink:0;}
         .stepper button{width:36px;height:100%;min-height:48px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;font-family:'Syne',sans-serif;}
@@ -653,9 +647,6 @@ export default function EventDetail() {
         <div className="info-col">
           <header className="ev-head">
             <h1 className="ev-title">{event.title}</h1>
-            {going >= 10 && (
-              <div className="ev-sub"><span className="going">{going} going</span></div>
-            )}
           </header>
 
           <div className="fact-bar">
@@ -690,9 +681,6 @@ export default function EventDetail() {
                 // Door tier: hide the availability bar (still sells, still goes sold-out)
                 const hideAvailability = tier.name.trim().toLowerCase() === 'door'
                 const low = !soldOut && !locked && !hideAvailability && available <= 12
-                const soldPct = tier.quantity > 0
-                  ? Math.max(2, ((tier.quantity - available) / tier.quantity) * 100)
-                  : 0
                 return (
                   <div key={tier.id} className={`ticket ${soldOut ? 'dim soldout' : locked ? 'dim' : ''}`}>
                     <div className="ticket-top">
@@ -700,16 +688,13 @@ export default function EventDetail() {
                         <div>
                           <div className="tier-name">{toRomanTierName(tier.name)}</div>
                           <div className={`tier-sub ${low ? 'low' : ''}`}>
-                            {soldOut ? 'sold out' : locked ? reason : low ? `only ${available} left` : price === 0 ? 'free admission' : 'general admission'}
+                            {soldOut ? 'sold out' : locked ? reason : low ? 'almost gone' : price === 0 ? 'free admission' : 'general admission'}
                           </div>
                         </div>
                         <div className="tier-price">
                           {displayPrice(price, 1)}
                         </div>
                       </div>
-                      {!soldOut && !locked && !hideAvailability && (
-                        <div className="avail-bar"><div className="avail-fill" style={{width:`${soldPct}%`}}/></div>
-                      )}
                       {nextTier && (
                         <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
                       )}
