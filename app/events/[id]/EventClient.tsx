@@ -805,8 +805,6 @@ export default function EventDetail({ initialEvent }: { initialEvent: EventData 
                 const available = remainingOf(tier)
                 const soldOut = available <= 0
                 const { locked, reason } = lockInfoFor(tier, index)
-                // The price the buyer faces once this tier is gone
-                const nextTier = !soldOut && !locked ? sortedTiers.slice(index + 1).find(t => remainingOf(t) > 0 && safePrice(t.price) > price) : undefined
                 const maxQty = Math.min(available, 10)
                 const qty = Math.min(selectedQty[tier.id] || 1, Math.max(1, maxQty))
                 const setQty = (n: number) => setSelectedQty(prev => ({ ...prev, [tier.id]: n }))
@@ -841,9 +839,6 @@ export default function EventDetail({ initialEvent }: { initialEvent: EventData 
                         {displayPrice(discounted(price, promo), 1)}
                       </div>
                     </div>
-                    {selected && nextTier && (
-                      <div className="tier-next">Price goes up to <b>{money(safePrice(nextTier.price))}</b> after this tier</div>
-                    )}
                     {selected && (
                       <div className="qty-row" onClick={e => e.stopPropagation()}>
                         <span className="qty-label">Quantity</span>
