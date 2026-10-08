@@ -427,7 +427,6 @@ export default function EditEvent({ params }: { params: Promise<{ id: string }> 
     <>
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { background:${COLORS.bg}; font-family:'Syne',sans-serif; color:#f0f0f0; }
         .wrap { max-width:680px; margin:0 auto; padding:0 20px 100px; }

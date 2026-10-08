@@ -575,7 +575,6 @@ export default function EventDetail({ initialEvent }: { initialEvent: EventData 
     <>
       <TouchBlot intensity={0.4} palette={[palette.accent, palette.accent2]} />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         :root{--accent:${palette.accent};--accent-2:${palette.accent2};--ink:${palette.ink};--accent-rgb:${palette.rgb};}
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:${BG};color:#f0f0f0;font-family:'Syne',sans-serif;overflow-x:hidden;}

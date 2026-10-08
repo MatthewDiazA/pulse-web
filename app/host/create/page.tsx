@@ -249,7 +249,6 @@ export default function CreateEvent() {
         href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"
       />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { background:${COLORS.bg}; font-family:'Syne',sans-serif; color:#f0f0f0; min-height:100vh; }
         .bg-pattern { position:fixed; inset:0; background:radial-gradient(circle at 50% 0%, rgba(255,170,51,0.03) 0%, transparent 60%); pointer-events:none; z-index:0; }

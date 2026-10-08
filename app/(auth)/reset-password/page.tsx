@@ -81,7 +81,6 @@ export default function ResetPasswordPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=Syne:wght@400;600;700&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;}
         body{background:#000;font-family:'Syne',sans-serif;color:#f0f0f0;min-height:100vh;}
         .acid{position:fixed;inset:0;z-index:0;pointer-events:none;}

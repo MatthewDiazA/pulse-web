@@ -246,7 +246,6 @@ export default function AccountPage() {
     <>
       <TouchBlot />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:#000;font-family:'Syne',sans-serif;color:#f0f0f0;min-height:100vh;}
 
@@ -297,8 +296,6 @@ export default function AccountPage() {
         </button>
         <div className="nav-right">
           <div className="nav-links">
-            <button className="nav-link" onClick={() => router.push('/discover')}>discover</button>
-            <button className="nav-link" onClick={() => router.push('/connect')}>connect</button>
             <button className="nav-link" onClick={() => router.push('/host')}>dashboard</button>
             {isAdmin && (
               <button className="nav-link" onClick={() => router.push('/admin')} style={{color:'rgba(255,170,51,0.7)'}}>admin</button>

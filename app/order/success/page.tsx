@@ -34,7 +34,6 @@ export default function OrderSuccess() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=Syne:wght@400;600&display=swap');
         body{background:#000;margin:0;color:#f0f0f0;font-family:'Syne',sans-serif;}
         .c{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;}
         .t{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:900;text-transform:uppercase;line-height:0.95;color:#fff;}

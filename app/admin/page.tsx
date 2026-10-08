@@ -982,7 +982,6 @@ export default function AdminPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Syne:wght@400;500;600;700&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:#000;color:#f0f0f0;font-family:'Syne',sans-serif;min-height:100vh;}
         .acid{position:fixed;inset:0;z-index:0;pointer-events:none;}

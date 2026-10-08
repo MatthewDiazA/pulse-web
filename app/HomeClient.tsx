@@ -246,7 +246,6 @@ export default function HomeClient({ initialEvents }: { initialEvents: HomeEvent
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Syne:wght@400;500;600;700;800&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         html, body { background:${COLORS.bg}; min-height:100vh; overflow-x:hidden; }
         .page { position:relative; z-index:1; background:${COLORS.bg}; min-height:100vh; }

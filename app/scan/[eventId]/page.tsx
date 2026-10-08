@@ -150,7 +150,6 @@ export default function ScanPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Syne:wght@400;500;600;700&display=swap');
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         body{background:#000;color:#f0f0f0;font-family:'Syne',sans-serif;}
         nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 20px;border-bottom:0.5px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#000;z-index:10;}
